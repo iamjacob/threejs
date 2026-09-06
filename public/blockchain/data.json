@@ -1,0 +1,205 @@
+[
+  {
+  "info": "weight is in grams, size is in centimeters."
+},
+  {
+  "title": "Seneca",
+  "subtitle": "On the Shortness of Life",
+  "author": "Seneca",
+  "translator": "C. D. N. Costa",
+  "isbn-type": "ISBN-13",
+  "isbn": "978-0-141-01881-2",
+  "language": "en",
+  "publisher": "Penguin books",
+  "edition": "",
+  "format": "Paperback",
+  "pages": 106,
+  "releaseDate": "17-03-2004",
+  "coverImage": "cover.webp",
+  "size": {
+    "width": 11,
+    "height": 18,
+    "thickness": 0.7
+  },
+  "weight": 76
+}
+,
+{
+  "title": "What's Your DREAM?",
+  "subtitle": "Find your passin. Love your work, Build a richer life.",
+  "author": "Simon Squibb",
+  "translator": "",
+  "isbn-type": "ISBN-13",
+  "isbn": "978-1-529-93557-8",
+  "language": "en",
+  "publisher": "Penguin books",
+  "edition": "",
+  "format": "Hardback",
+  "dustjacket": true,
+  "pages": 282,
+  "readablePages":273,
+  "releaseDate": "2025",
+  "coverImage": [
+    {
+      "front":"safe_cover.webp",
+      "back":"safe_cover_back.webp"
+    }
+  ],
+  "size": {
+    "width": 16,
+    "height": 24,
+    "thickness": 2.9
+  },
+  "weight": 505
+},
+{
+  "title": "Why Has Nobody Told Me This Before?",
+  "subtitle": "Everyday Tools for Life's Ups and Downs",
+  "author": "Dr. Julie Smith",
+  "translator": "",
+  "isbn-type": "ISBN-13",
+  "isbn": "978-0-241-52971-3",
+  "language": "en",
+  "publisher": "Penguin books",
+  "edition": "",
+  "format": "Hardback",
+  "dustjacket": true,
+  "pages": 352,
+  "readablePages": 320,
+  "releaseDate": "2022",
+  "coverImage": [
+    {
+      "front":"safe_cover.webp",
+      "back":"safe_cover_back.webp"
+    }
+  ],
+  "size": {
+    "width": 14.1,
+    "height": 22.3,
+    "thickness": 3.4
+  },
+  "weight": 485
+}
+,
+{
+  "title": "Tough",
+  "subtitle": "My journey to true power",
+  "author": "Terry Crews",
+  "translator": "",
+  "isbn-type": "",
+  "isbn": "978-0-593329801",
+  "language": "en",
+  "publisher": "Penguin books",
+  "edition": "",
+  "format": "Hardback",
+  "dustjacket": true,
+  "pages": 269,
+  "readablePages": 269,
+  "releaseDate": "2022",
+  "coverImage": [
+    {
+      "front":"safe_cover.webp",
+      "back":"safe_cover_back.webp"
+    }
+  ],
+  "size": {
+    "width": 15.8,
+    "height": 23.6,
+    "thickness": 2.6
+  },
+  "weight": 499
+}
+,
+{
+  "title": "Slow productivity",
+  "subtitle": "The Lost Art of Accomplishment Without Burnout",
+  "author": "Cal Newport",
+  "translator": "",
+  "isbn-type": "",
+  "isbn": "978-0-241-65291-6",
+  "language": "en",
+  "publisher": "Penguin books",
+  "edition": "",
+  "format": "Paperback",
+  "dustjacket": false,
+  "pages": 244,
+  "readablePages": 222,
+  "releaseDate": "2024",
+  "coverImage": [
+    {
+      "front":"safe_cover.webp",
+      "back":"safe_cover_back.webp"
+    }
+  ],
+  "size": {
+    "width": 23.4,
+    "height": 15.4,
+    "thickness": 2
+  },
+  "weight": 321
+}
+,
+{
+  "title": "Homo Deus",
+  "subtitle": "A Brief History of Tomorrow",
+  "author": "Yuval Noah Harari",
+  "translator": "",
+  "isbn-type": "",
+  "isbn": "978-0-241-65291-6",
+  "language": "en",
+  "publisher": "Vintage",
+  "edition": "",
+  "format": "Paperback",
+  "dustjacket": false,
+  "pages": 514,
+  "readablePages": 462,
+  "releaseDate": "2017",
+  "coverImage": [
+    {
+      "front":"safe_cover.webp",
+      "back":"safe_cover_back.webp"
+    }
+  ],
+  "size": {
+    "width": 12.8,
+    "height": 19.7,
+    "thickness": 4
+  },
+  "weight": 487
+}
+
+
+
+,
+{
+  "title": "",
+  "subtitle": "",
+  "author": "",
+  "translator": "",
+  "isbn-type": "",
+  "isbn": "978-0-241-65291-6",
+  "language": "en",
+  "publisher": "Vintage",
+  "edition": "",
+  "format": "Paperback",
+  "dustjacket": false,
+  "pages": 514,
+  "readablePages": 462,
+  "releaseDate": "2017",
+  "coverImage": [
+    {
+      "front":"safe_cover.webp",
+      "back":"safe_cover_back.webp"
+    }
+  ],
+  "size": {
+    "width": 12.8,
+    "height": 19.7,
+    "thickness": 4
+  },
+  "weight": 487
+}
+
+
+
+]
