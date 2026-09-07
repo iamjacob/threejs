@@ -1,0 +1,612 @@
+[
+  {
+  "info": "weight is in grams, size is in centimeters."
+},
+  {
+  "title": "Seneca",
+  "subtitle": "On the Shortness of Life",
+  "author": "Seneca",
+  "translator": "C. D. N. Costa",
+  "isbn-type": "ISBN-13",
+  "isbn": "978-0-141-01881-2",
+  "language": "en",
+  "publisher": "Penguin books",
+  "edition": "",
+  "format": "Paperback",
+  "pages": 106,
+  "releaseDate": "17-03-2004",
+  "coverImage": "cover.webp",
+  "size": {
+    "width": 11,
+    "height": 18,
+    "thickness": 0.7
+  },
+  "weight": 76
+}
+,
+{
+  "title": "What's Your DREAM?",
+  "subtitle": "Find your passin. Love your work, Build a richer life.",
+  "author": "Simon Squibb",
+  "translator": "",
+  "isbn-type": "ISBN-13",
+  "isbn": "978-1-529-93557-8",
+  "language": "en",
+  "publisher": "Penguin books",
+  "edition": "",
+  "format": "Hardback",
+  "dustjacket": true,
+  "pages": 282,
+  "readablePages":273,
+  "releaseDate": "2025",
+  "coverImage": [
+    {
+      "front":"safe_cover.webp",
+      "back":"safe_cover_back.webp"
+    }
+  ],
+  "size": {
+    "width": 16,
+    "height": 24,
+    "thickness": 2.9
+  },
+  "weight": 505
+},
+{
+  "title": "Why Has Nobody Told Me This Before?",
+  "subtitle": "Everyday Tools for Life's Ups and Downs",
+  "author": "Dr. Julie Smith",
+  "translator": "",
+  "isbn-type": "ISBN-13",
+  "isbn": "978-0-241-52971-3",
+  "language": "en",
+  "publisher": "Penguin books",
+  "edition": "",
+  "format": "Hardback",
+  "dustjacket": true,
+  "pages": 352,
+  "readablePages": 320,
+  "releaseDate": "2022",
+  "coverImage": [
+    {
+      "front":"safe_cover.webp",
+      "back":"safe_cover_back.webp"
+    }
+  ],
+  "size": {
+    "width": 14.1,
+    "height": 22.3,
+    "thickness": 3.4
+  },
+  "weight": 485
+}
+,
+{
+  "title": "Tough",
+  "subtitle": "My journey to true power",
+  "author": "Terry Crews",
+  "translator": "",
+  "isbn-type": "",
+  "isbn": "978-0-593329801",
+  "language": "en",
+  "publisher": "Penguin books",
+  "edition": "",
+  "format": "Hardback",
+  "dustjacket": true,
+  "pages": 269,
+  "readablePages": 269,
+  "releaseDate": "2022",
+  "coverImage": [
+    {
+      "front":"safe_cover.webp",
+      "back":"safe_cover_back.webp"
+    }
+  ],
+  "size": {
+    "width": 15.8,
+    "height": 23.6,
+    "thickness": 2.6
+  },
+  "weight": 499
+}
+,
+{
+  "title": "Slow productivity",
+  "subtitle": "The Lost Art of Accomplishment Without Burnout",
+  "author": "Cal Newport",
+  "translator": "",
+  "isbn-type": "",
+  "isbn": "978-0-241-65291-6",
+  "language": "en",
+  "publisher": "Penguin books",
+  "edition": "",
+  "format": "Paperback",
+  "dustjacket": false,
+  "pages": 244,
+  "readablePages": 222,
+  "releaseDate": "2024",
+  "coverImage": [
+    {
+      "front":"safe_cover.webp",
+      "back":"safe_cover_back.webp"
+    }
+  ],
+  "size": {
+    "width": 23.4,
+    "height": 15.4,
+    "thickness": 2
+  },
+  "weight": 321
+}
+,
+{
+  "title": "Homo Deus",
+  "subtitle": "A Brief History of Tomorrow",
+  "author": "Yuval Noah Harari",
+  "translator": "",
+  "isbn-type": "",
+  "isbn": "978-0-241-65291-6",
+  "language": "en",
+  "publisher": "Vintage",
+  "edition": "",
+  "format": "Paperback",
+  "dustjacket": false,
+  "pages": 514,
+  "readablePages": 462,
+  "releaseDate": "2017",
+  "coverImage": [
+    {
+      "front":"safe_cover.webp",
+      "back":"safe_cover_back.webp"
+    }
+  ],
+  "size": {
+    "width": 12.8,
+    "height": 19.7,
+    "thickness": 4
+  },
+  "weight": 487
+}
+,
+{
+  "title": "THE DAILY STOIC",
+  "subtitle": "366 meditations on wisdom, preservation, and the art of living",
+  "author": "Ryan Holiday",
+  "translator": "",
+  "isbn-type": "",
+  "isbn": "978-1-781257654",
+  "language": "en",
+  "publisher": "Portfolio/Penguin",
+  "edition": "",
+  "format": "Paperback",
+  "dustjacket": false,
+  "pages": 406,
+  "readablePages": 387,
+  "releaseDate": "2016",
+  "coverImage": [
+    {
+      "front":".webp",
+      "back":".webp",
+      "spine":".webp"
+    }
+  ],
+  "size": {
+    "width": 13,
+    "height": 20,
+    "thickness": 2.7
+  },
+  "weight": 328
+}
+,
+{
+  "title": "BEHAVE",
+  "subtitle": "The biology of humans at our best and worst",
+  "author": "Robert Sapolsky",
+  "translator": "",
+  "isbn-type": "",
+  "isbn": "978-0099575061",
+  "language": "en",
+  "publisher": "Portfolio/Penguin",
+  "edition": "",
+  "format": "Paperback",
+  "dustjacket": false,
+  "pages": 790,
+  "readablePages": 717,
+  "releaseDate": "2017",
+  "coverImage": [
+    {
+      "front":".webp",
+      "back":".webp",
+      "spine":".webp"
+    }
+  ],
+  "size": {
+    "width": 13,
+    "height": 19.8,
+    "thickness": 4
+  },
+  "weight":587
+}
+,
+{
+  "parent":"ID-1-SET-IT",
+  "title": "Shaolin spirit",
+  "subtitle": "Lær at mestre dit liv",
+  "author": "Shi Heng Yi",
+  "translator": "Jakob Eberhardt",
+  "isbn-type": "",
+  "isbn": "978-87-12-80296-9",
+  "language": "da",
+  "publisher": "Gads forlag",
+  "edition": "1. udgave",
+  "format": "Paperback",
+  "dustjacket": false,
+  "frenchflaps": true,
+  "pages": 288,
+  "readablePages": 287,
+  "releaseDate": "2025",
+  "coverImage": [
+    {
+      "front":".webp",
+      "back":".webp",
+      "spine":".webp"
+    }
+  ],
+  "size": {
+    "width": 15.3,
+    "height": 22.6,
+    "thickness": 2.4
+  },
+  "weight": 400
+},
+{
+  "title": "Empowered",
+  "subtitle": "Ordinary People, Extraordinary Products",
+  "author": ["Marty Cagan", "Chris Jones"],
+  "translator": "",
+  "isbn-type": "",
+  "isbn": "9781119691297",
+  "language": "en",
+  "publisher": "Wiley",
+  "edition": "",
+  "format": "Hardback",
+  "dustjacket": true,
+  "pages": 416,
+  "readablePages": 395,
+  "releaseDate": "2021",
+  "coverImage": [
+    {
+      "front":".webp",
+      "back":".webp",
+      "spine":".webp"
+    }
+  ],
+  "size": {
+    "width": 16.8,
+    "height": 23.4,
+    "thickness": 3
+  },
+  "weight":776
+},
+{
+  "title": "THE SOURCE",
+  "subtitle": "Open your mind. Change your life.",
+  "author": "DR Tara Swart",
+  "translator": "",
+  "isbn-type": "",
+  "isbn": "9781785042003",
+  "language": "en",
+  "publisher": "Penguin",
+  "edition": "",
+  "format": "Paperback",
+  "dustjacket": false,
+  "pages": 272,
+  "readablePages": 246,
+  "releaseDate": "2020",
+  "coverImage": [
+    {
+      "front":".webp",
+      "back":".webp",
+      "spine":".webp"
+    }
+  ],
+  "size": {
+    "width": 12.8,
+    "height": 19.9,
+    "thickness": 1.8
+  },
+  "weight": 202
+},
+{
+  "title": "Small Data",
+  "subtitle": "The tiny clues that uncover huge trends",
+  "author": "Martin Lindstrom",
+  "translator": "",
+  "isbn-type": "",
+  "isbn": "978-1-473634060",
+  "language": "en",
+  "publisher": "Hodder & Stoughton",
+  "edition": "",
+  "format": "Paperback",
+  "dustjacket": false,
+  "pages": 246,
+  "readablePages": 227,
+  "releaseDate": "2016",
+  "coverImage": [
+    {
+      "front":".webp",
+      "back":".webp",
+      "spine":".webp"
+    }
+  ],
+  "size": {
+    "width": 13.5,
+    "height": 21.7,
+    "thickness": 2
+  },
+  "weight":274
+},
+{
+  "title": "Discipline is Destiny",
+  "subtitle": "The power of self-control",
+  "author": "Ryan Holiday",
+  "translator": "",
+  "isbn-type": "",
+  "isbn": "978-1-788166348",
+  "language": "en",
+  "publisher": "Profile Books",
+  "edition": "",
+  "format": "Paperback",
+  "dustjacket": false,
+  "pages": 318,
+  "readablePages":309,
+  "releaseDate": "2023",
+  "coverImage": [
+    {
+      "front":".webp",
+      "back":".webp",
+      "spine":".webp"
+    }
+  ],
+  "size": {
+    "width": 13,
+    "height": 20,
+    "thickness": 2.3
+  },
+  "weight":285
+},
+{
+  "title": "Stilness is the Key",
+  "subtitle": "An ancient strategy for modern life",
+  "author": "Ryan Holiday",
+  "translator": "",
+  "isbn-type": "",
+  "isbn": "978-1-788162067",
+  "language": "en",
+  "publisher": "Portfolio/Penguin",
+  "edition": "",
+  "format": "Paperback",
+  "dustjacket": false,
+  "pages": 265,
+  "readablePages": 260,
+  "releaseDate": "2020",
+  "coverImage": [
+    {
+      "front":".webp",
+      "back":".webp",
+      "spine":".webp"
+    }
+  ],
+  "size": {
+    "width": 13,
+    "height": 19.8,
+    "thickness": 2.2
+  },
+  "weight":264
+},
+{
+  "title": "Four Thousand Weeks",
+  "subtitle": "Time management for mortals",
+  "author": "Oliver Burkeman",
+  "translator": "",
+  "isbn-type": "",
+  "isbn": "978-1-784704001",
+  "language": "en",
+  "publisher": "Vintage",
+  "edition": "",
+  "format": "Paperback",
+  "dustjacket": false,
+  "pages": 271,
+  "readablePages": 245,
+  "releaseDate": "2021",
+  "coverImage": [
+    {
+      "front":".webp",
+      "back":".webp",
+      "spine":".webp"
+    }
+  ],
+  "size": {
+    "width": 13,
+    "height": 20,
+    "thickness": 2
+  },
+  "weight":208
+},
+{
+  "title": "Be useful",
+  "subtitle": "Seven tools for life",
+  "author": "Arnold Schwarzenegger",
+  "translator": "",
+  "isbn-type": "",
+  "isbn": "978-1-529146554",
+  "language": "en",
+  "publisher": "Penguin",
+  "edition": "",
+  "format": "Paperback",
+  "dustjacket": false,
+  "chapters":["Have a clear vision","Never think small","Work your ass off","Sell, sell, sell","Shift gears","Shut your mouth, open your mind","break your mirrors"],
+  "pages": 292,
+  "readablePages": 292,
+  "releaseDate": "2023",
+  "coverImage": [
+    {
+      "front":".webp",
+      "back":".webp",
+      "spine":".webp"
+    }
+  ],
+  "size": {
+    "width": 12.7,
+    "height": 19.8,
+    "thickness": 2
+  },
+  "weight":225
+},
+{
+  "title": "How big things get done",
+  "subtitle": "The surprising factors factors behind every successful project from home renovations to space exploration",
+  "author": ["Bent Flyvbjerg","Dan Gardner"],
+  "translator": "",
+  "isbn-type": "",
+  "isbn": "978-1-0350-1895-6",
+  "language": "en",
+  "publisher": "Macmillan",
+  "edition": "",
+  "format": "Paperback",
+  "dustjacket": false,
+  "chapters":["Introduction: California Dreamin'","Think slow, Act fast","The Commitment Fallacy","Think from right to left","Pixar Planing","Are you experienced?","So you think your project is unique?","Can ignorance be your friend?","A single determined organism","What's your lego?","Coda: Eleven Heuristics for better project leadership"],
+  "pages": 287,
+  "readablePages": 196,
+  "releaseDate": "2023",
+  "coverImage": [
+    {
+      "front":".webp",
+      "back":".webp",
+      "spine":".webp"
+    }
+  ],
+  "size": {
+    "width": 13,
+    "height": 19.8,
+    "thickness": 1.9
+  },
+  "weight":210
+},
+{
+  "title": "Blitzscaling",
+  "subtitle": "The Lightning-Fast Path to Building Massively Valuable Companies",
+  "author": ["Reid Hoffman","Chris Yeh"],
+  "translator": "",
+  "isbn-type": "",
+  "isbn": "978-0-00-830363-1",
+  "language": "en",
+  "publisher": "Harper collins",
+  "edition": "",
+  "format": "Paperback",
+  "dustjacket": false,
+  "pages": 326,
+  "readablePages": 316,
+  "releaseDate": "2018",
+  "coverImage": [
+    {
+      "front":".webp",
+      "back":".webp",
+      "spine":".webp"
+    }
+  ],
+  "size": {
+    "width": 15.3,
+    "height": 23.5,
+    "thickness": 2.6
+  },
+  "weight":420
+},
+{
+  "title": "Blink",
+  "subtitle": "The power of thinking without thinking",
+  "author": "Malcolm Gladwell",
+  "translator": "",
+  "isbn-type": "",
+  "isbn": "978-0-141-02204-8",
+  "language": "en",
+  "publisher": "Penguin books",
+  "edition": "",
+  "format": "Paperback",
+  "dustjacket": false,
+  "pages": 296,
+  "readablePages": 276,
+  "releaseDate": "2006",
+  "coverImage": [
+    {
+      "front":".webp",
+      "back":".webp",
+      "spine":".webp"
+    }
+  ],
+  "size": {
+    "width": 11.2,
+    "height": 18.1,
+    "thickness": 1.8
+  },
+  "weight":283
+},
+{
+  "title": "Traction",
+  "subtitle": "How any startup can achieve explosive customer growth",
+  "author": ["Gabriel Weinberg","Justin Mares"],
+  "translator": "",
+  "isbn-type": "",
+  "isbn": "978-1-",
+  "language": "en",
+  "publisher": "Harper collins",
+  "edition": "",
+  "format": "Paperback",
+  "dustjacket": false,
+  "pages": 222,
+  "readablePages": 213,
+  "releaseDate": "2015",
+  "ThisreleaseDate": "2020",
+  "coverImage": [
+    {
+      "front":".webp",
+      "back":".webp",
+      "spine":".webp"
+    }
+  ],
+  "size": {
+    "width": 15.4,
+    "height": 23.3,
+    "thickness": 1.9
+  },
+  "weight":297
+},
+{
+  "title": "A course in miracles",
+  "subtitle": "Based on the original handwritten notes of by Helen Schucman",
+  "author": "",
+  "translator": "",
+  "isbn-type": "",
+  "isbn": "978-1-886602-39-7",
+  "language": "en",
+  "publisher": "",
+  "edition": "",
+  "format": "Hardcover",
+  "dustjacket": false,
+  "pages": 1946,
+  "releaseDate": "2017",
+  "coverImage": [
+    {
+      "front":".webp",
+      "back":".webp",
+      "spine":".webp"
+    }
+  ],
+  "size": {
+    "width": 16,
+    "height": 24.3,
+    "thickness": 5.8
+  },
+  "weight":1629
+}
+]

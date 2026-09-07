@@ -56,7 +56,7 @@ const DUMMY_BOOK: BookData = {
   title: "Demo Book",
   author: "Unknown",
   pages: 120,
-  dimensions: [10, 16, 2],
+  dimensions: [0.7, 1, 0.1],
   cover: {
     front: `${DEFAULT_COVER_PATH}/front.webp`,
     spine: `${DEFAULT_COVER_PATH}/spine.webp`,
