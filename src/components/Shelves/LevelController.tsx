@@ -1,4 +1,4 @@
-import { ChevronDownCircle, ChevronUpCircle } from "lucide-react";
+import { BookPlus, ChevronDownCircle, ChevronUpCircle } from "lucide-react";
 import { useLevelStore } from "../../stores/useLevelStore";
 import { progressionConfig } from "./progressionConfig";
 
@@ -30,6 +30,9 @@ const LevelController = () => {
       >
         <ChevronDownCircle size={24} />
       </button>
+
+      {/* When top level add boooks btn */}
+      {/* <BookPlus/> */}
     </div>
   );
 };

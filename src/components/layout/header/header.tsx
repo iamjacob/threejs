@@ -43,9 +43,9 @@ const Header = () => {
         <h1 className="text-xs font-bold text-stone-100 pt-1">x</h1>
         <h1 className="text-lg text-stone-400 pt-1">Threejs</h1>
         </a>
-<h6>
+{/* <h6>
 dropdown menu for selecting the book
-</h6>
+</h6> */}
 
       <a
         href="https://github.com/iamjacob/threejs"
