@@ -1,13 +1,14 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { OrbitControls, Stars } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
-// import { createFileRoute } from "@tanstack/react-router";
 import Header from "../components/layout/header/header.tsx";
 import TocSidebar from "../components/layout/TocSidebar.tsx";
 import Particles from "../components/particles/Particles.tsx";
 import ParticlesController from "../components/particles/ParticlesController.tsx";
 
-import Shelves from "../components/Shelves/Shelves";
+import Shelves from "../components/shelves/Shelves.tsx";
+import LevelController from "../components/shelves/LevelController.tsx";
+
 import Book from "../components/book/book";
 import CensoredBook from "../components/blur/CensoredBook";
 
@@ -41,7 +42,9 @@ function Home() {
 						fov: 75,
 					}}
 				>
-					{/* <Shelves /> */}
+
+          {/* Level need auto play + camera scene so people really see the shelves and levels in action. */}
+					<Shelves />
 
 					{/* <Book /> */}
 
@@ -49,9 +52,9 @@ function Home() {
 
 					{/* <OpenBook /> */}
 
-					<Dissolve/>
+					{/* <Dissolve/> */}
 
-					<Particles />
+					{/* <Particles /> */}
 
 					{/* Foliate.js */}
 					{/* <Foliate/> */}
@@ -62,10 +65,10 @@ function Home() {
 					<OrbitControls />
 				</Canvas>
 
-				<DissolveController/>
+				{/* <DissolveController/> */}
 				{/* <ParticlesController /> */}
 
-				{/* <LevelController/> */}
+				<LevelController/>
 				{/* <BookPageSwiper /> */}
 			</div>
 		</div>

@@ -1,10 +1,9 @@
-import React, { useMemo, useRef, useState } from "react";
-import { useLoader, type ThreeEvent } from "@react-three/fiber";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useLoader } from "@react-three/fiber";
 import * as THREE from "three";
-// import gsap from "gsap";
-// import { useLevelStore } from '../../../stores/useLevelStore';
-// import { levelSettings } from '../../../config/levelConfig';
-// import { useShelfZoomStore } from '../../../stores/useShelfZoomStore';
+import gsap from "gsap";
+import { useLevelStore } from "../../stores/useLevelStore";
+import { progressionConfig } from "./progressionConfig";
 
 type Vector3Tuple = [number, number, number];
 
@@ -67,30 +66,9 @@ const Shelf = ({
       depth: 0.08,
       bevelEnabled: false,
       steps: 1,
-      curveSegments: 128,
+      curveSegments: 32,
     });
   }, [fraction]);
-
-  // const handleShelfClick = (event: ThreeEvent<MouseEvent>) => {
-  //   event.stopPropagation();
-
-  //   const actualY = position[1] + -0.8; // group offset
-  //   console.log("🔍 Shelf clicked:", {
-  //     visualIndex: index,
-  //     shelfPosition: position,
-  //     actualWorldY: actualY,
-  //     fraction: fraction,
-  //     clickPoint: event.point,
-  //   });
-
-  //   // The index directly corresponds to the shelf number
-  //   // index 0 = bottom shelf, index 1 = second shelf, etc.
-  //   console.log(
-  //     `📚 Shelf ${index} clicked - zooming to shelf ${index}`,
-  //   );
-
-  //   zoomToShelf(index);
-  // };
 
   return (
     <group
@@ -113,74 +91,53 @@ const Shelf = ({
           side={THREE.DoubleSide}
         />
       </mesh>
-
-      {/* Invisible click area - covers the shelf area */}
-      {/* <mesh
-        position={[0, 0, 0]}
-        // onClick={handleShelfClick}
-        // onPointerEnter={() => {
-        //   document.body.style.cursor = "pointer";
-        // }}
-        // onPointerLeave={() => {
-        //   document.body.style.cursor = "auto";
-        // }}
-        name={`shelf-click-${index}`}
-      >
-        <cylinderGeometry args={[6.5, 6.5, 0.2, 32]} />
-        <meshBasicMaterial transparent opacity={0} />
-      </mesh> */}
     </group>
   );
 };
 
 const Shelves = () => {
-  // const level = useLevelStore((s) => s.level);
-  // const settings = levelSettings[level - 1];
+  const levelIndex = useLevelStore((state) => state.levelIndex);
+  const targetFractions = progressionConfig.levels[levelIndex]?.shelves ?? [];
+  const [animatedFractions, setAnimatedFractions] = useState<number[]>(
+    progressionConfig.levels[0]?.shelves ?? [],
+  );
 
-  // Live update fractions when level changes
-  // const [fractions, setFractions] = useState<number[]>(settings.shelves);
-  const [fractions, setFractions] = useState<number[]>([1, 1, 1, 1]);
+  useEffect(() => {
+    const tweens: { value: number }[] = [];
 
-  // React.useEffect(() => {
-  //   setFractions(settings.shelves);
-  // }, [settings.shelves]);
+    targetFractions.forEach((targetFraction, index) => {
+      const tweenState = {
+        value: animatedFractions[index] ?? 0,
+      };
+      tweens.push(tweenState);
 
-  // [.11, .11, .11, .11] --- IGNORE ---
-  // [1, 1, 1, 1] --- IGNORE ---
+      gsap.to(tweenState, {
+        value: targetFraction,
+        duration: 0.45,
+        delay: index * 0.06,
+        ease: "power1.out",
+        onUpdate: () => {
+          setAnimatedFractions((current) => {
+            const next = [...current];
+            next[index] = tweenState.value;
+            return next;
+          });
+        },
+      });
+    });
 
-  // const toggle = () => {
-  //   fractions.forEach((f, i) => {
-  //     gsap.to(
-  //       { value: f },
-  //       {
-  //         value: f === 1 ? 0.11 : 1,
-  //         duration: 1.2,
-  //         delay: i * 0.2, // forskydning pr. hylde
-  //         ease: "power2.inOut",
-  //         onUpdate: function () {
-  //           setFractions((prev) => {
-  //             const copy = [...prev];
-  //             copy[i] = this.targets()[0].value;
-  //             return copy;
-  //           });
-  //         },
-  //       },
-  //     );
-  //   });
-  // };
-
-  // Keep the setter available for the level-update and toggle code above.
-  void setFractions;
-  void React;
-  void (null as unknown as ThreeEvent<MouseEvent>);
+    return () => {
+      tweens.forEach((tweenState) => gsap.killTweensOf(tweenState));
+    };
+  }, [levelIndex, targetFractions]);
 
   return (
     <group
       position={[0, -0.8, 0]}
       rotation={[0, Math.PI / 2, 0]}
     >
-      {fractions.map((fraction, i) => {
-        if (fraction === 0) return null;
+      {animatedFractions.map((fraction, i) => {
+        if (fraction <= 0.0001) return null;
 
         return (
           <Shelf
