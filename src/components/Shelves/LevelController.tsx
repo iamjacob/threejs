@@ -1,40 +1,63 @@
-import { BookPlus, ChevronDownCircle, ChevronUpCircle } from "lucide-react";
+import { ChevronDownCircle, ChevronUpCircle, Pause, Play } from "lucide-react";
 import { useLevelStore } from "../../stores/useLevelStore";
 import { progressionConfig } from "./progressionConfig";
 
 const LevelController = () => {
-  const levelIndex = useLevelStore((state) => state.levelIndex);
-  const increaseLevel = useLevelStore((state) => state.increaseLevel);
-  const decreaseLevel = useLevelStore((state) => state.decreaseLevel);
-  const isFirstLevel = levelIndex === 0;
-  const isLastLevel = levelIndex === progressionConfig.levels.length - 1;
+	const levelIndex = useLevelStore((state) => state.levelIndex);
+	const isPlaying = useLevelStore((state) => state.isPlaying);
+	const togglePlayback = useLevelStore((state) => state.togglePlayback);
+	const increaseLevel = useLevelStore((state) => state.increaseLevel);
+	const decreaseLevel = useLevelStore((state) => state.decreaseLevel);
+	const isFirstLevel = levelIndex === 0;
+	const isLastLevel = levelIndex === progressionConfig.levels.length - 1;
+	const level = progressionConfig.levels[levelIndex];
+	const shelfCount = level.shelves.filter((fraction) => fraction > 0).length;
 
-  return (
-    <div className="pointer-events-none absolute top-0 right-0 z-[1000] flex h-screen flex-col items-center justify-center overflow-hidden gap-2 select-none">
-      <button
-        type="button"
-        aria-label="Increase shelf level"
-        onClick={increaseLevel}
-        disabled={isLastLevel}
-        className="pointer-events-auto relative z-10 mr-4 flex h-12 w-12 cursor-pointer touch-manipulation items-center justify-center overflow-hidden rounded-full border border-white/[0.18] bg-white/[0.08] p-2 text-[15px] font-medium tracking-wide text-white/90 backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-white/[0.28] hover:bg-white/[0.14] active:scale-[0.98] active:bg-white/[0.06] disabled:cursor-default disabled:opacity-40"
-      >
-        <ChevronUpCircle size={24} />
-      </button>
+	return (
+		<div className="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-5 py-3 text-white backdrop-blur-xl">
+			<div className="whitespace-nowrap text-center text-sm">
+				<p className="font-medium">
+					Level {levelIndex} / {progressionConfig.levels.length - 1}
+				</p>
+				<p className="text-xs text-white/60">
+					{shelfCount} shelves · {level.minBooks}+ books
+					{isLastLevel ? " · 360°" : ""}
+				</p>
+			</div>
+			<div className="flex items-center gap-3">
+				<button
+					type="button"
+					aria-label="Increase shelf level"
+					onClick={increaseLevel}
+					disabled={isLastLevel}
+					className="order-3 flex h-11 w-11 cursor-pointer touch-manipulation items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/90 hover:bg-white/20 disabled:cursor-default disabled:opacity-40"
+				>
+					<ChevronUpCircle size={24} />
+				</button>
 
-      <button
-        type="button"
-        aria-label="Decrease shelf level"
-        onClick={decreaseLevel}
-        disabled={isFirstLevel}
-        className="pointer-events-auto relative z-10 mr-4 flex h-12 w-12 cursor-pointer touch-manipulation items-center justify-center overflow-hidden rounded-full border border-white/[0.18] bg-white/[0.08] p-2 text-[15px] font-medium tracking-wide text-white/90 backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-white/[0.28] hover:bg-white/[0.14] active:scale-[0.98] active:bg-white/[0.06] disabled:cursor-default disabled:opacity-40"
-      >
-        <ChevronDownCircle size={24} />
-      </button>
+				<button
+					type="button"
+					aria-label={
+						isPlaying ? "Pause shelf autoplay" : "Play shelf autoplay"
+					}
+					onClick={togglePlayback}
+					className="order-2 flex h-11 w-11 cursor-pointer touch-manipulation items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/90 hover:bg-white/20"
+				>
+					{isPlaying ? <Pause size={20} /> : <Play size={20} />}
+				</button>
 
-      {/* When top level add boooks btn */}
-      {/* <BookPlus/> */}
-    </div>
-  );
+				<button
+					type="button"
+					aria-label="Decrease shelf level"
+					onClick={decreaseLevel}
+					disabled={isFirstLevel}
+					className="order-1 flex h-11 w-11 cursor-pointer touch-manipulation items-center justify-center rounded-full border border-white/20 bg-white/10 text-white/90 hover:bg-white/20 disabled:cursor-default disabled:opacity-40"
+				>
+					<ChevronDownCircle size={24} />
+				</button>
+			</div>
+		</div>
+	);
 };
 
 export default LevelController;

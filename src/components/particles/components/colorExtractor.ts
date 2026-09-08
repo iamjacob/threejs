@@ -1,220 +1,160 @@
-import type {
-	BookData,
-	ColorExtractionResult,
-	ExtractedColor,
-	ParticlePixel,
-	RgbColor,
-} from "../types";
+import {
+	BoxGeometry,
+	BufferGeometry,
+	Color,
+	Float32BufferAttribute,
+	type Texture,
+	Vector2,
+	Vector3,
+} from "three";
 
-const fallbackColors: ExtractedColor[] = [
-	{ color: [1, 0.4, 0.1], percentage: 0.4 },
-	{ color: [0.2, 0.6, 1], percentage: 0.3 },
-	{ color: [1, 0.9, 0.3], percentage: 0.3 },
-];
-
-const fallbackResult = (): ColorExtractionResult => ({
-	colors: fallbackColors,
-	palette: fallbackColors.map(({ color }) => color),
-	pixelData: null,
-});
-
-export const extractBookColorsAndPixels = async (
-	imageUrl: string,
-	maxColors = 8,
-): Promise<ColorExtractionResult> =>
-	new Promise((resolve) => {
-		const canvas = document.createElement("canvas");
-		const context = canvas.getContext("2d");
-		const image = new Image();
-
-		if (!context) {
-			resolve(fallbackResult());
-			return;
-		}
-
-		image.crossOrigin = "anonymous";
-		image.onload = () => {
-			const maxSize = 150;
-			const scale = Math.min(maxSize / image.width, maxSize / image.height);
-
-			canvas.width = image.width * scale;
-			canvas.height = image.height * scale;
-			context.drawImage(image, 0, 0, canvas.width, canvas.height);
-
-			try {
-				const imageData = context.getImageData(
-					0,
-					0,
-					canvas.width,
-					canvas.height,
-				);
-				const colors = extractColors(imageData.data, maxColors);
-
-				resolve({
-					colors,
-					palette: createParticleColorPalette(colors),
-					pixelData: extractPixelPositions(
-						imageData.data,
-						canvas.width,
-						canvas.height,
-					),
-				});
-			} catch (error: unknown) {
-				console.warn("Could not extract colors and pixels from image:", error);
-				resolve(fallbackResult());
-			}
-		};
-
-		image.onerror = () => {
-			console.warn("Could not load image for color extraction:", imageUrl);
-			resolve(fallbackResult());
-		};
-
-		image.src = imageUrl;
-	});
-
-const extractPixelPositions = (
-	imageData: Uint8ClampedArray,
-	width: number,
-	height: number,
-): ParticlePixel[] => {
-	const pixels: ParticlePixel[] = [];
-	const step = 2;
-
-	for (let y = 0; y < height; y += step) {
-		for (let x = 0; x < width; x += step) {
-			const index = (y * width + x) * 4;
-			const red = imageData[index] ?? 0;
-			const green = imageData[index + 1] ?? 0;
-			const blue = imageData[index + 2] ?? 0;
-			const alpha = imageData[index + 3] ?? 0;
-
-			if (alpha > 50) {
-				pixels.push({
-					x: (x - width / 2) / 50,
-					y: -(y - height / 2) / 50,
-					z: 0,
-					color: [red / 255, green / 255, blue / 255],
-				});
-			}
-		}
-	}
-
-	return pixels;
-};
-
-interface CountedColor {
-	color: RgbColor;
-	count: number;
+export interface TexturePixels {
+	width: number;
+	height: number;
+	data: Uint8ClampedArray;
 }
 
-const extractColors = (
-	imageData: Uint8ClampedArray,
-	maxColors: number,
-): ExtractedColor[] => {
-	const colorMap = new Map<string, number>();
-	const step = 4;
+function readTexturePixels(texture: Texture): TexturePixels {
+	const canvas = document.createElement("canvas");
+	const image = texture.image as HTMLImageElement;
+	canvas.width = image.naturalWidth || image.width;
+	canvas.height = image.naturalHeight || image.height;
+	const context = canvas.getContext("2d", { willReadFrequently: true });
+	if (!context) throw new Error("Cannot read book texture pixels.");
+	context.drawImage(image, 0, 0, canvas.width, canvas.height);
+	return context.getImageData(0, 0, canvas.width, canvas.height);
+}
 
-	for (let index = 0; index < imageData.length; index += step * 4) {
-		const red = imageData[index] ?? 0;
-		const green = imageData[index + 1] ?? 0;
-		const blue = imageData[index + 2] ?? 0;
-		const alpha = imageData[index + 3] ?? 0;
+/** Samples the same six material slots and UVs as the finished BoxGeometry book. */
+export function createBookParticleGeometry(
+	textures: Texture[],
+	dimensions: [number, number, number],
+	resolution = 6400,
+	readPixels: (texture: Texture) => TexturePixels = readTexturePixels,
+) {
+	if (textures.length !== 6)
+		throw new Error("Book particles need six face maps.");
+	const box = new BoxGeometry(...dimensions);
+	const vertices = box.getAttribute("position");
+	const uvs = box.getAttribute("uv");
+	const normals = box.getAttribute("normal");
+	const positions: number[] = [];
+	const targets: number[] = [];
+	const colors: number[] = [];
+	const alphas: number[] = [];
+	const sizes: number[] = [];
+	const velocities: number[] = [];
+	const faceIds: number[] = [];
+	const faceNormals: number[] = [];
+	const sampleUvs: number[] = [];
+	const color = new Color();
+	const uv = new Vector2();
+	const target = new Vector3();
+	const cache = new Map<Texture, TexturePixels>();
+	const density = Math.sqrt(resolution / (dimensions[0] * dimensions[1]));
 
-		if (alpha < 128) continue;
+	try {
+		for (const group of box.groups) {
+			const faceId = group.materialIndex ?? 0;
+			const texture = textures[faceId];
+			const pixels = cache.get(texture) ?? readPixels(texture);
+			cache.set(texture, pixels);
+			if (texture.matrixAutoUpdate) texture.updateMatrix();
 
-		const colorKey = [red, green, blue]
-			.map((channel) => Math.floor(channel / 32) * 32)
-			.join(",");
-		colorMap.set(colorKey, (colorMap.get(colorKey) ?? 0) + 1);
+			// Derive each face's UV basis from Three.js itself, including the
+			// reversed back cover and the different top/bottom orientations.
+			const corners = new Map<string, number>();
+			for (let i = group.start; i < group.start + group.count; i++) {
+				const index = box.index?.getX(i) ?? i;
+				corners.set(`${uvs.getX(index)},${uvs.getY(index)}`, index);
+			}
+			const originIndex = corners.get("0,0");
+			const uIndex = corners.get("1,0");
+			const vIndex = corners.get("0,1");
+			if (
+				originIndex === undefined ||
+				uIndex === undefined ||
+				vIndex === undefined
+			)
+				throw new Error("Book face has no rectangular UV basis.");
+			const origin = new Vector3().fromBufferAttribute(vertices, originIndex);
+			const uAxis = new Vector3()
+				.fromBufferAttribute(vertices, uIndex)
+				.sub(origin);
+			const vAxis = new Vector3()
+				.fromBufferAttribute(vertices, vIndex)
+				.sub(origin);
+			const normal = new Vector3().fromBufferAttribute(normals, originIndex);
+			const columns = Math.max(2, Math.ceil(uAxis.length() * density));
+			const rows = Math.max(2, Math.ceil(vAxis.length() * density));
+			const size =
+				Math.max(uAxis.length() / columns, vAxis.length() / rows) * 1.2;
+
+			for (let row = 0; row < rows; row++) {
+				for (let column = 0; column < columns; column++) {
+					// Sample cell centers. Preserve the full image bounds, even
+					// with transparent borders; never stretch the remaining pixels.
+					const u = (column + 0.5) / columns;
+					const v = (row + 0.5) / rows;
+					texture.transformUv(uv.set(u, v));
+					const x = Math.min(pixels.width - 1, Math.floor(uv.x * pixels.width));
+					const y = Math.min(
+						pixels.height - 1,
+						Math.floor(uv.y * pixels.height),
+					);
+					const offset = (y * pixels.width + x) * 4;
+					color.setRGB(
+						pixels.data[offset] / 255,
+						pixels.data[offset + 1] / 255,
+						pixels.data[offset + 2] / 255,
+						texture.colorSpace,
+					);
+					target
+						.copy(origin)
+						.addScaledVector(uAxis, u)
+						.addScaledVector(vAxis, v);
+					targets.push(...target.toArray());
+					colors.push(color.r, color.g, color.b);
+					alphas.push(pixels.data[offset + 3] / 255);
+					faceNormals.push(...normal.toArray());
+					faceIds.push(faceId);
+					sampleUvs.push(u, v);
+					sizes.push(size);
+
+					const radius = 0.75 + Math.random() * 1.5;
+					const theta = Math.random() * Math.PI * 2;
+					const z = Math.random() * 2 - 1;
+					const ring = Math.sqrt(1 - z * z);
+					positions.push(
+						radius * ring * Math.cos(theta),
+						radius * z,
+						radius * ring * Math.sin(theta),
+					);
+					velocities.push(
+						(Math.random() - 0.5) * 0.008,
+						(Math.random() - 0.5) * 0.008,
+						(Math.random() - 0.5) * 0.008,
+					);
+				}
+			}
+		}
+	} finally {
+		box.dispose();
 	}
 
-	const colors: CountedColor[] = Array.from(colorMap.entries())
-		.map(([colorKey, count]) => {
-			const [red = 0, green = 0, blue = 0] = colorKey.split(",").map(Number);
-			return {
-				color: [red / 255, green / 255, blue / 255] as RgbColor,
-				count,
-			};
-		})
-		.sort((first, second) => second.count - first.count)
-		.slice(0, maxColors);
-
-	const totalCount = colors.reduce((sum, item) => sum + item.count, 0);
-	if (totalCount === 0) return [];
-
-	return colors.map(({ color, count }) => ({
-		color,
-		percentage: count / totalCount,
-	}));
-};
-
-export const getBookCoverUrl = (bookData: BookData): string | null => {
-	if (typeof bookData.cover === "string") return bookData.cover;
-	if (bookData.cover?.front) return bookData.cover.front;
-
-	const possiblePaths = [
-		bookData.id ? `/covers/${bookData.id}.jpg` : undefined,
-		bookData.isbn ? `/covers/${bookData.isbn}.jpg` : undefined,
-		bookData.id ? `/books/${bookData.id}/cover.jpg` : undefined,
-		bookData.thumbnail,
-		bookData.image,
-	];
-
-	return possiblePaths.find((path): path is string => Boolean(path)) ?? null;
-};
-
-export const createParticleColorPalette = (
-	extractedColors: ExtractedColor[],
-): RgbColor[] => {
-	if (extractedColors.length === 0) {
-		return fallbackColors.map(({ color }) => color);
+	const geometry = new BufferGeometry();
+	for (const [name, array, itemSize] of [
+		["position", positions, 3],
+		["targetPosition", targets, 3],
+		["color", colors, 3],
+		["opacity", alphas, 1],
+		["size", sizes, 1],
+		["velocity", velocities, 3],
+		["faceId", faceIds, 1],
+		["faceNormal", faceNormals, 3],
+		["uv", sampleUvs, 2],
+	] as const) {
+		geometry.setAttribute(name, new Float32BufferAttribute(array, itemSize));
 	}
-
-	return extractedColors.map(({ color: [red, green, blue] }) =>
-		enhanceColorForParticles(red, green, blue),
-	);
-};
-
-const enhanceColorForParticles = (
-	red: number,
-	green: number,
-	blue: number,
-): RgbColor => {
-	const [hue, saturation, value] = rgbToHsv(red, green, blue);
-	return hsvToRgb(hue, Math.min(1, saturation * 1.3), Math.min(1, value * 1.2));
-};
-
-const rgbToHsv = (red: number, green: number, blue: number): RgbColor => {
-	const maximum = Math.max(red, green, blue);
-	const minimum = Math.min(red, green, blue);
-	const difference = maximum - minimum;
-	let hue = 0;
-
-	if (difference !== 0) {
-		if (maximum === red) hue = ((green - blue) / difference) % 6;
-		else if (maximum === green) hue = (blue - red) / difference + 2;
-		else hue = (red - green) / difference + 4;
-	}
-
-	hue /= 6;
-	if (hue < 0) hue += 1;
-
-	return [hue, maximum === 0 ? 0 : difference / maximum, maximum];
-};
-
-const hsvToRgb = (hue: number, saturation: number, value: number): RgbColor => {
-	const chroma = value * saturation;
-	const intermediate = chroma * (1 - Math.abs(((hue * 6) % 2) - 1));
-	const match = value - chroma;
-	let rgb: RgbColor;
-
-	if (hue < 1 / 6) rgb = [chroma, intermediate, 0];
-	else if (hue < 2 / 6) rgb = [intermediate, chroma, 0];
-	else if (hue < 3 / 6) rgb = [0, chroma, intermediate];
-	else if (hue < 4 / 6) rgb = [0, intermediate, chroma];
-	else if (hue < 5 / 6) rgb = [intermediate, 0, chroma];
-	else rgb = [chroma, 0, intermediate];
-
-	return [rgb[0] + match, rgb[1] + match, rgb[2] + match];
-};
+	return geometry;
+}

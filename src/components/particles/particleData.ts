@@ -1,8 +1,8 @@
 import type { BookData } from "./types";
 
 export const sampleBookData: BookData = {
-	id: "learningweb",
-	title: "Learning Web Development",
+	id: "mit_liv_med_fangekoret-00000001",
+	title: "Mit liv med Fangekoret",
 	cover: "/blockchain/m/i/mit_liv_med_fangekoret-00000001/cover/front.webp",
 	scale: {
 		width: 0.7,

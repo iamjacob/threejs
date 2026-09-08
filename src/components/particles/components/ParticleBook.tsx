@@ -1,56 +1,28 @@
 import { useFrame } from "@react-three/fiber";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
+import { BOOK_DIMENSIONS, BOOK_MATERIAL } from "../../book/bookAppearance";
 import type { BookData, ParticlePhase } from "../types";
 
 interface ParticleBookProps {
 	bookData: BookData;
+	textures: THREE.Texture[];
 	phase: ParticlePhase;
 	particleProgress?: number;
 	bookScale: number;
 }
 
-const useSafeLoader = (
-	url: string,
-	fallbackUrl = "./covers/000.webp",
-): THREE.Texture | null => {
-	const [texture, setTexture] = useState<THREE.Texture | null>(null);
-
-	useEffect(() => {
-		let isActive = true;
-		const loader = new THREE.TextureLoader();
-
-		const configureTexture = (loadedTexture: THREE.Texture): void => {
-			loadedTexture.wrapS = THREE.ClampToEdgeWrapping;
-			loadedTexture.wrapT = THREE.ClampToEdgeWrapping;
-			loadedTexture.minFilter = THREE.LinearFilter;
-			loadedTexture.magFilter = THREE.LinearFilter;
-
-			if (isActive) setTexture(loadedTexture);
-		};
-
-		loader.load(url, configureTexture, undefined, () => {
-			loader.load(fallbackUrl, configureTexture);
-		});
-
-		return () => {
-			isActive = false;
-		};
-	}, [url, fallbackUrl]);
-
-	return texture;
-};
-
 const ParticleBook = ({
 	bookData,
+	textures,
 	phase,
 	particleProgress = 0,
 	bookScale,
 }: ParticleBookProps) => {
 	const meshRef = useRef<THREE.Mesh>(null);
-	const bookWidth = bookData.scale?.width ?? 2;
-	const bookHeight = bookData.scale?.height ?? 3;
-	const bookThickness = bookData.scale?.thickness ?? 0.3;
+	const bookWidth = bookData.scale?.width ?? BOOK_DIMENSIONS[0];
+	const bookHeight = bookData.scale?.height ?? BOOK_DIMENSIONS[1];
+	const bookThickness = bookData.scale?.thickness ?? BOOK_DIMENSIONS[2];
 
 	const geometry = useMemo(
 		() =>
@@ -58,65 +30,24 @@ const ParticleBook = ({
 		[bookWidth, bookHeight, bookThickness],
 	);
 
-	const sideTexture = useSafeLoader(
-		"/experience/books/assets/booktextureSide.webp",
-	);
-	const spineTexture = useSafeLoader(
-		"/blockchain/m/i/mit_liv_med_fangekoret-00000001/cover/spine.webp",
-	);
-	const edgeTexture = useSafeLoader(
-		"/experience/books/assets/booktexture.webp",
-	);
-	const frontTexture = useSafeLoader(
-		"/experience/books/assets/booktexture.webp",
-	);
-	const topTexture = useSafeLoader(
-		"/blockchain/m/i/mit_liv_med_fangekoret-00000001/cover/front.webp",
-	);
-	const backTexture = useSafeLoader(
-		"/blockchain/m/i/mit_liv_med_fangekoret-00000001/cover/back.webp",
-	);
-
 	const materials = useMemo(
 		() =>
-			[
-				sideTexture,
-				spineTexture,
-				edgeTexture,
-				frontTexture,
-				topTexture,
-				backTexture,
-			].map(
-				(texture) =>
-					new THREE.MeshStandardMaterial(
-						texture
-							? {
-									map: texture,
-									side: THREE.DoubleSide,
-									transparent: true,
-									opacity: 0,
-								}
-							: {
-									color: "#8B4513",
-									transparent: true,
-									opacity: 0,
-								},
-					),
+			textures.map(
+				(map) =>
+					new THREE.MeshStandardMaterial({
+						...BOOK_MATERIAL,
+						map,
+						transparent: true,
+						opacity: 0,
+					}),
 			),
-		[
-			sideTexture,
-			spineTexture,
-			edgeTexture,
-			frontTexture,
-			topTexture,
-			backTexture,
-		],
+		[textures],
 	);
 
 	useEffect(() => {
 		const opacity =
 			phase === "forming"
-				? THREE.MathUtils.smoothstep(particleProgress, 0.82, 1)
+				? THREE.MathUtils.smoothstep(particleProgress, 0.9, 1)
 				: phase === "idle"
 					? 0
 					: 1;
@@ -151,12 +82,13 @@ const ParticleBook = ({
 	const showBook =
 		phase === "visible" ||
 		phase === "shrinking" ||
-		(phase === "forming" && particleProgress >= 0.82);
+		(phase === "forming" && particleProgress >= 0.9);
 
 	if (!showBook) return null;
 
 	return (
 		<mesh
+			name="particle-book"
 			ref={meshRef}
 			geometry={geometry}
 			material={materials}

@@ -1,17 +1,16 @@
-import * as THREE from "three";
-import { extend } from "@react-three/fiber";
-import type { ThreeElement } from "@react-three/fiber";
 import { shaderMaterial } from "@react-three/drei";
+import { extend } from "@react-three/fiber";
+import * as THREE from "three";
 
 export const SceneGlassMaterial = shaderMaterial(
-  {
-    uWinResolution: new THREE.Vector2(),
-    uSceneDiffuse: null as THREE.Texture | null,
-    uBlockSize: 20,
-    uColorLevels: 5,
-    uAlpha: 1,
-  },
-  /* glsl */ `
+	{
+		uWinResolution: new THREE.Vector2(),
+		uSceneDiffuse: null as THREE.Texture | null,
+		uBlockSize: 20,
+		uColorLevels: 5,
+		uAlpha: 1,
+	},
+	/* glsl */ `
     varying vec4 vUv;
 
     void main() {
@@ -22,7 +21,7 @@ export const SceneGlassMaterial = shaderMaterial(
       gl_Position = vUv;
     }
   `,
-  /* glsl */ `
+	/* glsl */ `
     precision highp float;
 
     uniform sampler2D uSceneDiffuse;
@@ -47,24 +46,17 @@ export const SceneGlassMaterial = shaderMaterial(
       vec3 sceneColor =
         texture2D(uSceneDiffuse, pixelatedUv).rgb;
 
-      // Quantize colors
-      if (uColorLevels > 1.0) {
-        sceneColor =
-          floor(sceneColor * uColorLevels + 0.5) /
-          uColorLevels;
-      }
-
       gl_FragColor = vec4(sceneColor, uAlpha);
+      #include <tonemapping_fragment>
+      #include <colorspace_fragment>
+
+      // Quantize display colors so shadow detail does not collapse in linear space.
+      if (uColorLevels > 1.0) {
+        float intervals = uColorLevels - 1.0;
+        gl_FragColor.rgb = floor(gl_FragColor.rgb * intervals + 0.5) / intervals;
+      }
     }
   `,
 );
 
-extend({ SceneGlassMaterial });
-
-declare module "@react-three/fiber" {
-  interface ThreeElements {
-    sceneGlassMaterial: ThreeElement<
-      typeof SceneGlassMaterial
-    >;
-  }
-}
+export const GlassMaterial = extend(SceneGlassMaterial);

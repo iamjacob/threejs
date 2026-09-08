@@ -16,19 +16,19 @@ const DissolveController = () => {
 			: "Dissolve Book";
 
 	return (
-		<>
-			<div className="absolute top-14 left-4 z-10 space-x-4">
+		<div className="absolute top-32 left-4 z-10 flex flex-col items-start gap-3">
+			<div>
 				<button
 					type="button"
 					onClick={isDissolving ? resetDissolve : startDissolve}
 					disabled={isAnimating}
-					className="rounded-xl border border-white/10 bg-white/[0.08] px-6 py-3 font-semibold text-stone-500 shadow-lg backdrop-blur-xl transition-all hover:bg-white/[0.14] hover:text-stone-300 disabled:cursor-not-allowed disabled:opacity-50"
+					className="min-h-11 cursor-pointer rounded-xl border border-white/10 bg-white/[0.08] px-6 py-3 font-semibold text-stone-200 shadow-lg backdrop-blur-xl transition-all hover:bg-white/[0.14] hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
 				>
 					{buttonLabel}
 				</button>
 			</div>
 
-			<div className="absolute top-20 left-4 z-10 text-white">
+			<div className="text-white">
 				{/* <div className="mb-2 text-sm">
 					Dissolve Progress: {Math.round(dissolveProgress * 100)}%
 				</div> */}
@@ -39,7 +39,7 @@ const DissolveController = () => {
 					/>
 				</div>
 			</div>
-		</>
+		</div>
 	);
 };
 
