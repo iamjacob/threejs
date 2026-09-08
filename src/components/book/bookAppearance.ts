@@ -2,6 +2,7 @@ import { useTexture } from "@react-three/drei";
 import { useThree } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import { MeshStandardMaterial, SRGBColorSpace } from "three";
+import { publicAssetUrl } from "../../lib/publicAssetUrl";
 import { BOOK_TEXTURE_URLS } from "./bookTextures";
 
 export { BOOK_COVER_PATH, BOOK_DIMENSIONS } from "./bookTextures";
@@ -11,7 +12,7 @@ export const BOOK_MATERIAL = {
 	envMapIntensity: 0.7,
 };
 export function useBookTextures(urls = BOOK_TEXTURE_URLS) {
-	const textures = useTexture(urls);
+	const textures = useTexture(urls.map((url) => publicAssetUrl(url)));
 	const gl = useThree((state) => state.gl);
 	return useMemo(() => {
 		for (const texture of textures) {

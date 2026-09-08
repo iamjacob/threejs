@@ -9,6 +9,10 @@
     "dev": "vite dev --port 3000",
     "generate-routes": "tsr generate",
     "build": "vite build",
+    "dev:worker": "npm run build && wrangler dev",
+    "cf-typegen": "wrangler types",
+    "typecheck": "npm run cf-typegen && tsc --noEmit && tsc --project tsconfig.worker.json",
+    "test:paths": "node --test tests/paths.test.mjs",
     "preview": "vite preview",
     "format": "biome format",
     "lint": "biome lint",
@@ -40,7 +44,8 @@
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.0.1",
     "typescript": "^6.0.2",
-    "vite": "^8.0.0"
+    "vite": "^8.0.0",
+    "wrangler": "^4.130.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import * as THREE from "three";
+import { publicAssetUrl } from "../../lib/publicAssetUrl";
 
 const useSafeLoader = (
   url: string | null | undefined,
@@ -31,7 +32,7 @@ const useSafeLoader = (
 
     const loadFallback = (): void => {
       loader.load(
-        fallbackUrl,
+        publicAssetUrl(fallbackUrl),
         setLoadedTexture,
         undefined,
         (error: unknown) => {
@@ -56,7 +57,7 @@ const useSafeLoader = (
     }
 
     loader.load(
-      url,
+      publicAssetUrl(url),
       setLoadedTexture,
       undefined,
       (error: unknown) => {

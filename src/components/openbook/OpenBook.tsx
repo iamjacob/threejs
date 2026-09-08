@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
 import { useReadingStore } from "../../../stores/useReadingStore.ts";
+import { publicAssetUrl } from "../../lib/publicAssetUrl";
 import { BOOK_MATERIAL } from "../book/bookAppearance";
 import usePDFToImage from "./usePDFToImage";
 
@@ -100,9 +101,9 @@ const OpenBook = ({
 		coverImg || book.cover.back || `${DEFAULT_COVER_PATH}/back.webp`;
 
 	const [frontTex, spineTex, backTex] = useTexture([
-		frontUrl,
-		spineUrl,
-		backUrl,
+		publicAssetUrl(frontUrl),
+		publicAssetUrl(spineUrl),
+		publicAssetUrl(backUrl),
 	]) as [THREE.Texture, THREE.Texture, THREE.Texture];
 
 	const activePdfUrl = pdfUrl || book.pdf || null;
@@ -113,7 +114,9 @@ const OpenBook = ({
 			texture.needsUpdate = true;
 		}
 	}, [frontTex, spineTex, backTex]);
-	const { getPageImage } = usePDFToImage(activePdfUrl);
+	const { getPageImage } = usePDFToImage(
+		activePdfUrl ? publicAssetUrl(activePdfUrl) : null,
+	);
 
 	const open = useCallback((): void => {
 		const rightCover = rightPageRef.current;

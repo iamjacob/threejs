@@ -2,6 +2,7 @@ import { useFrame, useLoader } from "@react-three/fiber";
 import gsap from "gsap";
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as THREE from "three";
+import { publicAssetUrl } from "../../lib/publicAssetUrl";
 import { useLevelStore } from "../../stores/useLevelStore";
 import { progressionConfig } from "./progressionConfig";
 
@@ -23,11 +24,14 @@ const Shelf = ({
 	const meshRef = useRef<THREE.Mesh>(null);
 	// const { zoomToShelf } = useShelfZoomStore();
 
-	const textures = useLoader(THREE.TextureLoader, [
-		"/experience/shelf/Wood051_1K-JPG_Color.webp",
-		"/experience/shelf/Wood051_1K-JPG_NormalGL.webp",
-		"/experience/shelf/Wood051_1K-JPG_Roughness.webp",
-	]);
+	const textures = useLoader(
+		THREE.TextureLoader,
+		[
+			"/experience/shelf/Wood051_1K-JPG_Color.webp",
+			"/experience/shelf/Wood051_1K-JPG_NormalGL.webp",
+			"/experience/shelf/Wood051_1K-JPG_Roughness.webp",
+		].map((url) => publicAssetUrl(url)),
+	);
 
 	const [colorMap, normalMap, roughnessMap] = useMemo(() => {
 		textures[0].colorSpace = THREE.SRGBColorSpace;

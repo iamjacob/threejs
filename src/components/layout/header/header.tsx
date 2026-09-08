@@ -1,7 +1,7 @@
 const Header = () => {
   return (
     <header className="flex justify-between bg-white/[0.08] backdrop-blur-xl absolute z-1000 top-0 w-screen items-center gap-1 p-2">
-        <a href="/threejs" className="flex justify-between items-center gap-1 pl-2">
+        <a href={import.meta.env.BASE_URL} className="flex justify-between items-center gap-1 pl-2">
           <svg
             className="h-8"
             fill="#d91b24"

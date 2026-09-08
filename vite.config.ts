@@ -7,6 +7,7 @@ import viteReact from "@vitejs/plugin-react";
 import { defineConfig } from "vite";
 
 const config = defineConfig({
+	base: "/threejs/",
 	resolve: { tsconfigPaths: true },
 	plugins: [
 		// DOM source attributes cannot be applied to Three.js objects.

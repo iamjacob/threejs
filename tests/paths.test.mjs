@@ -1,0 +1,60 @@
+import assert from "node:assert/strict";
+import { test } from "node:test";
+import { publicAssetUrl } from "../src/lib/publicAssetUrl.ts";
+import worker from "../src/worker.ts";
+
+test("the fixed QR URL and its trailing-slash form serve index.html", async () => {
+	for (const pathname of ["/threejs", "/threejs/", "/threejs/index.html"]) {
+		let assetRequest;
+		const response = new Response("app", { headers: { "Content-Type": "text/html" } });
+		const result = await worker.fetch(new Request(`https://boooks.app${pathname}?from=qr`), {
+			ASSETS: { fetch(request) { assetRequest = request; return Promise.resolve(response); } },
+		});
+		assert.equal(assetRequest.url, "https://boooks.app/index.html?from=qr");
+		assert.equal(result, response);
+	}
+});
+
+test("scripts, textures and PDFs lose exactly one prefix and preserve request headers", async () => {
+	for (const path of ["assets/app.js", "experience/shelf/wood.webp", "blockchain/book.pdf", "assets/threejs/file.css"]) {
+		let assetRequest;
+		const response = new Response(null, { status: 206, headers: { "Content-Range": "bytes 0-99/200" } });
+		const result = await worker.fetch(new Request(`https://boooks.app/threejs/${path}?v=1`, {
+			method: "HEAD", headers: { Range: "bytes=0-99", "If-None-Match": "asset-v1" },
+		}), {
+			ASSETS: { fetch(request) { assetRequest = request; return Promise.resolve(response); } },
+		});
+		assert.equal(assetRequest.url, `https://boooks.app/${path}?v=1`);
+		assert.equal(assetRequest.method, "HEAD");
+		assert.equal(assetRequest.headers.get("Range"), "bytes=0-99");
+		assert.equal(assetRequest.headers.get("If-None-Match"), "asset-v1");
+		assert.equal(result, response);
+	}
+});
+
+test("similarly named paths and other site routes are not rewritten", async () => {
+	for (const path of ["/threejs-other", "/threejs2/assets/app.js", "/", "/assets/app.js"]) {
+		const result = await worker.fetch(new Request(`https://boooks.app${path}`), {
+			ASSETS: { fetch() { assert.fail("An unrelated path reached the asset binding"); } },
+		});
+		assert.equal(result.status, 404);
+	}
+});
+
+test("missing assets keep their 404 response instead of becoming HTML", async () => {
+	const response = new Response("Not found", { status: 404 });
+	const result = await worker.fetch(new Request("https://boooks.app/threejs/assets/missing.js"), {
+		ASSETS: { fetch() { return Promise.resolve(response); } },
+	});
+	assert.equal(result, response);
+});
+
+test("runtime asset paths use the deployment base without changing external or already-prefixed URLs", () => {
+	for (const path of ["/experience/wood.webp", "/blockchain/book.pdf", "/favicon.ico"]) {
+		assert.equal(publicAssetUrl(path, "/threejs/"), `/threejs${path}`);
+		assert.equal(publicAssetUrl(path, "/"), path);
+	}
+	for (const path of ["/threejs/experience/wood.webp", "https://cdn.example.com/cover.webp", "//cdn.example.com/cover.webp", "data:image/webp;base64,AAAA", "blob:https://boooks.app/book", "relative.webp"]) {
+		assert.equal(publicAssetUrl(path, "/threejs/"), path);
+	}
+});
