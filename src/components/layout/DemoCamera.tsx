@@ -2,11 +2,19 @@ import { OrbitControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { type ComponentRef, useLayoutEffect, useMemo, useRef } from "react";
 import { MathUtils, Vector3 } from "three";
+import { useSelectedBook } from "../../stores/useBookStore";
 import { useLevelStore } from "../../stores/useLevelStore";
+import { tallestShelfBook } from "../shelves/Bookshelves";
 import { progressionConfig } from "../shelves/progressionConfig";
+import { BOOKS_SHELF_LEVEL } from "../shelves/shelfBooks";
 import type { CameraView } from "./demoScenes";
 
-function shelfFraming(levelIndex: number, aspect: number) {
+function shelfFraming(
+	levelIndex: number,
+	aspect: number,
+	bookHeight = 0,
+	collection = false,
+) {
 	const fractions = progressionConfig.levels[levelIndex].shelves;
 	const fraction = Math.max(...fractions, 0.08);
 	const halfArc = Math.PI * fraction;
@@ -17,17 +25,24 @@ function shelfFraming(levelIndex: number, aspect: number) {
 		value > 0 ? [index] : [],
 	);
 	const bottom = (visibleShelves[0] ?? 0) - 1.8;
-	const top = (visibleShelves.at(-1) ?? 3) - 1.72;
+	const top = (visibleShelves.at(-1) ?? 3) - 1.72 + bookHeight;
 	const target = new Vector3(0, (bottom + top) / 2, (back + front) / 2);
 	const radius = Math.hypot(halfWidth, (top - bottom) / 2, (front - back) / 2);
 	const verticalFov = MathUtils.degToRad(45);
 	const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * aspect);
-	const distance =
-		(radius / Math.sin(Math.min(verticalFov, horizontalFov) / 2)) * 1.25;
+	const distance = collection
+		? Math.max(
+				halfWidth / Math.tan(horizontalFov / 2),
+				(top - bottom) / 2 / Math.tan(verticalFov / 2),
+			) *
+				1.2 +
+			(front - back) / 2
+		: (radius / Math.sin(Math.min(verticalFov, horizontalFov) / 2)) * 1.25;
 	return { target, distance, fullCircle: fraction === 1 };
 }
 
 export default function DemoCamera({ view }: { view: CameraView }) {
+	const book = useSelectedBook();
 	const { camera, size } = useThree();
 	const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
 	const levelIndex = useLevelStore((state) => state.levelIndex);
@@ -37,10 +52,18 @@ export default function DemoCamera({ view }: { view: CameraView }) {
 	const initialized = useRef(false);
 	const elapsed = useRef(0);
 	const desiredPosition = useMemo(() => new Vector3(), []);
-	const isShelves = view === "shelves";
+	const isCollection = view === "shelves-books";
+	const isShelves = view === "shelves" || isCollection;
+	const elevation = isCollection ? 0.12 : 0.5;
 	const framing = useMemo(
-		() => shelfFraming(levelIndex, size.width / size.height),
-		[levelIndex, size.width, size.height],
+		() =>
+			shelfFraming(
+				isCollection ? BOOKS_SHELF_LEVEL : levelIndex,
+				size.width / size.height,
+				isCollection ? tallestShelfBook : book.dimensions[1],
+				isCollection,
+			),
+		[levelIndex, size.width, size.height, isCollection, book.dimensions],
 	);
 
 	useLayoutEffect(() => {
@@ -56,8 +79,8 @@ export default function DemoCamera({ view }: { view: CameraView }) {
 					.add(
 						new Vector3(
 							0,
-							framing.distance * 0.5,
-							framing.distance * Math.sqrt(0.75),
+							framing.distance * elevation,
+							framing.distance * Math.sqrt(1 - elevation ** 2),
 						),
 					);
 			}
@@ -69,14 +92,24 @@ export default function DemoCamera({ view }: { view: CameraView }) {
 					: view === "open-book"
 						? new Vector3(1.1, 0.65, 2.8)
 						: new Vector3(0.3, 0.12, 2.3);
-			camera.position.copy(position.multiplyScalar(portraitScale));
+			const bookScale = Math.max(book.dimensions[1], book.dimensions[0] / 0.7);
+			camera.position.copy(position.multiplyScalar(portraitScale * bookScale));
 			orbit.target.set(0, 0, 0);
 		}
 
 		initialized.current = true;
 		camera.lookAt(orbit.target);
 		orbit.update();
-	}, [camera, framing, isShelves, view, size.width, size.height]);
+	}, [
+		camera,
+		framing,
+		isShelves,
+		view,
+		size.width,
+		size.height,
+		elevation,
+		book.dimensions,
+	]);
 
 	useFrame((_, delta) => {
 		const orbit = controls.current;
@@ -86,12 +119,12 @@ export default function DemoCamera({ view }: { view: CameraView }) {
 		const angle = framing.fullCircle
 			? elapsed.current * 0.5
 			: Math.sin(elapsed.current * 0.35) * 0.35;
-		const elevation = framing.fullCircle ? 0.6 : 0.5;
-		const horizontal = framing.distance * Math.sqrt(1 - elevation ** 2);
+		const orbitElevation = framing.fullCircle ? 0.6 : elevation;
+		const horizontal = framing.distance * Math.sqrt(1 - orbitElevation ** 2);
 		desiredPosition
 			.set(
 				Math.sin(angle) * horizontal,
-				framing.distance * elevation,
+				framing.distance * orbitElevation,
 				Math.cos(angle) * horizontal,
 			)
 			.add(framing.target);

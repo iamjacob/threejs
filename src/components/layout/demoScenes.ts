@@ -7,11 +7,18 @@ import BookPageSwiper from "../openbook/BookPageSwiper";
 import OpenBook from "../openbook/OpenBook";
 import Particles from "../particles/Particles";
 import ParticlesController from "../particles/ParticlesController";
+import Bookshelves from "../shelves/Bookshelves";
 import LevelController from "../shelves/LevelController";
 import { progressionConfig } from "../shelves/progressionConfig";
 import Shelves from "../shelves/Shelves";
+import { BOOKS_SHELF_LEVEL } from "../shelves/shelfBooks";
 
-export type CameraView = "book" | "open-book" | "page" | "shelves";
+export type CameraView =
+	| "book"
+	| "open-book"
+	| "page"
+	| "shelves"
+	| "shelves-books";
 
 type DemoScene = {
 	Scene: ComponentType;
@@ -43,6 +50,12 @@ export const DEMO_SCENES = {
 	Shelflevels: shelves,
 	"level-based-shelf": shelves,
 	"level-four-shelves": { ...shelves, shelfLevel: 4, autoplay: false },
+	"mobile-books": {
+		Scene: Bookshelves,
+		camera: "shelves-books",
+		shelfLevel: BOOKS_SHELF_LEVEL,
+		autoplay: false,
+	},
 	"level-top-shelves": {
 		...shelves,
 		shelfLevel: progressionConfig.levels.length - 1,

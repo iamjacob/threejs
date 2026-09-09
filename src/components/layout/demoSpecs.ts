@@ -1,6 +1,6 @@
 import type { DemoId } from "./demoScenes";
 
-export type SpecsId = DemoId | "Boooks";
+export type SpecsId = DemoId | "Boooks" | "ChooseBook";
 type DemoSpecs = {
 	title: string;
 	description: string;
@@ -14,7 +14,10 @@ const book: DemoSpecs = {
 	title: "3D Book",
 	description: "The base book component shared by the visual experiments.",
 	values: [
-		["Geometry", "Three.js BoxGeometry · 0.7 × 1 × 0.1 units"],
+		[
+			"Geometry",
+			"Three.js BoxGeometry sized from the selected book's physical dimensions, at 30 cm per world unit.",
+		],
 		["Material", "MeshStandardMaterial with a matte PBR cover"],
 		[
 			"Textures",
@@ -24,7 +27,6 @@ const book: DemoSpecs = {
 	needs:
 		"Cover artwork for front, back and spine, page-edge textures, and the book's dimensions.",
 	enhancements: [
-		"Load dimensions and all cover assets from real book metadata.",
 		"Add rounded cover edges and a curved spine for a more physical silhouette.",
 	],
 	hint: "Drag to orbit. Pinch or scroll to zoom.",
@@ -35,7 +37,10 @@ const openBook: DemoSpecs = {
 	description:
 		"A hinged book with individually modeled pages and live PDF content.",
 	values: [
-		["Geometry", "120 thin page meshes, two covers and a spine"],
+		[
+			"Geometry",
+			"Up to 120 demo page meshes, two covers and a spine, sized to the selected book.",
+		],
 		[
 			"Animation",
 			"GSAP timelines rotate rigid page hinges for opening, closing and page turns.",
@@ -50,7 +55,7 @@ const openBook: DemoSpecs = {
 		],
 	],
 	needs:
-		"A PDF, front/back/spine artwork, book dimensions, and accessible PDF.js worker files.",
+		"The selected book's artwork and dimensions. Books with a linked PDF show its pages; otherwise the folding demo uses blank pages.",
 	enhancements: [
 		"Add a page-curl vertex shader on subdivided pages, driven by GSAP during opening, closing and page turns.",
 		"Render both sides of each page, prefetch nearby pages, and derive the modeled page count from the PDF.",
@@ -89,6 +94,19 @@ const shelves: DemoSpecs = {
 };
 
 export const DEMO_SPECS: Record<SpecsId, DemoSpecs> = {
+	ChooseBook: {
+		title: "Choose your book",
+		description: "A cover carousel sets the example book for every experiment.",
+		values: [
+			[
+				"Selection",
+				"Shared covers and physical dimensions across all book components.",
+			],
+		],
+		needs: "Front, back and spine images and book dimensions in the catalog.",
+		enhancements: ["Add more books to the collection."],
+		hint: "Swipe the covers or use the arrows, then choose a book.",
+	},
 	Boooks: {
 		title: "Boooks R3F!",
 		description:
@@ -121,6 +139,33 @@ export const DEMO_SPECS: Record<SpecsId, DemoSpecs> = {
 		title: "Level 4 shelves",
 		description:
 			"The four-shelf preset: 16 books unlock four arcs, each covering 8% of a circle.",
+	},
+	"mobile-books": {
+		title: "Mobile view with books",
+		description:
+			"The blockchain collection on level 4's four shelves, with each book's own cover, spine and physical proportions.",
+		values: [
+			[
+				"Collection",
+				"Books with front, back and spine images and dimensions in blockchain/data.json.",
+			],
+			[
+				"Scale",
+				"30 cm = 1 world unit. Width, height and thickness use the same conversion; shelf spacing is 30 cm.",
+			],
+			[
+				"Placement",
+				"Covers face forward along the shelf arcs. Each book rests on the wood at its own height.",
+			],
+			[
+				"Textures",
+				"Original scans are resized to at most 1024 pixels when loaded to limit mobile GPU memory.",
+			],
+		],
+		needs:
+			"Local cover images and size in centimeters. Mit liv med Fangekoret uses estimated dimensions of 12.8 × 20.5 × 1.5 cm.",
+		enhancements: ["Open a selected book and connect it to the reader."],
+		hint: "Drag to orbit the shelves. Pinch or scroll to inspect the covers.",
 	},
 	"level-top-shelves": {
 		...shelves,

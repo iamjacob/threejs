@@ -3,7 +3,7 @@
   "title": "the source",
   "mark": "spine",
   "source": {
-    "fileName": "IMG_20260907_220441_1.jpg",
+    "fileName": "IMG_20260907_220445.jpg",
     "mimeType": "image/jpeg",
     "width": 3072,
     "height": 4096,
@@ -18,28 +18,28 @@
   ],
   "points": {
     "topLeft": {
-      "x": 589.945,
-      "y": 581.692,
-      "xNormalized": 0.19203941,
-      "yNormalized": 0.14201472
+      "x": 1534.319,
+      "y": 543.286,
+      "xNormalized": 0.4994527,
+      "yNormalized": 0.13263811
     },
     "topRight": {
-      "x": 2381.824,
-      "y": 505.658,
-      "xNormalized": 0.77533336,
-      "yNormalized": 0.12345175
+      "x": 1739.604,
+      "y": 546.516,
+      "xNormalized": 0.56627747,
+      "yNormalized": 0.13342688
     },
     "bottomRight": {
-      "x": 2423.077,
-      "y": 3413.527,
-      "xNormalized": 0.78876202,
-      "yNormalized": 0.83338073
+      "x": 1626.594,
+      "y": 3313.274,
+      "xNormalized": 0.52949021,
+      "yNormalized": 0.80890477
     },
     "bottomLeft": {
-      "x": 559.975,
-      "y": 3439.377,
-      "xNormalized": 0.18228367,
-      "yNormalized": 0.83969177
+      "x": 1389.599,
+      "y": 3318.314,
+      "xNormalized": 0.45234341,
+      "yNormalized": 0.81013514
     }
   },
   "rotatedImage": {
@@ -47,36 +47,36 @@
     "height": 4096,
     "points": {
       "topLeft": {
-        "x": 589.945,
-        "y": 581.692,
-        "xNormalized": 0.19203941,
-        "yNormalized": 0.14201472
+        "x": 1534.319,
+        "y": 543.286,
+        "xNormalized": 0.4994527,
+        "yNormalized": 0.13263811
       },
       "topRight": {
-        "x": 2381.824,
-        "y": 505.658,
-        "xNormalized": 0.77533336,
-        "yNormalized": 0.12345175
+        "x": 1739.604,
+        "y": 546.516,
+        "xNormalized": 0.56627747,
+        "yNormalized": 0.13342688
       },
       "bottomRight": {
-        "x": 2423.077,
-        "y": 3413.527,
-        "xNormalized": 0.78876202,
-        "yNormalized": 0.83338073
+        "x": 1626.594,
+        "y": 3313.274,
+        "xNormalized": 0.52949021,
+        "yNormalized": 0.80890477
       },
       "bottomLeft": {
-        "x": 559.975,
-        "y": 3439.377,
-        "xNormalized": 0.18228367,
-        "yNormalized": 0.83969177
+        "x": 1389.599,
+        "y": 3318.314,
+        "xNormalized": 0.45234341,
+        "yNormalized": 0.81013514
       }
     }
   },
   "output": {
     "fileName": "the_source.spine.webp",
     "format": "image/webp",
-    "width": 1863,
-    "height": 2908,
+    "width": 237,
+    "height": 2779,
     "quality": 0.94,
     "resolutionLimitedByBrowser": false
   }

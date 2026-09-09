@@ -1,15 +1,20 @@
 import { Eye, Info, Sparkles, X } from "lucide-react";
 import { useId, useRef } from "react";
+import { publicAssetUrl } from "../../lib/publicAssetUrl";
+import { useSelectedBook } from "../../stores/useBookStore";
 import { usePresentationStore } from "../../stores/usePresentationStore";
 import { DEMO_SPECS, type SpecsId } from "./demoSpecs";
 
 export default function SceneToolbar({
 	activeId,
 	showBlur,
+	onChangeBook,
 }: {
 	activeId: SpecsId;
 	showBlur: boolean;
+	onChangeBook: () => void;
 }) {
+	const book = useSelectedBook();
 	const lighting = usePresentationStore((state) => state.redAccent);
 	const blur = usePresentationStore((state) => state.blurEnabled);
 	const toggleLighting = usePresentationStore((state) => state.toggleLighting);
@@ -24,9 +29,24 @@ export default function SceneToolbar({
 	return (
 		<>
 			<fieldset
-				className="absolute top-16 left-4 z-20 m-0 flex min-w-0 max-w-[calc(100%-2rem)] items-center gap-2 border-0 p-0"
+				className="absolute top-16 left-4 z-20 m-0 flex flex-wrap min-w-0 max-w-[calc(100%-2rem)] items-center gap-2 border-0 p-0"
 				aria-label="Scene options"
 			>
+				<button
+					type="button"
+					onClick={onChangeBook}
+					aria-label={`Change book: ${book.title}`}
+					aria-haspopup="dialog"
+					title={book.title}
+					className={toggleClass}
+				>
+					<img
+						src={publicAssetUrl(book.cover.front)}
+						alt=""
+						className="h-7 w-5 rounded-sm object-cover"
+					/>
+					<span className="hidden min-[420px]:inline">Change book</span>
+				</button>
 				<button
 					type="button"
 					aria-label="Red accent light"
@@ -99,6 +119,11 @@ export default function SceneToolbar({
 				<dl className="mb-4 divide-y divide-white/10 text-xs leading-relaxed">
 					{[
 						...spec.values,
+						["Example book", book.title],
+						[
+							"Book size",
+							`${book.dimensions.map((value) => (value * 30).toFixed(1)).join(" × ")} cm · width × height × thickness`,
+						],
 						[
 							"Lighting",
 							lighting ? "Soft studio + red accent" : "Soft studio · always on",

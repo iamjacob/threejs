@@ -1,9 +1,17 @@
 
 # Change first copy on first page
 
-# Add multiple book!
+# shelves height is 3cm just so they align with the boooks
+
+# Add multiple book! - done
+
+# Make it possible to choose the main book as the first thing, so that is the example book in all the components!
+
+# ask what level are you?
 
 # Make changing between them possible.
+
+# add github and add discord and email option
 
 # Make dissolve book only dissolve and on click make it reappear then dissolve. + remove red bar!
 

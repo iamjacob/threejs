@@ -1,10 +1,25 @@
 import { useFrame, useLoader } from "@react-three/fiber";
 import gsap from "gsap";
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+	type ReactNode,
+	Suspense,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import * as THREE from "three";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
+import { useSelectedBook } from "../../stores/useBookStore";
 import { useLevelStore } from "../../stores/useLevelStore";
+import Book from "../book/book";
 import { progressionConfig } from "./progressionConfig";
+import {
+	SHELF_INNER_RADIUS,
+	SHELF_OUTER_RADIUS,
+	SHELF_SPACING,
+	SHELF_THICKNESS,
+} from "./shelfBooks";
 
 type Vector3Tuple = [number, number, number];
 
@@ -44,8 +59,8 @@ const Shelf = ({
 	}, [textures]);
 
 	const geometry = useMemo(() => {
-		const outerR = 8;
-		const innerR = 7;
+		const outerR = SHELF_OUTER_RADIUS;
+		const innerR = SHELF_INNER_RADIUS;
 		const arcLength = Math.PI * 2 * fraction;
 		const startAngle = -arcLength / 2; // Center the arc
 		const endAngle = arcLength / 2;
@@ -62,7 +77,7 @@ const Shelf = ({
 		shape.closePath();
 
 		return new THREE.ExtrudeGeometry(shape, {
-			depth: 0.08,
+			depth: SHELF_THICKNESS,
 			bevelEnabled: false,
 			steps: 1,
 			curveSegments: 32,
@@ -96,12 +111,22 @@ const Shelf = ({
 	);
 };
 
-const Shelves = () => {
-	const levelIndex = useLevelStore((state) => state.levelIndex);
-	const isPlaying = useLevelStore((state) => state.isPlaying);
+const Shelves = ({
+	fixedLevel,
+	children,
+}: {
+	fixedLevel?: number;
+	children?: ReactNode;
+}) => {
+	const book = useSelectedBook();
+	const levelIndex = useLevelStore((state) => fixedLevel ?? state.levelIndex);
+	const isPlaying = useLevelStore(
+		(state) => fixedLevel === undefined && state.isPlaying,
+	);
 	const advanceLevel = useLevelStore((state) => state.advanceLevel);
 	const playback = useRef({ levelIndex, isPlaying, elapsed: 0 });
 	const targetFractions = progressionConfig.levels[levelIndex]?.shelves ?? [];
+	const bookShelfIndex = targetFractions.findIndex((fraction) => fraction > 0);
 	const [animatedFractions, setAnimatedFractions] =
 		useState<number[]>(targetFractions);
 	const fractionsRef = useRef(animatedFractions);
@@ -165,11 +190,28 @@ const Shelves = () => {
 						// biome-ignore lint/suspicious/noArrayIndexKey: Each index is a fixed shelf position across levels.
 						key={i}
 						index={i}
-						position={[0, i - 1, 0]}
+						position={[0, (i - 1) * SHELF_SPACING, 0]}
 						fraction={fraction}
 					/>
 				);
 			})}
+			{children ??
+				(bookShelfIndex >= 0 && (
+					<group
+						position={[
+							SHELF_INNER_RADIUS + 0.4,
+							(bookShelfIndex - 1) * SHELF_SPACING +
+								SHELF_THICKNESS +
+								book.dimensions[1] / 2,
+							0,
+						]}
+						rotation={[0, -Math.PI / 2, 0]}
+					>
+						<Suspense fallback={null}>
+							<Book />
+						</Suspense>
+					</group>
+				))}
 		</group>
 	);
 };

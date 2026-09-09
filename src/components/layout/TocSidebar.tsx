@@ -26,6 +26,7 @@ type TocSidebarProps = {
 };
 
 const DEFAULT_ITEMS: TocItem[] = [
+	{ id: "ChooseBook", label: "Choose your book", opensDialog: true },
 	{ id: "Boooks", label: "Boooks R3F!", opensDialog: true },
 	{
 		id: "3DBook",
@@ -50,6 +51,11 @@ const DEFAULT_ITEMS: TocItem[] = [
 				shortLabel: "Growing shelves",
 			},
 			{ id: "level-four-shelves", label: "Level 4 Shelves" },
+			{
+				id: "mobile-books",
+				label: "Mobile view with books",
+				shortLabel: "Shelves with books",
+			},
 			{
 				id: "level-top-shelves",
 				label: "Top level is 360degrees",

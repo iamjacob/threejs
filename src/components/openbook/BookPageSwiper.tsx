@@ -1,13 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useReadingStore } from "../../../stores/useReadingStore";
 
-const TOTAL = 120;
+import { useSelectedBook } from "../../stores/useBookStore";
+
 const ITEM_HEIGHT = 26;
 const MENU_HEIGHT = 144;
-const PAGES = Array.from({ length: TOTAL }, (_, index) => index);
 
 const lerp = (start: number, end: number, amount: number): number =>
 	start * (1 - amount) + end * amount;
@@ -29,6 +29,12 @@ interface ThrottleState {
 }
 
 export default function BookPageSwiper() {
+	const book = useSelectedBook();
+	const total = book.demoPages;
+	const pageNumbers = useMemo(
+		() => Array.from({ length: total }, (_, index) => index),
+		[total],
+	);
 	const menuRef = useRef<HTMLDivElement>(null);
 	const itemsRef = useRef<Array<HTMLDivElement | null>>([]);
 	const stateRef = useRef<SwiperAnimationState>({
@@ -119,7 +125,7 @@ export default function BookPageSwiper() {
 
 	useEffect(() => {
 		const state = stateRef.current;
-		const totalHeight = TOTAL * ITEM_HEIGHT;
+		const totalHeight = total * ITEM_HEIGHT;
 		const lowerBound = -ITEM_HEIGHT;
 		const upperBound = totalHeight - ITEM_HEIGHT;
 		const range = upperBound - lowerBound;
@@ -156,7 +162,7 @@ export default function BookPageSwiper() {
 				cancelAnimationFrame(state.animationFrameId);
 			}
 		};
-	}, [highlight]);
+	}, [highlight, total]);
 
 	useEffect(() => {
 		const menu = menuRef.current;
@@ -252,7 +258,7 @@ export default function BookPageSwiper() {
 					width: 42,
 				}}
 			>
-				{PAGES.map((page, index) => (
+				{pageNumbers.map((page, index) => (
 					<div
 						key={page}
 						ref={(element) => {

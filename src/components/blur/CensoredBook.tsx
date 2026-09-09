@@ -2,11 +2,13 @@ import { useFBO } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useRef } from "react";
 import type * as THREE from "three";
+import { useSelectedBook } from "../../stores/useBookStore";
 import { usePresentationStore } from "../../stores/usePresentationStore";
 import Book from "../book/book";
 import { GlassMaterial, type SceneGlassMaterial } from "./SceneGlassMaterial";
 
 const CensoredBook = () => {
+	const book = useSelectedBook();
 	const blurEnabled = usePresentationStore((state) => state.blurEnabled);
 	const meshRef = useRef<THREE.Mesh>(null);
 	const materialRef = useRef<InstanceType<typeof SceneGlassMaterial>>(null);
@@ -51,7 +53,7 @@ const CensoredBook = () => {
 				position={[0, 0, 0]}
 				scale={[1.02, 1.02, 1.02]}
 			>
-				<boxGeometry args={[0.7, 1, 0.1]} />
+				<boxGeometry args={book.dimensions} />
 
 				<GlassMaterial
 					ref={materialRef}

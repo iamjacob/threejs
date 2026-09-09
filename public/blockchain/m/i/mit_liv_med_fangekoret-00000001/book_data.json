@@ -8,5 +8,18 @@
   "format": "Paperback",
   "pages": 174,
   "releaseDate": "17-03-2022",
-  "coverImage": "cover.webp"
+  "coverImage": [
+    {
+      "front": "/blockchain/m/i/mit_liv_med_fangekoret-00000001/cover/front.webp",
+      "back": "/blockchain/m/i/mit_liv_med_fangekoret-00000001/cover/back.webp",
+      "spine": "/blockchain/m/i/mit_liv_med_fangekoret-00000001/cover/spine.webp"
+    }
+  ],
+  "size": {
+    "width": 12.8,
+    "height": 20.5,
+    "thickness": 1.5
+  },
+  "sizeEstimated": true,
+  "pdf": "/blockchain/m/i/mit_liv_med_fangekoret-00000001/mit_liv_med_fangekoret-00000001.pdf"
 }

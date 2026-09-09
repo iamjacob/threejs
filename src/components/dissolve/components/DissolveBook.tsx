@@ -1,7 +1,8 @@
 import { useFrame } from "@react-three/fiber";
 import { useEffect, useMemo } from "react";
 import { BoxGeometry } from "three";
-import { BOOK_DIMENSIONS, useBookTextures } from "../../book/bookAppearance";
+import { useSelectedBook } from "../../../stores/useBookStore";
+import { useBookTextures } from "../../book/bookAppearance";
 import { createDissolveMaterial } from "./createDissolveMaterial";
 import DissolveParticles from "./DissolveParticles";
 
@@ -10,10 +11,11 @@ export default function DissolveBook({
 }: {
 	dissolveProgress: number;
 }) {
+	const book = useSelectedBook();
 	const textures = useBookTextures();
 	const geometry = useMemo(
-		() => new BoxGeometry(...BOOK_DIMENSIONS, 32, 32, 8),
-		[],
+		() => new BoxGeometry(...book.dimensions, 32, 32, 8),
+		[book.dimensions],
 	);
 	const uniforms = useMemo(
 		() => ({

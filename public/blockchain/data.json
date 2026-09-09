@@ -15,7 +15,13 @@
   "format": "Paperback",
   "pages": 106,
   "releaseDate": "17-03-2004",
-  "coverImage": "cover.webp",
+  "coverImage": [
+    {
+      "front": "/blockchain/s/e/seneca on the shortness of life/Seneca_on_the_shortness_of_life.front.webp",
+      "back": "/blockchain/s/e/seneca on the shortness of life/Seneca_on_the_shortness_of_life.back.webp",
+      "spine": "/blockchain/s/e/seneca on the shortness of life/Seneca_on_the_shortness_of_life.spine.webp"
+    }
+  ],
   "size": {
     "width": 11,
     "height": 18,
@@ -41,8 +47,9 @@
   "releaseDate": "2025",
   "coverImage": [
     {
-      "front":"safe_cover.webp",
-      "back":"safe_cover_back.webp"
+      "front": "/blockchain/w/h/whats your dream/What_s_your_dream.front.webp",
+      "back": "/blockchain/w/h/whats your dream/What_s_your_dream.back.webp",
+      "spine": "/blockchain/w/h/whats your dream/What_s_your_dream.spine.webp"
     }
   ],
   "size": {
@@ -67,12 +74,7 @@
   "pages": 352,
   "readablePages": 320,
   "releaseDate": "2022",
-  "coverImage": [
-    {
-      "front":"safe_cover.webp",
-      "back":"safe_cover_back.webp"
-    }
-  ],
+  "coverImage": [],
   "size": {
     "width": 14.1,
     "height": 22.3,
@@ -96,12 +98,7 @@
   "pages": 269,
   "readablePages": 269,
   "releaseDate": "2022",
-  "coverImage": [
-    {
-      "front":"safe_cover.webp",
-      "back":"safe_cover_back.webp"
-    }
-  ],
+  "coverImage": [],
   "size": {
     "width": 15.8,
     "height": 23.6,
@@ -125,12 +122,7 @@
   "pages": 244,
   "readablePages": 222,
   "releaseDate": "2024",
-  "coverImage": [
-    {
-      "front":"safe_cover.webp",
-      "back":"safe_cover_back.webp"
-    }
-  ],
+  "coverImage": [],
   "size": {
     "width": 23.4,
     "height": 15.4,
@@ -154,12 +146,7 @@
   "pages": 514,
   "readablePages": 462,
   "releaseDate": "2017",
-  "coverImage": [
-    {
-      "front":"safe_cover.webp",
-      "back":"safe_cover_back.webp"
-    }
-  ],
+  "coverImage": [],
   "size": {
     "width": 12.8,
     "height": 19.7,
@@ -185,9 +172,9 @@
   "releaseDate": "2016",
   "coverImage": [
     {
-      "front":".webp",
-      "back":".webp",
-      "spine":".webp"
+      "front": "/blockchain/t/h/the_daily_stoic/The_Daily_Stoic.front.webp",
+      "back": "/blockchain/t/h/the_daily_stoic/The_Daily_Stoic.back.webp",
+      "spine": "/blockchain/t/h/the_daily_stoic/The_Daily_Stoic.spine.webp"
     }
   ],
   "size": {
@@ -215,9 +202,9 @@
   "releaseDate": "2017",
   "coverImage": [
     {
-      "front":".webp",
-      "back":".webp",
-      "spine":".webp"
+      "front": "/blockchain/b/e/behave/Behave.front.webp",
+      "back": "/blockchain/b/e/behave/Behave.back.webp",
+      "spine": "/blockchain/b/e/behave/Behave.spine.webp"
     }
   ],
   "size": {
@@ -247,9 +234,9 @@
   "releaseDate": "2025",
   "coverImage": [
     {
-      "front":".webp",
-      "back":".webp",
-      "spine":".webp"
+      "front": "/blockchain/s/h/shaolin_spirit.front.webp",
+      "back": "/blockchain/s/h/shaolin_spirit.back.webp",
+      "spine": "/blockchain/s/h/shaolin_spirit.spine.webp"
     }
   ],
   "size": {
@@ -276,9 +263,9 @@
   "releaseDate": "2021",
   "coverImage": [
     {
-      "front":".webp",
-      "back":".webp",
-      "spine":".webp"
+      "front": "/blockchain/e/m/empowered.front.webp",
+      "back": "/blockchain/e/m/empowered.back.webp",
+      "spine": "/blockchain/e/m/empowered.spine.webp"
     }
   ],
   "size": {
@@ -305,9 +292,9 @@
   "releaseDate": "2020",
   "coverImage": [
     {
-      "front":".webp",
-      "back":".webp",
-      "spine":".webp"
+      "front": "/blockchain/t/h/the_source/the_source.front.webp",
+      "back": "/blockchain/t/h/the_source/the_source.back.webp",
+      "spine": "/blockchain/t/h/the_source/the_source.spine.webp"
     }
   ],
   "size": {
@@ -334,9 +321,9 @@
   "releaseDate": "2016",
   "coverImage": [
     {
-      "front":".webp",
-      "back":".webp",
-      "spine":".webp"
+      "front": "/blockchain/s/m/small data/Small_data.front.webp",
+      "back": "/blockchain/s/m/small data/Small_data.back.webp",
+      "spine": "/blockchain/s/m/small data/Small_data.spine.webp"
     }
   ],
   "size": {
@@ -363,9 +350,9 @@
   "releaseDate": "2023",
   "coverImage": [
     {
-      "front":".webp",
-      "back":".webp",
-      "spine":".webp"
+      "front": "/blockchain/d/i/discipline is destiny/discipline_is_destiny.front.webp",
+      "back": "/blockchain/d/i/discipline is destiny/discipline_is_destiny.back.webp",
+      "spine": "/blockchain/d/i/discipline is destiny/discipline_is_destiny.spine.webp"
     }
   ],
   "size": {
@@ -392,9 +379,9 @@
   "releaseDate": "2020",
   "coverImage": [
     {
-      "front":".webp",
-      "back":".webp",
-      "spine":".webp"
+      "front": "/blockchain/s/t/stilness is the key/stilness_is_the_key.front.webp",
+      "back": "/blockchain/s/t/stilness is the key/stilness_is_the_key.back.webp",
+      "spine": "/blockchain/s/t/stilness is the key/stilness_is_the_key.spine.webp"
     }
   ],
   "size": {
@@ -421,9 +408,9 @@
   "releaseDate": "2021",
   "coverImage": [
     {
-      "front":".webp",
-      "back":".webp",
-      "spine":".webp"
+      "front": "/blockchain/f/o/four thousand weeks/four_thousand_weeks.front.webp",
+      "back": "/blockchain/f/o/four thousand weeks/four_thousand_weeks.back.webp",
+      "spine": "/blockchain/f/o/four thousand weeks/four_thousand_weeks.spine.webp"
     }
   ],
   "size": {
@@ -451,9 +438,9 @@
   "releaseDate": "2023",
   "coverImage": [
     {
-      "front":".webp",
-      "back":".webp",
-      "spine":".webp"
+      "front": "/blockchain/b/e/be useful/Be_useful.front.webp",
+      "back": "/blockchain/b/e/be useful/Be_useful.back.webp",
+      "spine": "/blockchain/b/e/be useful/Be_useful.spine.webp"
     }
   ],
   "size": {
@@ -481,9 +468,9 @@
   "releaseDate": "2023",
   "coverImage": [
     {
-      "front":".webp",
-      "back":".webp",
-      "spine":".webp"
+      "front": "/blockchain/h/o/how big things get done/how_big_things_get_done.front.webp",
+      "back": "/blockchain/h/o/how big things get done/how_big_things_get_done.back.webp",
+      "spine": "/blockchain/h/o/how big things get done/how_big_things_get_done.spine.webp"
     }
   ],
   "size": {
@@ -510,9 +497,9 @@
   "releaseDate": "2018",
   "coverImage": [
     {
-      "front":".webp",
-      "back":".webp",
-      "spine":".webp"
+      "front": "/blockchain/b/l/blitzscaling/Blitzscaling.front.webp",
+      "back": "/blockchain/b/l/blitzscaling/Blitzscaling.back.webp",
+      "spine": "/blockchain/b/l/blitzscaling/Blitzscaling.spine.webp"
     }
   ],
   "size": {
@@ -537,13 +524,7 @@
   "pages": 296,
   "readablePages": 276,
   "releaseDate": "2006",
-  "coverImage": [
-    {
-      "front":".webp",
-      "back":".webp",
-      "spine":".webp"
-    }
-  ],
+  "coverImage": [],
   "size": {
     "width": 11.2,
     "height": 18.1,
@@ -569,9 +550,9 @@
   "ThisreleaseDate": "2020",
   "coverImage": [
     {
-      "front":".webp",
-      "back":".webp",
-      "spine":".webp"
+      "front": "/blockchain/t/r/traction.front.webp",
+      "back": "/blockchain/t/r/traction.back.webp",
+      "spine": "/blockchain/t/r/traction.spine.webp"
     }
   ],
   "size": {
@@ -597,9 +578,9 @@
   "releaseDate": "2017",
   "coverImage": [
     {
-      "front":".webp",
-      "back":".webp",
-      "spine":".webp"
+      "front": "/blockchain/a/c/a course in miracles/a_course_in_miracles.front.webp",
+      "back": "/blockchain/a/c/a course in miracles/a_course_in_miracles.back.webp",
+      "spine": "/blockchain/a/c/a course in miracles/a_course_in_miracles.spine.webp"
     }
   ],
   "size": {
@@ -608,5 +589,31 @@
     "thickness": 5.8
   },
   "weight":1629
+}
+,
+{
+  "title": "Mit liv med Fangekoret",
+  "author": "Louise Adrian",
+  "isbn": "9788797248003",
+  "language": "da",
+  "publisher": "Klim",
+  "edition": 1,
+  "format": "Paperback",
+  "pages": 174,
+  "releaseDate": "17-03-2022",
+  "coverImage": [
+    {
+      "front": "/blockchain/m/i/mit_liv_med_fangekoret-00000001/cover/front.webp",
+      "back": "/blockchain/m/i/mit_liv_med_fangekoret-00000001/cover/back.webp",
+      "spine": "/blockchain/m/i/mit_liv_med_fangekoret-00000001/cover/spine.webp"
+    }
+  ],
+  "size": {
+    "width": 12.8,
+    "height": 20.5,
+    "thickness": 1.5
+  },
+  "sizeEstimated": true,
+  "pdf": "/blockchain/m/i/mit_liv_med_fangekoret-00000001/mit_liv_med_fangekoret-00000001.pdf"
 }
 ]

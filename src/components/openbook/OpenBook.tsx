@@ -8,6 +8,7 @@ import * as THREE from "three";
 
 import { useReadingStore } from "../../../stores/useReadingStore.ts";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
+import { useSelectedBook } from "../../stores/useBookStore";
 import { BOOK_MATERIAL } from "../book/bookAppearance";
 import usePDFToImage from "./usePDFToImage";
 
@@ -47,33 +48,15 @@ interface OpenBookProps {
 	pdfUrl?: string;
 }
 
-const DEFAULT_PDF_URL =
-	"/blockchain/m/i/mit_liv_med_fangekoret-00000001/mit_liv_med_fangekoret-00000001.pdf";
-
-const DEFAULT_COVER_PATH =
-	"/blockchain/m/i/mit_liv_med_fangekoret-00000001/cover";
-
-const DUMMY_BOOK: BookData = {
-	id: "demo-book",
-	title: "Demo Book",
-	author: "Unknown",
-	pages: 120,
-	dimensions: [0.7, 1, 0.1],
-	cover: {
-		front: `${DEFAULT_COVER_PATH}/front.webp`,
-		spine: `${DEFAULT_COVER_PATH}/spine.webp`,
-		back: `${DEFAULT_COVER_PATH}/back.webp`,
-	},
-	pdf: DEFAULT_PDF_URL,
-};
-
 const OpenBook = ({
 	coverImg = false,
 	orbit = true,
-	book = DUMMY_BOOK,
+	book: providedBook,
 	onToggle = () => undefined,
-	pdfUrl = DEFAULT_PDF_URL,
+	pdfUrl,
 }: OpenBookProps) => {
+	const selectedBook = useSelectedBook();
+	const book = providedBook ?? selectedBook;
 	const [currentPage, setCurrentPage] = useState<number>(0);
 	const [bookRead, setBookRead] = useState<boolean>(false);
 	const [pagesToFlip] = useState<number>(1);
@@ -87,18 +70,37 @@ const OpenBook = ({
 	const isAnimatingRef = useRef<boolean>(false);
 	const flipQueueRef = useRef<number[]>([]);
 	const flipToRef = useRef<(targetPage: number) => void>(() => undefined);
+	const flipTimelineRef = useRef<gsap.core.Timeline | null>(null);
+	const pageMaterialsRef = useRef(
+		new Map<THREE.Mesh, THREE.MeshStandardMaterial>(),
+	);
+
+	useEffect(() => {
+		const rotations = [
+			rightPageRef.current,
+			leftPageRef.current,
+			...pageRefs.current,
+		].flatMap((page) => (page ? [page.rotation] : []));
+		const materials = pageMaterialsRef.current;
+		return () => {
+			flipTimelineRef.current?.kill();
+			gsap.killTweensOf(rotations);
+			for (const material of materials.values()) {
+				material.map?.dispose();
+				material.dispose();
+			}
+			materials.clear();
+		};
+	}, []);
 
 	const [width, height, thickness] = book.dimensions;
-	const pages = Math.max(1, book.pages);
+	const pages = Math.max(1, Math.min(120, book.pages));
 	const pageThickness = thickness / pages;
 	const openDegrees = 1;
 
-	const frontUrl =
-		coverImg || book.cover.front || `${DEFAULT_COVER_PATH}/front.webp`;
-	const spineUrl =
-		coverImg || book.cover.spine || `${DEFAULT_COVER_PATH}/spine.webp`;
-	const backUrl =
-		coverImg || book.cover.back || `${DEFAULT_COVER_PATH}/back.webp`;
+	const frontUrl = coverImg || book.cover.front;
+	const spineUrl = coverImg || book.cover.spine;
+	const backUrl = coverImg || book.cover.back;
 
 	const [frontTex, spineTex, backTex] = useTexture([
 		publicAssetUrl(frontUrl),
@@ -106,7 +108,7 @@ const OpenBook = ({
 		publicAssetUrl(backUrl),
 	]) as [THREE.Texture, THREE.Texture, THREE.Texture];
 
-	const activePdfUrl = pdfUrl || book.pdf || null;
+	const activePdfUrl = pdfUrl ?? book.pdf ?? null;
 
 	useEffect(() => {
 		for (const texture of [frontTex, spineTex, backTex]) {
@@ -153,6 +155,7 @@ const OpenBook = ({
 			const pagesDelta = Math.abs(foldTo - currentPage);
 			const baseDuration = Math.max(0.06, 0.6 - 0.04 * pagesDelta);
 			const timeline = gsap.timeline({ onComplete });
+			flipTimelineRef.current = timeline;
 
 			const rightCover = rightPageRef.current;
 			const leftCover = leftPageRef.current;
@@ -280,6 +283,7 @@ const OpenBook = ({
 
 	useEffect(() => {
 		const handleKeyPress = (event: KeyboardEvent): void => {
+			if (document.querySelector("dialog[open]")) return;
 			if (event.key === "ArrowRight") {
 				flipForward();
 			} else if (event.key === "ArrowLeft") {
@@ -316,12 +320,16 @@ const OpenBook = ({
 						const pageMesh = page?.children[0];
 
 						if (pageMesh instanceof THREE.Mesh) {
+							const previous = pageMaterialsRef.current.get(pageMesh);
+							previous?.map?.dispose();
+							previous?.dispose();
 							texture.colorSpace = THREE.SRGBColorSpace;
 							pageMesh.material = new THREE.MeshStandardMaterial({
 								...BOOK_MATERIAL,
 								roughness: 0.9,
 								map: texture,
 							});
+							pageMaterialsRef.current.set(pageMesh, pageMesh.material);
 						}
 					},
 					undefined,
@@ -360,7 +368,8 @@ const OpenBook = ({
 			<mesh
 				rotation={[0, Math.PI, 0.45]}
 				position={[0, 0, 0]}
-				userData={{ bookID: book.bookID ?? book.id }}
+				name="open-book"
+				userData={{ bookID: book.id, pdf: activePdfUrl }}
 			>
 				<group ref={pagesGroupRef} position={[0.02, 1, 0]}>
 					{Array.from({ length: pages }, (_, index) => (
@@ -399,7 +408,12 @@ const OpenBook = ({
 					position={[-width * 0.501, 0, thickness * 0.5]}
 					rotation={[0, 0, 0]}
 				>
-					<mesh position={[width / 2, 0, 0]} castShadow receiveShadow>
+					<mesh
+						name="open-book-front"
+						position={[width / 2, 0, 0]}
+						castShadow
+						receiveShadow
+					>
 						<boxGeometry args={[width, height, 0.001]} />
 						<meshStandardMaterial {...BOOK_MATERIAL} map={frontTex} />
 					</mesh>
