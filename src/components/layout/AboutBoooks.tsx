@@ -32,7 +32,7 @@ export default function AboutBoooks({
 		>
 			<div className="mb-5 flex items-start justify-between gap-4">
 				<div>
-					<p className="mb-2 text-sm font-medium text-[#f34b54]">Boooks R3F!</p>
+					{/* <p className="mb-2 text-sm font-medium text-[#f34b54]">Boooks R3F!</p> */}
 					<h2 id="about-boooks-title" className="text-2xl font-medium">
 						About Boooks
 					</h2>
@@ -50,21 +50,43 @@ export default function AboutBoooks({
 				id="about-boooks-description"
 				className="text-base leading-relaxed text-stone-200"
 			>
-				Boooks explores a more playful digital library — a place where books
-				come to life and shelves grow with your collection.
-			</p>
+Hi, I’m Jacob, the founder of Boooks, from Aarhus, Denmark.
+					</p>
+			
 			<p className="mt-4 text-sm leading-relaxed text-stone-300">
-				This playground is a peek at that experience. Explore books in 3D, turn
-				their pages, watch the shelves expand, and try the animations for adding
-				and removing books. Pick a demo from the Components menu and make
-				yourself at home.
-			</p>
+			
+		Boooks is an experimental 3D reading platform built with React Three
+		Fiber and Three.js. I’m exploring how covers, pages, shelves, and
+		playful interactions can make a digital book collection feel more
+		personal and alive.
+	</p>
+
+			<p className="mt-4 text-sm leading-relaxed text-stone-300">
+	
+		This playground brings together some of the early components behind
+		that experience. Explore the books, turn their pages, watch the shelves
+		grow, and try the animations for adding and removing books.
+	</p>
+
+			<p className="mt-4 text-sm leading-relaxed text-stone-300">
+	
+		Choose a demo from the Components menu and have a play. Boooks is still
+		evolving, so feedback, ideas, and contributions are very welcome.
+	</p>
+
+			<p className="mt-4 text-sm leading-relaxed text-stone-300">
+	
+		You can explore the code on GitHub using the link in the top-right
+		corner.
+	</p>
+			
+			
 			<button
 				type="button"
 				onClick={onExplore}
 				className="mt-6 flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#d91b24] px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-[#b9161e]"
 			>
-				Explore 3D Book
+				Show me the components <span className="sr-only">of Boooks</span>
 				<ArrowRight size={18} aria-hidden="true" />
 			</button>
 		</dialog>
