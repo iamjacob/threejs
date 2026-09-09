@@ -1,8 +1,10 @@
-import { ArrowLeft, ArrowRight, Check, X } from "lucide-react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { ArrowLeft, ArrowRight, X } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
 import { books } from "../../lib/bookCatalog";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
 import { useBookStore, useSelectedBook } from "../../stores/useBookStore";
+
+const wrapIndex = (index: number) => (index + books.length) % books.length;
 
 export default function BookCarousel({
 	isOpen,
@@ -21,25 +23,13 @@ export default function BookCarousel({
 		books.indexOf(selectedBook),
 	);
 	const dialogRef = useRef<HTMLDialogElement>(null);
-	const trackRef = useRef<HTMLFieldSetElement>(null);
+	const stageRef = useRef<HTMLFieldSetElement>(null);
+	const pointer = useRef<{ x: number; moved: boolean } | null>(null);
 	const headingId = useId();
 	const descriptionId = useId();
 	const book = books[activeIndex];
-
-	const scrollToBook = useCallback(
-		(index: number, behavior: ScrollBehavior = "smooth") => {
-			const track = trackRef.current;
-			const slide = track?.children[index] as HTMLElement | undefined;
-			if (!track || !slide) return;
-			track.scrollTo({
-				left: slide.offsetLeft + slide.offsetWidth / 2 - track.clientWidth / 2,
-				behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches
-					? "instant"
-					: behavior,
-			});
-		},
-		[],
-	);
+	const move = (step: number) =>
+		setActiveIndex((index) => wrapIndex(index + step));
 
 	useEffect(() => {
 		const dialog = dialogRef.current;
@@ -48,12 +38,9 @@ export default function BookCarousel({
 			dialog.close();
 			return;
 		}
+		setActiveIndex(books.indexOf(selectedBook));
 		if (!dialog.open) dialog.showModal();
-		const index = books.indexOf(selectedBook);
-		setActiveIndex(index);
-		const frame = requestAnimationFrame(() => scrollToBook(index, "instant"));
-		return () => cancelAnimationFrame(frame);
-	}, [isOpen, selectedBook, scrollToBook]);
+	}, [isOpen, selectedBook]);
 
 	return (
 		<dialog
@@ -67,15 +54,9 @@ export default function BookCarousel({
 			}}
 		>
 			<div className="book-picker-heading">
-				<p className="book-picker-eyebrow">A little Boooks adventure</p>
-				<h1 id={headingId}>
-					{firstChoice
-						? "Every book has a story."
-						: "A different book. A new perspective."}
-				</h1>
-				<p id={descriptionId}>
-					Choose yours. Take it through every experiment.
-				</p>
+				<p className="book-picker-eyebrow">Boooks · Pick your companion</p>
+				<h1 id={headingId}>CHOOSE YOUR BOOK</h1>
+				<p id={descriptionId}>One book. Every experiment. Make it yours.</p>
 			</div>
 			{!firstChoice && (
 				<button
@@ -88,28 +69,10 @@ export default function BookCarousel({
 				</button>
 			)}
 			<fieldset
-				ref={trackRef}
-				className="book-carousel-track"
+				ref={stageRef}
+				className="book-carousel-stage"
 				aria-roledescription="carousel"
 				aria-label="Choose your example book"
-				onScroll={() => {
-					const track = trackRef.current;
-					if (!track) return;
-					const center = track.scrollLeft + track.clientWidth / 2;
-					let nearest = 0;
-					let distance = Number.POSITIVE_INFINITY;
-					Array.from(track.children).forEach((slide, index) => {
-						const element = slide as HTMLElement;
-						const delta = Math.abs(
-							element.offsetLeft + element.offsetWidth / 2 - center,
-						);
-						if (delta < distance) {
-							nearest = index;
-							distance = delta;
-						}
-					});
-					setActiveIndex(nearest);
-				}}
 				onKeyDown={(event) => {
 					if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key))
 						return;
@@ -119,62 +82,88 @@ export default function BookCarousel({
 							? 0
 							: event.key === "End"
 								? books.length - 1
-								: Math.max(
-										0,
-										Math.min(
-											books.length - 1,
-											activeIndex + (event.key === "ArrowRight" ? 1 : -1),
-										),
+								: wrapIndex(
+										activeIndex + (event.key === "ArrowRight" ? 1 : -1),
 									);
-					scrollToBook(index);
-					(trackRef.current?.children[index] as HTMLElement)?.focus({
-						preventScroll: true,
-					});
+					setActiveIndex(index);
+					stageRef.current
+						?.querySelectorAll<HTMLButtonElement>(".book-carousel-slide")
+						[index]?.focus({ preventScroll: true });
+				}}
+				onPointerDown={(event) => {
+					pointer.current = { x: event.clientX, moved: false };
+				}}
+				onPointerMove={(event) => {
+					if (
+						pointer.current &&
+						Math.abs(event.clientX - pointer.current.x) > 15
+					) {
+						pointer.current.moved = true;
+						event.currentTarget.setPointerCapture(event.pointerId);
+					}
+				}}
+				onPointerUp={(event) => {
+					if (pointer.current?.moved) {
+						const delta = pointer.current.x - event.clientX;
+						move(
+							Math.max(
+								-4,
+								Math.min(4, Math.round(delta / 80) || Math.sign(delta)),
+							),
+						);
+					}
+				}}
+				onPointerCancel={() => {
+					pointer.current = null;
 				}}
 			>
-				{books.map((item, index) => (
-					<button
-						type="button"
-						key={item.id}
-						className="book-carousel-slide"
-						aria-label={`${item.title} by ${item.author}`}
-						aria-pressed={index === activeIndex}
-						tabIndex={index === activeIndex ? 0 : -1}
-						onClick={() => scrollToBook(index)}
-					>
-						<img
-							src={publicAssetUrl(item.cover.front)}
-							alt={item.title}
-							draggable={false}
-							loading={Math.abs(index - activeIndex) < 3 ? "eager" : "lazy"}
-							decoding="async"
-						/>
-						<span className="book-carousel-marker" aria-hidden="true">
-							<Check size={14} />
-						</span>
-					</button>
-				))}
+				<div className="book-orbit-guide" aria-hidden="true" />
+				{books.map((item, index) => {
+					const angle = ((index - activeIndex) * Math.PI * 2) / books.length;
+					const depth = (Math.cos(angle) + 1) / 2;
+					const scale = 0.28 + 0.72 * depth;
+					return (
+						<button
+							type="button"
+							key={item.id}
+							className="book-carousel-slide"
+							aria-label={`${item.title} by ${item.author}`}
+							aria-pressed={index === activeIndex}
+							tabIndex={index === activeIndex ? 0 : -1}
+							style={{
+								transform: `translate(-50%, -50%) translateX(calc(var(--orbit-radius) * ${Math.sin(angle)})) translateY(${(1 - depth) * -150}px) scale(${scale}) rotateY(${-Math.sin(angle) * 50}deg) rotateZ(${Math.sin(angle) * 6}deg)`,
+								zIndex: Math.round(depth * 100),
+								opacity: 0.12 + 0.88 * depth ** 3,
+							}}
+							onClick={() => {
+								if (!pointer.current?.moved) setActiveIndex(index);
+							}}
+						>
+							<img
+								src={publicAssetUrl(item.cover.front)}
+								alt={item.title}
+								draggable={false}
+								loading="eager"
+								decoding="async"
+							/>
+						</button>
+					);
+				})}
 			</fieldset>
 			<div className="book-carousel-navigation">
 				<button
 					type="button"
 					aria-label="Previous book"
-					disabled={activeIndex === 0}
-					onClick={() => scrollToBook(activeIndex - 1)}
+					onClick={() => move(-1)}
 				>
-					<ArrowLeft size={19} />
+					<ArrowLeft size={20} />
 				</button>
 				<span>
 					{String(activeIndex + 1).padStart(2, "0")}{" "}
 					<span className="text-white/30">/ {books.length}</span>
 				</span>
-				<button
-					type="button"
-					aria-label="Next book"
-					disabled={activeIndex === books.length - 1}
-					onClick={() => scrollToBook(activeIndex + 1)}
-				>
-					<ArrowRight size={19} />
+				<button type="button" aria-label="Next book" onClick={() => move(1)}>
+					<ArrowRight size={20} />
 				</button>
 			</div>
 			<div
@@ -196,7 +185,9 @@ export default function BookCarousel({
 				{firstChoice ? "Explore with this book" : "Use this book"}
 				<ArrowRight size={18} />
 			</button>
-			<p className="book-picker-footnote">You can change your book anytime.</p>
+			<p className="book-picker-footnote">
+				Drag or swipe to browse · Change your book anytime
+			</p>
 		</dialog>
 	);
 }

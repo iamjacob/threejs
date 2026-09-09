@@ -26,8 +26,8 @@ type TocSidebarProps = {
 };
 
 const DEFAULT_ITEMS: TocItem[] = [
-	{ id: "ChooseBook", label: "Choose your book", opensDialog: true },
 	{ id: "Boooks", label: "Boooks R3F!", opensDialog: true },
+	{ id: "ChooseBook", label: "Choose your book", opensDialog: true },
 	{
 		id: "3DBook",
 		label: "3D Book",

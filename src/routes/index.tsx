@@ -22,11 +22,11 @@ export const Route = createFileRoute("/")({ component: Home });
 
 function Home() {
 	const [activeId, setActiveId] = useState<DemoId | "Boooks" | "ChooseBook">(
-		"ChooseBook",
+		"Boooks",
 	);
 	const [sceneId, setSceneId] = useState<DemoId>("3DBook");
-	const [isAboutOpen, setIsAboutOpen] = useState(false);
-	const [isBookPickerOpen, setIsBookPickerOpen] = useState(true);
+	const [isAboutOpen, setIsAboutOpen] = useState(true);
+	const [isBookPickerOpen, setIsBookPickerOpen] = useState(false);
 	const [hasChosenBook, setHasChosenBook] = useState(false);
 	const selectedBook = useSelectedBook();
 	const { Scene, Controller, camera } = getDemoScene(sceneId);
@@ -73,8 +73,14 @@ function Home() {
 			/>
 			<AboutBoooks
 				isOpen={isAboutOpen}
-				onClose={() => setIsAboutOpen(false)}
-				onExplore={() => selectDemo("3DBook")}
+				onClose={() => {
+					setIsAboutOpen(false);
+					if (!hasChosenBook) setIsBookPickerOpen(true);
+				}}
+				onExplore={() => {
+					setIsAboutOpen(false);
+					setIsBookPickerOpen(true);
+				}}
 			/>
 			<div
 				className={`fixed inset-x-0 top-0 bottom-[calc(5.5rem+env(safe-area-inset-bottom))] z-0 bg-blue-900 md:bottom-0 ${sceneId === "mobile-books" ? "mobile-books-preview" : ""}`}

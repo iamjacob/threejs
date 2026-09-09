@@ -86,7 +86,7 @@ Hi, I’m Jacob, the founder of Boooks, from Aarhus, Denmark.
 				onClick={onExplore}
 				className="mt-6 flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#d91b24] px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-[#b9161e]"
 			>
-				Show me the components <span className="sr-only">of Boooks</span>
+				Choose your book
 				<ArrowRight size={18} aria-hidden="true" />
 			</button>
 		</dialog>

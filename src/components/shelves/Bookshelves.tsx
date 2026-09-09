@@ -44,6 +44,9 @@ class ShelfTextureLoader extends TextureLoader {
 	}
 }
 
+// An instance keeps the shelf texture cache separate from full-resolution demo textures.
+const shelfTextureLoader = new ShelfTextureLoader();
+
 export const shelfBooks = books;
 const placements = layoutShelfBooks(
 	shelfBooks,
@@ -60,7 +63,7 @@ function CollectionBook({ book }: { book: ShelfBook }) {
 		() => getBookTextureUrls(book.cover).map((url) => publicAssetUrl(url)),
 		[book.cover],
 	);
-	const textures = useLoader(ShelfTextureLoader, urls);
+	const textures = useLoader(shelfTextureLoader, urls);
 	const anisotropy = useThree((state) =>
 		Math.min(4, state.gl.capabilities.getMaxAnisotropy()),
 	);
