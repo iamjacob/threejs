@@ -1,0 +1,83 @@
+{
+  "version": 3,
+  "title": "the source",
+  "mark": "spine",
+  "source": {
+    "fileName": "IMG_20260907_220441_1.jpg",
+    "mimeType": "image/jpeg",
+    "width": 3072,
+    "height": 4096,
+    "coordinateSpace": "top-left origin, EXIF-oriented browser image; labels follow the rotated output"
+  },
+  "rotationDegreesClockwise": 0,
+  "pointOrder": [
+    "topLeft",
+    "topRight",
+    "bottomRight",
+    "bottomLeft"
+  ],
+  "points": {
+    "topLeft": {
+      "x": 589.945,
+      "y": 581.692,
+      "xNormalized": 0.19203941,
+      "yNormalized": 0.14201472
+    },
+    "topRight": {
+      "x": 2381.824,
+      "y": 505.658,
+      "xNormalized": 0.77533336,
+      "yNormalized": 0.12345175
+    },
+    "bottomRight": {
+      "x": 2423.077,
+      "y": 3413.527,
+      "xNormalized": 0.78876202,
+      "yNormalized": 0.83338073
+    },
+    "bottomLeft": {
+      "x": 559.975,
+      "y": 3439.377,
+      "xNormalized": 0.18228367,
+      "yNormalized": 0.83969177
+    }
+  },
+  "rotatedImage": {
+    "width": 3072,
+    "height": 4096,
+    "points": {
+      "topLeft": {
+        "x": 589.945,
+        "y": 581.692,
+        "xNormalized": 0.19203941,
+        "yNormalized": 0.14201472
+      },
+      "topRight": {
+        "x": 2381.824,
+        "y": 505.658,
+        "xNormalized": 0.77533336,
+        "yNormalized": 0.12345175
+      },
+      "bottomRight": {
+        "x": 2423.077,
+        "y": 3413.527,
+        "xNormalized": 0.78876202,
+        "yNormalized": 0.83338073
+      },
+      "bottomLeft": {
+        "x": 559.975,
+        "y": 3439.377,
+        "xNormalized": 0.18228367,
+        "yNormalized": 0.83969177
+      }
+    }
+  },
+  "output": {
+    "fileName": "the_source.spine.webp",
+    "format": "image/webp",
+    "width": 1863,
+    "height": 2908,
+    "quality": 0.94,
+    "resolutionLimitedByBrowser": false
+  }
+}

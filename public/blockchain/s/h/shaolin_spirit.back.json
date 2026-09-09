@@ -1,0 +1,83 @@
+{
+  "version": 3,
+  "title": "shaolin spirit",
+  "mark": "back",
+  "source": {
+    "fileName": "IMG_20260907_220528.jpg",
+    "mimeType": "image/jpeg",
+    "width": 4096,
+    "height": 3072,
+    "coordinateSpace": "top-left origin, EXIF-oriented browser image; labels follow the rotated output"
+  },
+  "rotationDegreesClockwise": 270,
+  "pointOrder": [
+    "topLeft",
+    "topRight",
+    "bottomRight",
+    "bottomLeft"
+  ],
+  "points": {
+    "topLeft": {
+      "x": 3568.92,
+      "y": 629.322,
+      "xNormalized": 0.87131834,
+      "yNormalized": 0.20485755
+    },
+    "topRight": {
+      "x": 3579.893,
+      "y": 2567.622,
+      "xNormalized": 0.87399737,
+      "yNormalized": 0.83581451
+    },
+    "bottomRight": {
+      "x": 639.113,
+      "y": 2620.222,
+      "xNormalized": 0.15603343,
+      "yNormalized": 0.85293677
+    },
+    "bottomLeft": {
+      "x": 642.201,
+      "y": 633.133,
+      "xNormalized": 0.15678741,
+      "yNormalized": 0.20609813
+    }
+  },
+  "rotatedImage": {
+    "width": 3072,
+    "height": 4096,
+    "points": {
+      "topLeft": {
+        "x": 629.322,
+        "y": 527.08,
+        "xNormalized": 0.20485755,
+        "yNormalized": 0.12868166
+      },
+      "topRight": {
+        "x": 2567.622,
+        "y": 516.107,
+        "xNormalized": 0.83581451,
+        "yNormalized": 0.12600263
+      },
+      "bottomRight": {
+        "x": 2620.222,
+        "y": 3456.887,
+        "xNormalized": 0.85293677,
+        "yNormalized": 0.84396657
+      },
+      "bottomLeft": {
+        "x": 633.133,
+        "y": 3453.799,
+        "xNormalized": 0.20609813,
+        "yNormalized": 0.84321259
+      }
+    }
+  },
+  "output": {
+    "fileName": "shaolin_spirit.back.webp",
+    "format": "image/webp",
+    "width": 1987,
+    "height": 2941,
+    "quality": 0.94,
+    "resolutionLimitedByBrowser": false
+  }
+}

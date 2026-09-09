@@ -1,0 +1,83 @@
+{
+  "version": 3,
+  "title": "a course in miracles",
+  "mark": "front",
+  "source": {
+    "fileName": "IMG_20260907_232504.jpg",
+    "mimeType": "image/jpeg",
+    "width": 3072,
+    "height": 4096,
+    "coordinateSpace": "top-left origin, EXIF-oriented browser image; labels follow the rotated output"
+  },
+  "rotationDegreesClockwise": 0,
+  "pointOrder": [
+    "topLeft",
+    "topRight",
+    "bottomRight",
+    "bottomLeft"
+  ],
+  "points": {
+    "topLeft": {
+      "x": 312.685,
+      "y": 207.676,
+      "xNormalized": 0.10178538,
+      "yNormalized": 0.05070207
+    },
+    "topRight": {
+      "x": 2618.09,
+      "y": 200.108,
+      "xNormalized": 0.85224287,
+      "yNormalized": 0.04885452
+    },
+    "bottomRight": {
+      "x": 2642.559,
+      "y": 3687.279,
+      "xNormalized": 0.86020786,
+      "yNormalized": 0.90021467
+    },
+    "bottomLeft": {
+      "x": 391.856,
+      "y": 3743.532,
+      "xNormalized": 0.12755724,
+      "yNormalized": 0.91394813
+    }
+  },
+  "rotatedImage": {
+    "width": 3072,
+    "height": 4096,
+    "points": {
+      "topLeft": {
+        "x": 312.685,
+        "y": 207.676,
+        "xNormalized": 0.10178538,
+        "yNormalized": 0.05070207
+      },
+      "topRight": {
+        "x": 2618.09,
+        "y": 200.108,
+        "xNormalized": 0.85224287,
+        "yNormalized": 0.04885452
+      },
+      "bottomRight": {
+        "x": 2642.559,
+        "y": 3687.279,
+        "xNormalized": 0.86020786,
+        "yNormalized": 0.90021467
+      },
+      "bottomLeft": {
+        "x": 391.856,
+        "y": 3743.532,
+        "xNormalized": 0.12755724,
+        "yNormalized": 0.91394813
+      }
+    }
+  },
+  "output": {
+    "fileName": "a_course_in_miracles.front.webp",
+    "format": "image/webp",
+    "width": 2305,
+    "height": 3537,
+    "quality": 0.94,
+    "resolutionLimitedByBrowser": false
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "version": 3,
+  "title": "how big things get done",
+  "mark": "spine",
+  "source": {
+    "fileName": "IMG_20260907_220247.jpg",
+    "mimeType": "image/jpeg",
+    "width": 4096,
+    "height": 3072,
+    "coordinateSpace": "top-left origin, EXIF-oriented browser image; labels follow the rotated output"
+  },
+  "rotationDegreesClockwise": 270,
+  "pointOrder": [
+    "topLeft",
+    "topRight",
+    "bottomRight",
+    "bottomLeft"
+  ],
+  "points": {
+    "topLeft": {
+      "x": 3601.049,
+      "y": 940.329,
+      "xNormalized": 0.87916228,
+      "yNormalized": 0.30609682
+    },
+    "topRight": {
+      "x": 3597.708,
+      "y": 1205.667,
+      "xNormalized": 0.87834658,
+      "yNormalized": 0.39246982
+    },
+    "bottomRight": {
+      "x": 418.218,
+      "y": 1240.632,
+      "xNormalized": 0.10210412,
+      "yNormalized": 0.40385155
+    },
+    "bottomLeft": {
+      "x": 417.017,
+      "y": 978.835,
+      "xNormalized": 0.10181087,
+      "yNormalized": 0.3186313
+    }
+  },
+  "rotatedImage": {
+    "width": 3072,
+    "height": 4096,
+    "points": {
+      "topLeft": {
+        "x": 940.329,
+        "y": 494.951,
+        "xNormalized": 0.30609682,
+        "yNormalized": 0.12083772
+      },
+      "topRight": {
+        "x": 1205.667,
+        "y": 498.292,
+        "xNormalized": 0.39246982,
+        "yNormalized": 0.12165342
+      },
+      "bottomRight": {
+        "x": 1240.632,
+        "y": 3677.782,
+        "xNormalized": 0.40385155,
+        "yNormalized": 0.89789588
+      },
+      "bottomLeft": {
+        "x": 978.835,
+        "y": 3678.983,
+        "xNormalized": 0.3186313,
+        "yNormalized": 0.89818913
+      }
+    }
+  },
+  "output": {
+    "fileName": "how_big_things_get_done.spine.webp",
+    "format": "image/webp",
+    "width": 265,
+    "height": 3184,
+    "quality": 0.94,
+    "resolutionLimitedByBrowser": false
+  }
+}

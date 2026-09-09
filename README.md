@@ -1,3 +1,34 @@
+
+# Change first copy on first page
+
+# Add multiple book!
+
+# Make changing between them possible.
+
+# Make dissolve book only dissolve and on click make it reappear then dissolve. + remove red bar!
+
+# Blur will need a fake look alike book underneath so it is not possible to reverse engineer the books identity.
+
+# Thanks for visiting, both intro and outro + my contacts at the end.
+# Maybe more about the syack and me here?
+# about AI? ;D And would love that page curl effect like apple?
+
+# Let them know foliate.js reader will be integrated too
+
+# When click on TOC page folding fold pages
+
+# In general make each copy short done and needed on each specs
+
+# Change icons for light and specs to not look AI
+
+# When multi books show mobil look!
+
+# Screeens to boooks.app b&w???
+
+
+
+
+
 Welcome to your new TanStack Start app!
 
 # Getting Started

@@ -1,0 +1,83 @@
+{
+  "version": 3,
+  "title": "traction",
+  "mark": "spine",
+  "source": {
+    "fileName": "IMG_20260907_231512.jpg",
+    "mimeType": "image/jpeg",
+    "width": 4096,
+    "height": 3072,
+    "coordinateSpace": "top-left origin, EXIF-oriented browser image; labels follow the rotated output"
+  },
+  "rotationDegreesClockwise": 90,
+  "pointOrder": [
+    "topLeft",
+    "topRight",
+    "bottomRight",
+    "bottomLeft"
+  ],
+  "points": {
+    "topLeft": {
+      "x": 128.46,
+      "y": 1574.484,
+      "xNormalized": 0.03136236,
+      "yNormalized": 0.51252729
+    },
+    "topRight": {
+      "x": 148.251,
+      "y": 1300.089,
+      "xNormalized": 0.0361942,
+      "yNormalized": 0.42320599
+    },
+    "bottomRight": {
+      "x": 3786.137,
+      "y": 1365.609,
+      "xNormalized": 0.92434993,
+      "yNormalized": 0.44453424
+    },
+    "bottomLeft": {
+      "x": 3809.112,
+      "y": 1645.605,
+      "xNormalized": 0.92995892,
+      "yNormalized": 0.5356786
+    }
+  },
+  "rotatedImage": {
+    "width": 3072,
+    "height": 4096,
+    "points": {
+      "topLeft": {
+        "x": 1497.516,
+        "y": 128.46,
+        "xNormalized": 0.48747271,
+        "yNormalized": 0.03136236
+      },
+      "topRight": {
+        "x": 1771.911,
+        "y": 148.251,
+        "xNormalized": 0.57679401,
+        "yNormalized": 0.0361942
+      },
+      "bottomRight": {
+        "x": 1706.391,
+        "y": 3786.137,
+        "xNormalized": 0.55546576,
+        "yNormalized": 0.92434993
+      },
+      "bottomLeft": {
+        "x": 1426.395,
+        "y": 3809.112,
+        "xNormalized": 0.4643214,
+        "yNormalized": 0.92995892
+      }
+    }
+  },
+  "output": {
+    "fileName": "traction.spine.webp",
+    "format": "image/webp",
+    "width": 281,
+    "height": 3681,
+    "quality": 0.94,
+    "resolutionLimitedByBrowser": false
+  }
+}

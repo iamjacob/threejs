@@ -1,0 +1,83 @@
+{
+  "version": 3,
+  "title": "Seneca on the shortness of life",
+  "mark": "front",
+  "source": {
+    "fileName": "IMG_20260906_155158.jpg",
+    "mimeType": "image/jpeg",
+    "width": 3072,
+    "height": 4096,
+    "coordinateSpace": "top-left origin, EXIF-oriented browser image; labels follow the rotated output"
+  },
+  "rotationDegreesClockwise": 0,
+  "pointOrder": [
+    "topLeft",
+    "topRight",
+    "bottomRight",
+    "bottomLeft"
+  ],
+  "points": {
+    "topLeft": {
+      "x": 269.766,
+      "y": 341.224,
+      "xNormalized": 0.08781443,
+      "yNormalized": 0.0833066
+    },
+    "topRight": {
+      "x": 2371.68,
+      "y": 229.717,
+      "xNormalized": 0.77203114,
+      "yNormalized": 0.05608316
+    },
+    "bottomRight": {
+      "x": 2674.76,
+      "y": 4060.715,
+      "xNormalized": 0.87069002,
+      "yNormalized": 0.9913854
+    },
+    "bottomLeft": {
+      "x": 194.858,
+      "y": 4004.14,
+      "xNormalized": 0.06343044,
+      "yNormalized": 0.97757315
+    }
+  },
+  "rotatedImage": {
+    "width": 3072,
+    "height": 4096,
+    "points": {
+      "topLeft": {
+        "x": 269.766,
+        "y": 341.224,
+        "xNormalized": 0.08781443,
+        "yNormalized": 0.0833066
+      },
+      "topRight": {
+        "x": 2371.68,
+        "y": 229.717,
+        "xNormalized": 0.77203114,
+        "yNormalized": 0.05608316
+      },
+      "bottomRight": {
+        "x": 2674.76,
+        "y": 4060.715,
+        "xNormalized": 0.87069002,
+        "yNormalized": 0.9913854
+      },
+      "bottomLeft": {
+        "x": 194.858,
+        "y": 4004.14,
+        "xNormalized": 0.06343044,
+        "yNormalized": 0.97757315
+      }
+    }
+  },
+  "output": {
+    "fileName": "Seneca_on_the_shortness_of_life.front.webp",
+    "format": "image/webp",
+    "width": 2481,
+    "height": 3843,
+    "quality": 0.94,
+    "resolutionLimitedByBrowser": false
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "version": 3,
+  "title": "What's your dream",
+  "mark": "back",
+  "source": {
+    "fileName": "IMG_20260906_160655.jpg",
+    "mimeType": "image/jpeg",
+    "width": 4096,
+    "height": 3072,
+    "coordinateSpace": "top-left origin, EXIF-oriented browser image; labels follow the rotated output"
+  },
+  "rotationDegreesClockwise": 270,
+  "pointOrder": [
+    "topLeft",
+    "topRight",
+    "bottomRight",
+    "bottomLeft"
+  ],
+  "points": {
+    "topLeft": {
+      "x": 3598.587,
+      "y": 296.739,
+      "xNormalized": 0.87856134,
+      "yNormalized": 0.0965948
+    },
+    "topRight": {
+      "x": 3612.855,
+      "y": 2283.522,
+      "xNormalized": 0.88204464,
+      "yNormalized": 0.74333384
+    },
+    "bottomRight": {
+      "x": 504.621,
+      "y": 2416.539,
+      "xNormalized": 0.12319846,
+      "yNormalized": 0.78663371
+    },
+    "bottomLeft": {
+      "x": 465.929,
+      "y": 285.325,
+      "xNormalized": 0.11375224,
+      "yNormalized": 0.09287934
+    }
+  },
+  "rotatedImage": {
+    "width": 3072,
+    "height": 4096,
+    "points": {
+      "topLeft": {
+        "x": 296.739,
+        "y": 497.413,
+        "xNormalized": 0.0965948,
+        "yNormalized": 0.12143866
+      },
+      "topRight": {
+        "x": 2283.522,
+        "y": 483.145,
+        "xNormalized": 0.74333384,
+        "yNormalized": 0.11795536
+      },
+      "bottomRight": {
+        "x": 2416.539,
+        "y": 3591.379,
+        "xNormalized": 0.78663371,
+        "yNormalized": 0.87680154
+      },
+      "bottomLeft": {
+        "x": 285.325,
+        "y": 3630.071,
+        "xNormalized": 0.09287934,
+        "yNormalized": 0.88624776
+      }
+    }
+  },
+  "output": {
+    "fileName": "What_s_your_dream.back.webp",
+    "format": "image/webp",
+    "width": 2132,
+    "height": 3133,
+    "quality": 0.94,
+    "resolutionLimitedByBrowser": false
+  }
+}

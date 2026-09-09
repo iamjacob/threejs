@@ -1,0 +1,83 @@
+{
+  "version": 3,
+  "title": "The Daily Stoic",
+  "mark": "spine",
+  "source": {
+    "fileName": "IMG_20260907_220202.jpg",
+    "mimeType": "image/jpeg",
+    "width": 4096,
+    "height": 3072,
+    "coordinateSpace": "top-left origin, EXIF-oriented browser image; labels follow the rotated output"
+  },
+  "rotationDegreesClockwise": 270,
+  "pointOrder": [
+    "topLeft",
+    "topRight",
+    "bottomRight",
+    "bottomLeft"
+  ],
+  "points": {
+    "topLeft": {
+      "x": 3820.158,
+      "y": 1107.089,
+      "xNormalized": 0.93265586,
+      "yNormalized": 0.36038057
+    },
+    "topRight": {
+      "x": 3789.389,
+      "y": 1527.747,
+      "xNormalized": 0.92514391,
+      "yNormalized": 0.4973136
+    },
+    "bottomRight": {
+      "x": 324.713,
+      "y": 1453.505,
+      "xNormalized": 0.0792756,
+      "yNormalized": 0.47314614
+    },
+    "bottomLeft": {
+      "x": 321.98,
+      "y": 1028.871,
+      "xNormalized": 0.07860845,
+      "yNormalized": 0.33491904
+    }
+  },
+  "rotatedImage": {
+    "width": 3072,
+    "height": 4096,
+    "points": {
+      "topLeft": {
+        "x": 1107.089,
+        "y": 275.842,
+        "xNormalized": 0.36038057,
+        "yNormalized": 0.06734414
+      },
+      "topRight": {
+        "x": 1527.747,
+        "y": 306.611,
+        "xNormalized": 0.4973136,
+        "yNormalized": 0.07485609
+      },
+      "bottomRight": {
+        "x": 1453.505,
+        "y": 3771.287,
+        "xNormalized": 0.47314614,
+        "yNormalized": 0.9207244
+      },
+      "bottomLeft": {
+        "x": 1028.871,
+        "y": 3774.02,
+        "xNormalized": 0.33491904,
+        "yNormalized": 0.92139155
+      }
+    }
+  },
+  "output": {
+    "fileName": "The_Daily_Stoic.spine.webp",
+    "format": "image/webp",
+    "width": 425,
+    "height": 3499,
+    "quality": 0.94,
+    "resolutionLimitedByBrowser": false
+  }
+}

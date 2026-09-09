@@ -1,0 +1,83 @@
+{
+  "version": 3,
+  "title": "discipline is destiny",
+  "mark": "back",
+  "source": {
+    "fileName": "IMG_20260907_220357.jpg",
+    "mimeType": "image/jpeg",
+    "width": 3072,
+    "height": 4096,
+    "coordinateSpace": "top-left origin, EXIF-oriented browser image; labels follow the rotated output"
+  },
+  "rotationDegreesClockwise": 0,
+  "pointOrder": [
+    "topLeft",
+    "topRight",
+    "bottomRight",
+    "bottomLeft"
+  ],
+  "points": {
+    "topLeft": {
+      "x": 447.816,
+      "y": 484.784,
+      "xNormalized": 0.14577345,
+      "yNormalized": 0.11835536
+    },
+    "topRight": {
+      "x": 2343.53,
+      "y": 522.993,
+      "xNormalized": 0.76286793,
+      "yNormalized": 0.12768385
+    },
+    "bottomRight": {
+      "x": 2402.937,
+      "y": 3463.773,
+      "xNormalized": 0.78220609,
+      "yNormalized": 0.84564779
+    },
+    "bottomLeft": {
+      "x": 421.342,
+      "y": 3540.429,
+      "xNormalized": 0.13715563,
+      "yNormalized": 0.86436246
+    }
+  },
+  "rotatedImage": {
+    "width": 3072,
+    "height": 4096,
+    "points": {
+      "topLeft": {
+        "x": 447.816,
+        "y": 484.784,
+        "xNormalized": 0.14577345,
+        "yNormalized": 0.11835536
+      },
+      "topRight": {
+        "x": 2343.53,
+        "y": 522.993,
+        "xNormalized": 0.76286793,
+        "yNormalized": 0.12768385
+      },
+      "bottomRight": {
+        "x": 2402.937,
+        "y": 3463.773,
+        "xNormalized": 0.78220609,
+        "yNormalized": 0.84564779
+      },
+      "bottomLeft": {
+        "x": 421.342,
+        "y": 3540.429,
+        "xNormalized": 0.13715563,
+        "yNormalized": 0.86436246
+      }
+    }
+  },
+  "output": {
+    "fileName": "discipline_is_destiny.back.webp",
+    "format": "image/webp",
+    "width": 1983,
+    "height": 3056,
+    "quality": 0.94,
+    "resolutionLimitedByBrowser": false
+  }
+}

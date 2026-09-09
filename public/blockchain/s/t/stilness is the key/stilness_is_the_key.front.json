@@ -1,0 +1,83 @@
+{
+  "version": 3,
+  "title": "stilness is the key",
+  "mark": "front",
+  "source": {
+    "fileName": "IMG_20260907_220333.jpg",
+    "mimeType": "image/jpeg",
+    "width": 4096,
+    "height": 3072,
+    "coordinateSpace": "top-left origin, EXIF-oriented browser image; labels follow the rotated output"
+  },
+  "rotationDegreesClockwise": 270,
+  "pointOrder": [
+    "topLeft",
+    "topRight",
+    "bottomRight",
+    "bottomLeft"
+  ],
+  "points": {
+    "topLeft": {
+      "x": 3382.604,
+      "y": 458.415,
+      "xNormalized": 0.82583098,
+      "yNormalized": 0.14922356
+    },
+    "topRight": {
+      "x": 3416.246,
+      "y": 2355.614,
+      "xNormalized": 0.83404453,
+      "yNormalized": 0.76680142
+    },
+    "bottomRight": {
+      "x": 410.48,
+      "y": 2483.417,
+      "xNormalized": 0.10021496,
+      "yNormalized": 0.80840392
+    },
+    "bottomLeft": {
+      "x": 380.419,
+      "y": 518.867,
+      "xNormalized": 0.09287571,
+      "yNormalized": 0.16890187
+    }
+  },
+  "rotatedImage": {
+    "width": 3072,
+    "height": 4096,
+    "points": {
+      "topLeft": {
+        "x": 458.415,
+        "y": 713.396,
+        "xNormalized": 0.14922356,
+        "yNormalized": 0.17416902
+      },
+      "topRight": {
+        "x": 2355.614,
+        "y": 679.754,
+        "xNormalized": 0.76680142,
+        "yNormalized": 0.16595547
+      },
+      "bottomRight": {
+        "x": 2483.417,
+        "y": 3685.52,
+        "xNormalized": 0.80840392,
+        "yNormalized": 0.89978504
+      },
+      "bottomLeft": {
+        "x": 518.867,
+        "y": 3715.581,
+        "xNormalized": 0.16890187,
+        "yNormalized": 0.90712429
+      }
+    }
+  },
+  "output": {
+    "fileName": "stilness_is_the_key.front.webp",
+    "format": "image/webp",
+    "width": 1965,
+    "height": 3008,
+    "quality": 0.94,
+    "resolutionLimitedByBrowser": false
+  }
+}

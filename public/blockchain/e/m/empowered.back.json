@@ -1,0 +1,83 @@
+{
+  "version": 3,
+  "title": "empowered",
+  "mark": "back",
+  "source": {
+    "fileName": "IMG_20260907_220508.jpg",
+    "mimeType": "image/jpeg",
+    "width": 3072,
+    "height": 4096,
+    "coordinateSpace": "top-left origin, EXIF-oriented browser image; labels follow the rotated output"
+  },
+  "rotationDegreesClockwise": 0,
+  "pointOrder": [
+    "topLeft",
+    "topRight",
+    "bottomRight",
+    "bottomLeft"
+  ],
+  "points": {
+    "topLeft": {
+      "x": 641.856,
+      "y": 734.443,
+      "xNormalized": 0.20893766,
+      "yNormalized": 0.17930749
+    },
+    "topRight": {
+      "x": 2497.75,
+      "y": 792.519,
+      "xNormalized": 0.81306982,
+      "yNormalized": 0.19348606
+    },
+    "bottomRight": {
+      "x": 2520.738,
+      "y": 3645.137,
+      "xNormalized": 0.8205526,
+      "yNormalized": 0.88992601
+    },
+    "bottomLeft": {
+      "x": 566.477,
+      "y": 3635.496,
+      "xNormalized": 0.18440018,
+      "yNormalized": 0.88757217
+    }
+  },
+  "rotatedImage": {
+    "width": 3072,
+    "height": 4096,
+    "points": {
+      "topLeft": {
+        "x": 641.856,
+        "y": 734.443,
+        "xNormalized": 0.20893766,
+        "yNormalized": 0.17930749
+      },
+      "topRight": {
+        "x": 2497.75,
+        "y": 792.519,
+        "xNormalized": 0.81306982,
+        "yNormalized": 0.19348606
+      },
+      "bottomRight": {
+        "x": 2520.738,
+        "y": 3645.137,
+        "xNormalized": 0.8205526,
+        "yNormalized": 0.88992601
+      },
+      "bottomLeft": {
+        "x": 566.477,
+        "y": 3635.496,
+        "xNormalized": 0.18440018,
+        "yNormalized": 0.88757217
+      }
+    }
+  },
+  "output": {
+    "fileName": "empowered.back.webp",
+    "format": "image/webp",
+    "width": 1954,
+    "height": 2902,
+    "quality": 0.94,
+    "resolutionLimitedByBrowser": false
+  }
+}

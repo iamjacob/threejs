@@ -1,0 +1,83 @@
+{
+  "version": 3,
+  "title": "four thousand weeks",
+  "mark": "front",
+  "source": {
+    "fileName": "IMG_20260907_220311.jpg",
+    "mimeType": "image/jpeg",
+    "width": 4096,
+    "height": 3072,
+    "coordinateSpace": "top-left origin, EXIF-oriented browser image; labels follow the rotated output"
+  },
+  "rotationDegreesClockwise": 270,
+  "pointOrder": [
+    "topLeft",
+    "topRight",
+    "bottomRight",
+    "bottomLeft"
+  ],
+  "points": {
+    "topLeft": {
+      "x": 3639.422,
+      "y": 274.127,
+      "xNormalized": 0.88853075,
+      "yNormalized": 0.0892341
+    },
+    "topRight": {
+      "x": 3703.48,
+      "y": 2475.884,
+      "xNormalized": 0.90416987,
+      "yNormalized": 0.80595195
+    },
+    "bottomRight": {
+      "x": 277.653,
+      "y": 2642.844,
+      "xNormalized": 0.06778642,
+      "yNormalized": 0.86030076
+    },
+    "bottomLeft": {
+      "x": 213.006,
+      "y": 413.48,
+      "xNormalized": 0.05200336,
+      "yNormalized": 0.13459628
+    }
+  },
+  "rotatedImage": {
+    "width": 3072,
+    "height": 4096,
+    "points": {
+      "topLeft": {
+        "x": 274.127,
+        "y": 456.578,
+        "xNormalized": 0.0892341,
+        "yNormalized": 0.11146925
+      },
+      "topRight": {
+        "x": 2475.884,
+        "y": 392.52,
+        "xNormalized": 0.80595195,
+        "yNormalized": 0.09583013
+      },
+      "bottomRight": {
+        "x": 2642.844,
+        "y": 3818.347,
+        "xNormalized": 0.86030076,
+        "yNormalized": 0.93221358
+      },
+      "bottomLeft": {
+        "x": 413.48,
+        "y": 3882.994,
+        "xNormalized": 0.13459628,
+        "yNormalized": 0.94799664
+      }
+    }
+  },
+  "output": {
+    "fileName": "four_thousand_weeks.front.webp",
+    "format": "image/webp",
+    "width": 2230,
+    "height": 3430,
+    "quality": 0.94,
+    "resolutionLimitedByBrowser": false
+  }
+}
