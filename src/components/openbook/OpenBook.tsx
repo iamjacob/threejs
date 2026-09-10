@@ -10,6 +10,7 @@ import { useReadingStore } from "../../../stores/useReadingStore.ts";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
 import { useSelectedBook } from "../../stores/useBookStore";
 import { BOOK_MATERIAL } from "../book/bookAppearance";
+import { BOOK_ROTATION } from "../tour/tourBookPose";
 import usePDFToImage from "./usePDFToImage";
 
 type BookDimensions = readonly [
@@ -127,18 +128,21 @@ const OpenBook = ({
 	const open = useCallback((): void => {
 		const rightCover = rightPageRef.current;
 		const leftCover = leftPageRef.current;
+		const duration = presentation === "tour" ? 1.05 : 0.4;
 
 		if (rightCover) {
 			gsap.to(rightCover.rotation, {
 				y: -openDegrees,
-				duration: 0.4,
+				duration,
+				ease: "power2.inOut",
 			});
 		}
 
 		if (leftCover) {
 			gsap.to(leftCover.rotation, {
 				y: openDegrees,
-				duration: 0.4,
+				duration,
+				ease: "power2.inOut",
 			});
 		}
 
@@ -148,11 +152,12 @@ const OpenBook = ({
 			if (page) {
 				gsap.to(page.rotation, {
 					y: index >= currentPage ? openDegrees : -openDegrees,
-					duration: Math.max(0.05, 0.5 - 0.001 * index),
+					duration: duration + 0.1 - 0.001 * index,
+					ease: "power2.inOut",
 				});
 			}
 		}
-	}, [currentPage, pages]);
+	}, [currentPage, pages, presentation]);
 
 	const flippin = useCallback(
 		(foldTo: number, onComplete: () => void): void => {
@@ -213,7 +218,7 @@ const OpenBook = ({
 
 	const flipTo = useCallback(
 		(targetPage: number): void => {
-			if (!Number.isFinite(targetPage)) return;
+			if (closing || !Number.isFinite(targetPage)) return;
 
 			const safeTargetPage = Math.min(
 				Math.max(Math.trunc(targetPage), 0),
@@ -228,7 +233,6 @@ const OpenBook = ({
 			}
 
 			isAnimatingRef.current = true;
-			open();
 
 			flippin(safeTargetPage, () => {
 				setCurrentPage(safeTargetPage);
@@ -242,7 +246,7 @@ const OpenBook = ({
 				if (nextPage !== undefined) flipToRef.current(nextPage);
 			});
 		},
-		[currentPage, flippin, open, pages],
+		[closing, currentPage, flippin, pages],
 	);
 
 	flipToRef.current = flipTo;
@@ -390,9 +394,7 @@ const OpenBook = ({
 	return (
 		// biome-ignore lint/a11y/noStaticElementInteractions: This is a Three.js group, with page controls also available outside the canvas.
 		<group
-			rotation={
-				presentation === "tour" ? [0, 0, Math.PI / 4] : [0, Math.PI / 2, 0]
-			}
+			rotation={presentation === "tour" ? BOOK_ROTATION : [0, Math.PI / 2, 0]}
 			onPointerDown={() => setBookRead((isReading) => !isReading)}
 			onClick={handleTap}
 			userData={{ bookRead, orbit }}
@@ -403,7 +405,7 @@ const OpenBook = ({
 				name="open-book"
 				userData={{ bookID: book.id, pdf: activePdfUrl }}
 			>
-				<group ref={pagesGroupRef} position={[0.02, 1, 0]}>
+				<group ref={pagesGroupRef}>
 					{Array.from({ length: pages }, (_, index) => (
 						<group
 							// biome-ignore lint/suspicious/noArrayIndexKey: The index is the permanent page number.
@@ -413,8 +415,8 @@ const OpenBook = ({
 							}}
 							position={[
 								-width / 2,
-								-1,
-								index * -pageThickness + thickness * 0.5,
+								0,
+								thickness * 0.5 - (index + 0.5) * pageThickness,
 							]}
 							rotation={[0, 0, 0]}
 						>

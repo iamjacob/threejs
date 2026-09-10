@@ -34,7 +34,7 @@ export default function BookPageSwiper({
 	embedded?: boolean;
 	onInteract?: () => void;
 } = {}) {
-	const menuHeight = embedded ? 96 : 144;
+	const menuHeight = embedded ? 128 : 144;
 	const centerOffset = (menuHeight - ITEM_HEIGHT) / 2;
 	const book = useSelectedBook();
 	const total = book.demoPages;

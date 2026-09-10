@@ -2,6 +2,7 @@ import type { DemoId } from "../layout/demoScenes";
 
 export type TourStage =
 	| "library"
+	| "pick"
 	| "pull"
 	| "read"
 	| "return"
@@ -24,6 +25,11 @@ export const tourStages: Record<
 		text: "Tap a cover, or let the demo pick one for you.",
 		demo: "mobile-books",
 		duration: 7,
+	},
+	pick: {
+		title: "Pick any book.",
+		text: "Tap any cover on the shelf.",
+		demo: "mobile-books",
 	},
 	pull: {
 		title: "Take a closer look.",
@@ -66,12 +72,14 @@ export const tourStages: Record<
 	},
 	end: {
 		title: "Let’s make the next generation smarter than us!",
-		text: "Tap another book, or play the whole demo again.",
+		text: "Join the waitlist at boooks.app.",
+		duration: 15,
 		demo: "mobile-books",
 	},
 };
 
 export const nextTourStage: Partial<Record<TourStage, TourStage>> = {
+	library: "pick",
 	pull: "read",
 	read: "grow",
 	grow: "privacy",
@@ -82,10 +90,11 @@ export const nextTourStage: Partial<Record<TourStage, TourStage>> = {
 
 export const tourChapters: { stage: TourStage; label: string }[] = [
 	{ stage: "library", label: "Shelves" },
+	{ stage: "pick", label: "Pick" },
 	{ stage: "read", label: "Read" },
-	{ stage: "grow", label: "Grow" },
-	{ stage: "privacy", label: "Blur" },
+	{ stage: "grow", label: "Levels" },
+	{ stage: "privacy", label: "Censor" },
 	{ stage: "delete", label: "Delete" },
 	{ stage: "add", label: "Add" },
-	{ stage: "end", label: "Replay" },
+	{ stage: "end", label: "Finish" },
 ];

@@ -29,7 +29,17 @@ export default function ReaderOverlay() {
 		window.addEventListener("message", receive);
 		return () => {
 			window.removeEventListener("message", receive);
-			previousFocus?.focus();
+			// Wait until React removes the modal and mounts the next chapter.
+			queueMicrotask(() => {
+				if (document.querySelector("dialog[open]")) return;
+				const focusTarget =
+					previousFocus?.isConnected && previousFocus !== document.body
+						? previousFocus
+						: document.querySelector<HTMLButtonElement>(
+								'nav[aria-label="Demo timeline"] [aria-current="step"]',
+							);
+				focusTarget?.focus({ preventScroll: true });
+			});
 		};
 	}, [close]);
 	return (

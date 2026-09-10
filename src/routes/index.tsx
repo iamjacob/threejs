@@ -25,6 +25,8 @@ function Home() {
 	};
 	const shelves = [
 		"library",
+		"pick",
+		"delete",
 		"return",
 		"grow",
 		"privacy",

@@ -1,6 +1,5 @@
 import { useProgress } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
-import { useDissolveStore } from "../../../stores/useDissolveStore";
 import { useParticleStore } from "../../../stores/useParticleStore";
 import { useReadingStore } from "../../../stores/useReadingStore";
 import { useLevelStore } from "../../stores/useLevelStore";
@@ -38,15 +37,12 @@ export default function TourDirector() {
 			if (useLevelStore.getState().levelIndex !== level)
 				useLevelStore.getState().startDemo(level, false);
 		}
-		if (tour.action === "running") {
-			if (
-				(tour.stage === "delete" &&
-					useDissolveStore.getState().dissolveProgress === 1) ||
-				(tour.stage === "add" &&
-					useParticleStore.getState().phase === "visible")
-			)
-				useTourStore.setState({ action: "done" });
-		}
+		if (
+			tour.action === "running" &&
+			tour.stage === "add" &&
+			useParticleStore.getState().phase === "visible"
+		)
+			tour.finishAdd();
 		const duration = tourStages[tour.stage].duration;
 		if (duration && elapsed >= duration) tour.advance();
 	});

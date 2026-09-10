@@ -22,6 +22,8 @@ export default function TourCamera() {
 	const position = useMemo(() => new Vector3(), []);
 	const collection =
 		stage === "library" ||
+		stage === "pick" ||
+		stage === "delete" ||
 		stage === "return" ||
 		stage === "end" ||
 		stage === "privacy" ||
@@ -91,36 +93,21 @@ export default function TourCamera() {
 				)
 				.add(target);
 		} else {
-			const focus =
-				stage === "read" || stage === "pull"
-					? focusBookPosition(book.id)
-					: [0, 0, 0];
-			target.set(focus[0], focus[1], focus[2]);
-			const portrait = Math.max(
-				1,
-				(size.height / size.width) * (stage === "read" ? 0.9 : 0.75),
+			const focus = focusBookPosition(book.id);
+			target.set(...focus);
+			// Arrive at the same framing that starts the reading orbit.
+			const portrait = Math.max(1, (size.height / size.width) * 0.9);
+			const radius = 2.6 * portrait * bookScale;
+			const angle = stage === "read" ? Math.sin(tour.elapsed * 0.24) * 0.4 : 0;
+			position.set(
+				Math.sin(angle) * radius,
+				radius * 0.18,
+				Math.cos(angle) * radius,
 			);
-			position
-				.set(
-					stage === "read" ? 0.5 : 0.2,
-					stage === "read" ? 0.38 : 0.12,
-					stage === "read" ? 2.6 : 2.25,
-				)
-				.multiplyScalar(portrait * bookScale);
-			position.x += Math.sin(tour.elapsed * 0.2) * bookScale * 0.07;
-			if (stage === "read") {
-				const radius = 2.6 * portrait * bookScale;
-				const angle = Math.sin(tour.elapsed * 0.24) * 0.4;
-				position.set(
-					Math.sin(angle) * radius,
-					radius * 0.18,
-					Math.cos(angle) * radius,
-				);
-			}
 			position.add(target);
 		}
 		if (stage === "pull" || stage === "return") {
-			const t = MathUtils.smoothstep(
+			const t = MathUtils.smootherstep(
 				tour.elapsed / (stage === "return" ? 1.8 : 2),
 				0,
 				1,

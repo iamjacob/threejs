@@ -14,6 +14,7 @@ import { getBookTextureUrls } from "../book/bookTextures";
 import type { BookPose } from "../tour/tourStages";
 import CollectionBlur from "./CollectionBlur";
 import { progressionConfig } from "./progressionConfig";
+import ShelfBookDissolve from "./ShelfBookDissolve";
 import Shelves from "./Shelves";
 import {
 	BOOKS_SHELF_LEVEL,
@@ -82,19 +83,23 @@ function CollectionBook({
 	book,
 	onSelect,
 	blurred,
+	deleteStartedAt,
+	onDeleteComplete,
 }: {
 	book: ShelfBook;
 	onSelect?: (id: string, pose: BookPose) => void;
 	blurred: boolean;
+	deleteStartedAt?: number;
+	onDeleteComplete?: (id: string) => void;
 }) {
 	const [hovered, setHovered] = useState(false);
 	useEffect(() => {
-		if (!hovered || !onSelect) return;
+		if (!hovered || !onSelect || deleteStartedAt !== undefined) return;
 		document.body.style.cursor = "pointer";
 		return () => {
 			document.body.style.cursor = "";
 		};
-	}, [hovered, onSelect]);
+	}, [hovered, onSelect, deleteStartedAt]);
 	const urls = useMemo(
 		() => getBookTextureUrls(book.cover).map((url) => publicAssetUrl(url)),
 		[book.cover],
@@ -108,7 +113,12 @@ function CollectionBook({
 			{/* biome-ignore lint/a11y/noStaticElementInteractions: Canvas book; the Open book button offers a keyboard alternative. */}
 			<mesh
 				name={`shelf-book-${book.id}`}
-				userData={{ title: book.title, bookId: book.id, blurred }}
+				userData={{
+					title: book.title,
+					bookId: book.id,
+					blurred,
+					deleting: deleteStartedAt !== undefined,
+				}}
 				onPointerOver={(event) => {
 					if (onSelect) {
 						event.stopPropagation();
@@ -117,7 +127,8 @@ function CollectionBook({
 				}}
 				onPointerOut={() => setHovered(false)}
 				onClick={(event: ThreeEvent<MouseEvent>) => {
-					if (!onSelect || event.delta > 5) return;
+					if (!onSelect || event.delta > 5 || deleteStartedAt !== undefined)
+						return;
 					event.stopPropagation();
 					const position = event.object
 						.getWorldPosition(new Vector3())
@@ -129,15 +140,23 @@ function CollectionBook({
 				}}
 			>
 				<boxGeometry args={book.dimensions} />
-				{textures.map((texture, index) => (
-					<meshStandardMaterial
-						key={["edge", "spine", "top", "bottom", "front", "back"][index]}
-						attach={`material-${index}`}
-						{...BOOK_MATERIAL}
-						map={texture}
-						map-anisotropy={anisotropy}
+				{onDeleteComplete ? (
+					<ShelfBookDissolve
+						textures={textures}
+						startedAt={deleteStartedAt}
+						onComplete={() => onDeleteComplete(book.id)}
 					/>
-				))}
+				) : (
+					textures.map((texture, index) => (
+						<meshStandardMaterial
+							key={["edge", "spine", "top", "bottom", "front", "back"][index]}
+							attach={`material-${index}`}
+							{...BOOK_MATERIAL}
+							map={texture}
+							map-anisotropy={anisotropy}
+						/>
+					))
+				)}
 			</mesh>
 		</group>
 	);
@@ -148,11 +167,17 @@ export default function Bookshelves({
 	hiddenBookId,
 	returningBookId,
 	blurredBookIds = [],
+	hiddenBookIds = [],
+	deletingBooks = {},
+	onDeleteComplete,
 }: {
 	onBookSelect?: (id: string, pose: BookPose) => void;
 	hiddenBookId?: string;
 	returningBookId?: string | null;
 	blurredBookIds?: string[];
+	hiddenBookIds?: string[];
+	deletingBooks?: Record<string, number>;
+	onDeleteComplete?: (id: string) => void;
 } = {}) {
 	return (
 		<Shelves fixedLevel={BOOKS_SHELF_LEVEL}>
@@ -162,13 +187,17 @@ export default function Bookshelves({
 						({ book }) =>
 							blurredBookIds.includes(book.id) &&
 							book.id !== hiddenBookId &&
+							!hiddenBookIds.includes(book.id) &&
 							book.id !== returningBookId,
 					)}
 				/>
 			)}
 			{placements
 				.filter(
-					({ book }) => book.id !== hiddenBookId && book.id !== returningBookId,
+					({ book }) =>
+						book.id !== hiddenBookId &&
+						book.id !== returningBookId &&
+						!hiddenBookIds.includes(book.id),
 				)
 				.map(({ book, position, rotation, shelfIndex }) => (
 					<group
@@ -182,6 +211,8 @@ export default function Bookshelves({
 								book={book}
 								onSelect={onBookSelect}
 								blurred={blurredBookIds.includes(book.id)}
+								deleteStartedAt={deletingBooks[book.id]}
+								onDeleteComplete={onDeleteComplete}
 							/>
 						</Suspense>
 					</group>

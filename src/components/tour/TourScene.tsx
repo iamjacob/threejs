@@ -4,20 +4,18 @@ import { type Group, MathUtils, type Mesh, Quaternion, Vector3 } from "three";
 import { books } from "../../lib/bookCatalog";
 import { useSelectedBook } from "../../stores/useBookStore";
 import { useTourStore } from "../../stores/useTourStore";
-import Book from "../book/book";
-import Dissolve from "../dissolve/Dissolve";
 import OpenBook from "../openbook/OpenBook";
 import Bookshelves, { shelfBookPose } from "../shelves/Bookshelves";
 import Shelves from "../shelves/Shelves";
 import ShelfArrival from "./ShelfArrival";
-import { BOOK_TILT, focusBookPosition } from "./tourBookPose";
+import { BOOK_ROTATION, focusBookPosition } from "./tourBookPose";
 
 function ShelfBackdrop({ children }: { children: ReactNode }) {
 	const ref = useRef<Group>(null);
 	useFrame(() => {
 		const { stage, elapsed } = useTourStore.getState();
 		const opacity =
-			stage === "read"
+			stage === "read" || stage === "end"
 				? 0.35
 				: stage === "return"
 					? 0.35 + 0.65 * MathUtils.smoothstep(elapsed / 1.8, 0, 1)
@@ -43,50 +41,6 @@ function ShelfBackdrop({ children }: { children: ReactNode }) {
 	return <group ref={ref}>{children}</group>;
 }
 
-function FlyingBook() {
-	const book = useSelectedBook();
-	const origin =
-		useTourStore((state) => state.origin) ?? shelfBookPose(book.id);
-	const ref = useRef<Group>(null);
-	const start = useMemo(
-		() => new Vector3(...origin.position),
-		[origin.position],
-	);
-	const rotation = useMemo(
-		() => new Quaternion(...origin.quaternion),
-		[origin.quaternion],
-	);
-	const end = useMemo(
-		() => new Vector3(...focusBookPosition(book.id)),
-		[book.id],
-	);
-	const endRotation = useMemo(
-		() => new Quaternion().setFromAxisAngle(new Vector3(0, 0, 1), BOOK_TILT),
-		[],
-	);
-	useFrame(() => {
-		if (!ref.current) return;
-		const progress = MathUtils.smoothstep(
-			useTourStore.getState().elapsed / 2,
-			0,
-			1,
-		);
-		ref.current.position.lerpVectors(start, end, progress);
-		ref.current.position.y += Math.sin(progress * Math.PI) * 0.35;
-		ref.current.quaternion.slerpQuaternions(rotation, endRotation, progress);
-	});
-	return (
-		<group
-			ref={ref}
-			name="flying-book"
-			position={origin.position}
-			quaternion={origin.quaternion}
-		>
-			<Book />
-		</group>
-	);
-}
-
 function Ready() {
 	const stage = useTourStore((state) => state.stage);
 	const runId = useTourStore((state) => state.runId);
@@ -98,75 +52,81 @@ function Ready() {
 	return null;
 }
 
-function ReturningBook({ id }: { id: string }) {
+function TourBook({
+	id,
+	returning = false,
+}: {
+	id: string;
+	returning?: boolean;
+}) {
 	const book = books.find((item) => item.id === id) ?? books[0];
+	const stage = useTourStore((state) => state.stage);
+	const origin = useTourStore((state) => state.origin);
 	const ref = useRef<Group>(null);
+	const arriving = stage === "pull" && !returning;
+	const closing = stage === "return" || returning;
 	const flight = useMemo(() => {
-		const pose = shelfBookPose(id);
+		const shelf = shelfBookPose(id);
+		const source = origin ?? shelf;
+		const inverseReading = new Quaternion()
+			.setFromEuler(BOOK_ROTATION)
+			.invert();
 		return {
-			start: new Vector3(...focusBookPosition(id)),
-			end: new Vector3(...pose.position),
-			startRotation: new Quaternion().setFromAxisAngle(
-				new Vector3(0, 0, 1),
-				BOOK_TILT,
+			origin: new Vector3(...source.position),
+			focus: new Vector3(...focusBookPosition(id)),
+			shelf: new Vector3(...shelf.position),
+			originRotation: new Quaternion(...source.quaternion).multiply(
+				inverseReading,
 			),
-			endRotation: new Quaternion(...pose.quaternion),
+			shelfRotation: new Quaternion(...shelf.quaternion).multiply(
+				inverseReading,
+			),
+			readingRotation: new Quaternion(),
 		};
-	}, [id]);
+	}, [id, origin]);
 	useFrame(() => {
 		if (!ref.current) return;
-		const t = MathUtils.smoothstep(useTourStore.getState().elapsed / 2, 0, 1);
-		ref.current.position.lerpVectors(flight.start, flight.end, t);
-		ref.current.quaternion.slerpQuaternions(
-			flight.startRotation,
-			flight.endRotation,
-			t,
-		);
+		const { elapsed } = useTourStore.getState();
+		if (arriving) {
+			const t = MathUtils.smootherstep(elapsed / 2, 0, 1);
+			ref.current.position.lerpVectors(flight.origin, flight.focus, t);
+			ref.current.position.y += Math.sin(t * Math.PI) ** 2 * 0.35;
+			ref.current.quaternion.slerpQuaternions(
+				flight.originRotation,
+				flight.readingRotation,
+				t,
+			);
+		} else if (closing) {
+			// Fold the pages first, then return this same model to its shelf slot.
+			const duration = returning ? 2 : 1.8;
+			const t = MathUtils.smootherstep(
+				(elapsed - 0.35) / (duration - 0.35),
+				0,
+				1,
+			);
+			ref.current.position.lerpVectors(flight.focus, flight.shelf, t);
+			ref.current.position.y += Math.sin(t * Math.PI) ** 2 * 0.2;
+			ref.current.quaternion.slerpQuaternions(
+				flight.readingRotation,
+				flight.shelfRotation,
+				t,
+			);
+		} else {
+			ref.current.position.copy(flight.focus);
+			ref.current.quaternion.copy(flight.readingRotation);
+		}
 	});
 	return (
-		<group ref={ref} name="returning-book" userData={{ bookId: id }}>
-			<Book book={book} />
-		</group>
-	);
-}
-
-function ReadingBook({ closing }: { closing: boolean }) {
-	const book = useSelectedBook();
-	const ref = useRef<Group>(null);
-	const flight = useMemo(() => {
-		const pose = shelfBookPose(book.id);
-		const tilt = new Quaternion().setFromAxisAngle(
-			new Vector3(0, 0, 1),
-			BOOK_TILT,
-		);
-		return {
-			start: new Vector3(...focusBookPosition(book.id)),
-			end: new Vector3(...pose.position),
-			startRotation: new Quaternion(),
-			// OpenBook already supplies the reading tilt, so remove it from the outer rotation.
-			endRotation: new Quaternion(...pose.quaternion).multiply(tilt.invert()),
-		};
-	}, [book.id]);
-	useFrame(() => {
-		if (!ref.current) return;
-		const t = closing
-			? MathUtils.smoothstep(
-					(useTourStore.getState().elapsed - 0.35) / 1.45,
-					0,
-					1,
-				)
-			: 0;
-		ref.current.position.lerpVectors(flight.start, flight.end, t);
-		ref.current.position.y += Math.sin(t * Math.PI) * 0.2;
-		ref.current.quaternion.slerpQuaternions(
-			flight.startRotation,
-			flight.endRotation,
-			t,
-		);
-	});
-	return (
-		<group ref={ref} name="reading-book" position={flight.start}>
-			<OpenBook presentation="tour" closing={closing} />
+		<group
+			ref={ref}
+			name={
+				arriving ? "flying-book" : returning ? "returning-book" : "reading-book"
+			}
+			userData={{ bookId: id }}
+			position={arriving ? flight.origin : flight.focus}
+			quaternion={arriving ? flight.originRotation : flight.readingRotation}
+		>
+			<OpenBook book={book} presentation="tour" closing={arriving || closing} />
 		</group>
 	);
 }
@@ -179,10 +139,15 @@ export default function TourScene() {
 	const blurredBookIds = useTourStore((state) => state.blurredBookIds);
 	const toggleBookBlur = useTourStore((state) => state.toggleBookBlur);
 	const returningBookId = useTourStore((state) => state.returningBookId);
+	const deletingBooks = useTourStore((state) => state.deletingBooks);
+	const deletedBookIds = useTourStore((state) => state.deletedBookIds);
+	const deleteBook = useTourStore((state) => state.deleteBook);
+	const finishDelete = useTourStore((state) => state.finishDelete);
 	const book = useSelectedBook();
 	return (
 		<>
 			{(stage === "library" ||
+				stage === "pick" ||
 				stage === "end" ||
 				stage === "pull" ||
 				stage === "read" ||
@@ -190,7 +155,10 @@ export default function TourScene() {
 				<ShelfBackdrop>
 					<Bookshelves
 						onBookSelect={
-							stage === "library" || stage === "end" || stage === "read"
+							stage === "library" ||
+							stage === "pick" ||
+							stage === "end" ||
+							stage === "read"
 								? openBook
 								: undefined
 						}
@@ -203,13 +171,10 @@ export default function TourScene() {
 					/>
 				</ShelfBackdrop>
 			)}
-			{stage === "pull" && <FlyingBook />}
-			{stage === "pull" && returningBookId && (
-				<ReturningBook key={returningBookId} id={returningBookId} />
-			)}
-			{(stage === "read" || stage === "return") && (
-				<ReadingBook key={book.id} closing={stage === "return"} />
-			)}
+			{(stage === "pull" || stage === "read" || stage === "return") &&
+				[book.id, ...(returningBookId ? [returningBookId] : [])].map((id) => (
+					<TourBook key={id} id={id} returning={id === returningBookId} />
+				))}
 			{stage === "grow" && <Shelves />}
 			{stage === "privacy" && (
 				<Bookshelves
@@ -217,10 +182,17 @@ export default function TourScene() {
 					blurredBookIds={blurredBookIds}
 				/>
 			)}
-			{stage === "delete" && <Dissolve key={runId} paused={paused} />}
+			{stage === "delete" && (
+				<Bookshelves
+					onBookSelect={deleteBook}
+					deletingBooks={deletingBooks}
+					hiddenBookIds={deletedBookIds}
+					onDeleteComplete={finishDelete}
+				/>
+			)}
 			{stage === "add" && (
 				<>
-					<Bookshelves hiddenBookId={book.id} />
+					<Bookshelves hiddenBookId={book.id} hiddenBookIds={deletedBookIds} />
 					<ShelfArrival key={runId} paused={paused} />
 				</>
 			)}
