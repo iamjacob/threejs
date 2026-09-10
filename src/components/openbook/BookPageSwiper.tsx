@@ -273,7 +273,7 @@ export default function BookPageSwiper() {
 				))}
 			</div>
 			{!book.pdf && (
-				<p className="mt-3 mr-4 text-[10px] text-white/50">Demo pages</p>
+				<p className="mt-3 mr-4 text-[10px] text-white/50">drag</p>
 			)}
 		</aside>
 	);

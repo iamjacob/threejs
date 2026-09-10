@@ -95,7 +95,7 @@ function Home() {
 				{sceneId === "mobile-books" && (
 					<div className="pointer-events-none absolute inset-x-0 bottom-[calc(5rem+env(safe-area-inset-bottom))] text-center text-xs text-white/45 md:bottom-5">
 						<p>
-							{shelfBooks.length} books
+							{/* {shelfBooks.length} books */}
 							<span className="hidden sm:inline">
 								{" "}
 								· Drag to explore · Pinch to zoom
