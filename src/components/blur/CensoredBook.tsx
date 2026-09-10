@@ -59,7 +59,7 @@ const CensoredBook = () => {
 					ref={materialRef}
 					transparent
 					uBlockSize={28}
-					uColorLevels={4}
+					uColorLevels={12}
 				/>
 			</mesh>
 		</group>

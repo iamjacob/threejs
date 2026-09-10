@@ -27,8 +27,8 @@ export function useBookTextures(urls?: string[]) {
 	}, [textures, gl]);
 }
 
-export function useBookMaterials() {
-	const textures = useBookTextures();
+export function useBookMaterials(urls?: string[]) {
+	const textures = useBookTextures(urls);
 	const materials = useMemo(
 		() =>
 			textures.map(

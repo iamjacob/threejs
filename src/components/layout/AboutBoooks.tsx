@@ -49,27 +49,23 @@ export default function AboutBoooks({
 			</div>
 			<p
 				id="about-boooks-description"
-				className="text-base leading-relaxed text-stone-200"
+				className="text-base leading-relaxed text-stone-200 sm:text-lg"
 			>
-				Hi, I’m Jacob, the founder of Boooks, from Aarhus, Denmark.
+				Hi, I’m Jacob, the founder of Boooks, from Denmark. Awesome to meet you
+				and thanks for checking it out!
 			</p>
 
-			<p className="mt-4 text-sm leading-relaxed text-stone-300">
+			<p className="mt-4 text-base leading-relaxed text-stone-200">
 				Boooks is an experimental 3D reading platform built with React Three
 				Fiber and Three.js. I’m exploring how covers, pages, shelves, and
 				playful interactions can make a digital book collection feel more
 				personal and alive.
 			</p>
 
-			<p className="mt-4 text-sm leading-relaxed text-stone-300">
+			<p className="mt-4 text-base leading-relaxed text-stone-200">
 				This playground brings together some of the early components behind that
-				experience. Explore the books, turn their pages, watch the shelves grow,
-				and try the animations for adding and removing books.
-			</p>
-
-			<p className="mt-4 text-sm leading-relaxed text-stone-300">
-				Choose a demo from the Components menu and have a play. Boooks is still
-				evolving, so feedback, ideas, and contributions are very welcome.
+				experience. Contribute and get your code into the Boooks app before
+				we're testing in the school system early 2027.
 			</p>
 
 			<div className="mt-5">
@@ -79,9 +75,9 @@ export default function AboutBoooks({
 			<button
 				type="button"
 				onClick={onExplore}
-				className="mt-6 flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#d91b24] px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-[#b9161e]"
+				className="mt-6 flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#d91b24] px-5 py-3 text-base font-medium text-white transition-colors hover:bg-[#b9161e]"
 			>
-				Explore the shelves
+				Play demo
 				<ArrowRight size={18} aria-hidden="true" />
 			</button>
 		</dialog>

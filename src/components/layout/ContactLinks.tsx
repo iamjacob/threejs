@@ -29,7 +29,7 @@ export default function ContactLinks() {
 					title={label === "Email Jacob" ? "jacob@boooks.app" : label}
 					target={href.startsWith("https:") ? "_blank" : undefined}
 					rel={href.startsWith("https:") ? "noopener noreferrer" : undefined}
-					className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-white/15 px-3 text-sm text-white/65 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-white"
+					className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-white/15 px-3 text-base text-white/85 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-white"
 				>
 					<Icon size={18} strokeWidth={1.6} aria-hidden="true" />
 					<span>{label === "Email Jacob" ? "jacob@boooks.app" : label}</span>

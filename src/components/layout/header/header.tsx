@@ -49,10 +49,8 @@ const Header = ({ children }: { children?: ReactNode }) => {
 					</g>
 				</svg>
 				<span className="flex items-baseline gap-1 whitespace-nowrap leading-none min-[380px]:pt-1">
-					<span className="text-[10px] font-bold text-stone-100 sm:text-xs">
-						x
-					</span>
-					<span className="text-xs text-stone-400 sm:text-lg">Threejs</span>
+					<span className="text-xs font-bold text-stone-100 sm:text-sm">x</span>
+					<span className="text-sm text-stone-300 sm:text-lg">Threejs</span>
 				</span>
 			</a>
 			<div className="flex shrink-0 items-center sm:gap-1">

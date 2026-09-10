@@ -41,6 +41,8 @@ interface BookData {
 }
 
 interface OpenBookProps {
+	presentation?: "default" | "tour";
+	closing?: boolean;
 	coverImg?: string | false;
 	orbit?: boolean;
 	book?: BookData;
@@ -49,6 +51,8 @@ interface OpenBookProps {
 }
 
 const OpenBook = ({
+	presentation = "default",
+	closing = false,
 	coverImg = false,
 	orbit = true,
 	book: providedBook,
@@ -257,6 +261,7 @@ const OpenBook = ({
 
 	const handleTap = (event: ThreeEvent<MouseEvent>): void => {
 		event.stopPropagation();
+		if (closing) return;
 		const now = Date.now();
 
 		if (now - lastTap.current < 300) {
@@ -273,6 +278,7 @@ const OpenBook = ({
 		event: ThreeEvent<MouseEvent>,
 	): void => {
 		event.stopPropagation();
+		if (closing) return;
 
 		if (index >= currentPage) {
 			flipTo(Math.min(index + pagesToFlip - 1, pages - 1));
@@ -283,7 +289,7 @@ const OpenBook = ({
 
 	useEffect(() => {
 		const handleKeyPress = (event: KeyboardEvent): void => {
-			if (document.querySelector("dialog[open]")) return;
+			if (closing || document.querySelector("dialog[open]")) return;
 			if (event.key === "ArrowRight") {
 				flipForward();
 			} else if (event.key === "ArrowLeft") {
@@ -293,11 +299,31 @@ const OpenBook = ({
 
 		window.addEventListener("keydown", handleKeyPress);
 		return () => window.removeEventListener("keydown", handleKeyPress);
-	}, [flipBackward, flipForward]);
+	}, [closing, flipBackward, flipForward]);
 
 	useEffect(() => {
-		open();
-	}, [open]);
+		if (!closing) {
+			open();
+			return;
+		}
+		flipTimelineRef.current?.kill();
+		flipQueueRef.current = [];
+		isAnimatingRef.current = false;
+		const rotations = [
+			rightPageRef.current,
+			leftPageRef.current,
+			...pageRefs.current,
+		].flatMap((page) => (page ? [page.rotation] : []));
+		gsap.killTweensOf(rotations);
+		const closingTween = gsap.to(rotations, {
+			y: 0,
+			duration: 0.35,
+			ease: "power2.inOut",
+		});
+		return () => {
+			closingTween.kill();
+		};
+	}, [closing, open]);
 
 	useEffect(() => {
 		let isActive = true;
@@ -352,21 +378,27 @@ const OpenBook = ({
 	const selectedPage = useReadingStore((state) => state.selectedPage);
 
 	useEffect(() => {
-		if (typeof selectedPage === "number" && selectedPage !== currentPage) {
+		if (
+			!closing &&
+			typeof selectedPage === "number" &&
+			selectedPage !== currentPage
+		) {
 			flipTo(selectedPage);
 		}
-	}, [currentPage, flipTo, selectedPage]);
+	}, [closing, currentPage, flipTo, selectedPage]);
 
 	return (
 		// biome-ignore lint/a11y/noStaticElementInteractions: This is a Three.js group, with page controls also available outside the canvas.
 		<group
-			rotation={[0, Math.PI / 2, 0]}
+			rotation={
+				presentation === "tour" ? [0, 0, Math.PI / 4] : [0, Math.PI / 2, 0]
+			}
 			onPointerDown={() => setBookRead((isReading) => !isReading)}
 			onClick={handleTap}
 			userData={{ bookRead, orbit }}
 		>
 			<mesh
-				rotation={[0, Math.PI, 0.45]}
+				rotation={presentation === "tour" ? [0, 0, 0] : [0, Math.PI, 0.45]}
 				position={[0, 0, 0]}
 				name="open-book"
 				userData={{ bookID: book.id, pdf: activePdfUrl }}

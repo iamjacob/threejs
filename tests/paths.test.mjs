@@ -58,3 +58,46 @@ test("runtime asset paths use the deployment base without changing external or a
 		assert.equal(publicAssetUrl(path, "/threejs/"), path);
 	}
 });
+
+test("versioned cover URLs are stable across components and change with image content", () => {
+	globalThis.__PUBLIC_IMAGE_VERSIONS__ = { "/blockchain/front.webp": "0123456789abcdef" };
+	try {
+		const versioned = "/threejs/blockchain/front.webp?v=0123456789abcdef";
+		assert.equal(publicAssetUrl("/blockchain/front.webp", "/threejs/"), versioned);
+		assert.equal(publicAssetUrl("/threejs/blockchain/front.webp", "/threejs/"), versioned);
+		assert.equal(publicAssetUrl(versioned, "/threejs/"), versioned);
+		assert.equal(publicAssetUrl("/blockchain/front.webp", "/"), "/blockchain/front.webp?v=0123456789abcdef");
+		globalThis.__PUBLIC_IMAGE_VERSIONS__["/blockchain/front.webp"] = "abcdef0123456789";
+		assert.notEqual(publicAssetUrl("/blockchain/front.webp", "/threejs/"), versioned);
+	} finally {
+		delete globalThis.__PUBLIC_IMAGE_VERSIONS__;
+	}
+});
+
+test("cover caching preserves the asset stream and validators", async () => {
+	for (const [query, expected] of [
+		["?v=0123456789abcdef", "public, max-age=31536000, immutable"],
+		["", "public, max-age=86400, stale-while-revalidate=604800"],
+	]) {
+		const response = new Response("image bytes", { headers: { "Content-Type": "image/webp", ETag: '"cover-hash"' } });
+		const result = await worker.fetch(new Request(`https://boooks.app/threejs/blockchain/front.webp${query}`), {
+			ASSETS: { fetch() { return Promise.resolve(response); } },
+		});
+		assert.equal(result.headers.get("Cache-Control"), expected);
+		assert.equal(result.headers.get("ETag"), '"cover-hash"');
+		assert.equal(result.headers.get("Content-Type"), "image/webp");
+		assert.equal(result.body, response.body);
+		assert.equal(await result.text(), "image bytes");
+	}
+});
+
+test("missing covers and catalog JSON never get long-lived image caching", async () => {
+	for (const [path, status] of [["blockchain/missing.webp", 404], ["blockchain/data.json", 200]]) {
+		const response = new Response(null, { status });
+		const result = await worker.fetch(new Request(`https://boooks.app/threejs/${path}`), {
+			ASSETS: { fetch() { return Promise.resolve(response); } },
+		});
+		assert.equal(result, response);
+		assert.equal(result.headers.has("Cache-Control"), false);
+	}
+});

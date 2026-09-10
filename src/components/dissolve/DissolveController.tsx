@@ -32,12 +32,12 @@ const DissolveController = () => {
 				{/* <div className="mb-2 text-sm">
 					Dissolve Progress: {Math.round(dissolveProgress * 100)}%
 				</div> */}
-				<div className="h-1 w-40 rounded bg-gray-700">
+				{/* <div className="h-1 w-40 rounded bg-gray-700">
 					<div
 						className="h-full rounded bg-red-500 transition-all duration-100"
 						style={{ width: `${dissolveProgress * 100}%` }}
 					/>
-				</div>
+				</div> */}
 			</div>
 		</div>
 	);

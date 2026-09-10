@@ -1,10 +1,18 @@
-import { useLoader, useThree } from "@react-three/fiber";
-import { Suspense, useMemo } from "react";
-import { SRGBColorSpace, type Texture, TextureLoader } from "three";
+import { type ThreeEvent, useLoader, useThree } from "@react-three/fiber";
+import { Suspense, useEffect, useMemo, useState } from "react";
+import {
+	Quaternion,
+	SRGBColorSpace,
+	type Texture,
+	TextureLoader,
+	Vector3,
+} from "three";
 import { books } from "../../lib/bookCatalog";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
 import { BOOK_MATERIAL } from "../book/bookAppearance";
 import { getBookTextureUrls } from "../book/bookTextures";
+import type { BookPose } from "../tour/tourStages";
+import CollectionBlur from "./CollectionBlur";
 import { progressionConfig } from "./progressionConfig";
 import Shelves from "./Shelves";
 import {
@@ -56,7 +64,37 @@ export const tallestShelfBook = Math.max(
 	0,
 );
 
-function CollectionBook({ book }: { book: ShelfBook }) {
+export function shelfBookPose(id: string): BookPose {
+	const placement =
+		placements.find(({ book }) => book.id === id) ?? placements[0];
+	const angle = placement.rotation[1] + Math.PI / 2;
+	return {
+		position: [
+			placement.position[2],
+			placement.position[1] - 0.8,
+			-placement.position[0],
+		],
+		quaternion: [0, Math.sin(angle / 2), 0, Math.cos(angle / 2)],
+	};
+}
+
+function CollectionBook({
+	book,
+	onSelect,
+	blurred,
+}: {
+	book: ShelfBook;
+	onSelect?: (id: string, pose: BookPose) => void;
+	blurred: boolean;
+}) {
+	const [hovered, setHovered] = useState(false);
+	useEffect(() => {
+		if (!hovered || !onSelect) return;
+		document.body.style.cursor = "pointer";
+		return () => {
+			document.body.style.cursor = "";
+		};
+	}, [hovered, onSelect]);
 	const urls = useMemo(
 		() => getBookTextureUrls(book.cover).map((url) => publicAssetUrl(url)),
 		[book.cover],
@@ -67,13 +105,33 @@ function CollectionBook({ book }: { book: ShelfBook }) {
 	);
 	return (
 		<group>
-			<mesh name={`shelf-book-${book.id}`} userData={{ title: book.title }}>
+			{/* biome-ignore lint/a11y/noStaticElementInteractions: Canvas book; the Open book button offers a keyboard alternative. */}
+			<mesh
+				name={`shelf-book-${book.id}`}
+				userData={{ title: book.title, bookId: book.id, blurred }}
+				onPointerOver={(event) => {
+					if (onSelect) {
+						event.stopPropagation();
+						setHovered(true);
+					}
+				}}
+				onPointerOut={() => setHovered(false)}
+				onClick={(event: ThreeEvent<MouseEvent>) => {
+					if (!onSelect || event.delta > 5) return;
+					event.stopPropagation();
+					const position = event.object
+						.getWorldPosition(new Vector3())
+						.toArray();
+					const quaternion = event.object
+						.getWorldQuaternion(new Quaternion())
+						.toArray();
+					onSelect(book.id, { position, quaternion });
+				}}
+			>
 				<boxGeometry args={book.dimensions} />
 				{textures.map((texture, index) => (
 					<meshStandardMaterial
-						key={
-							["fore-edge", "spine", "top", "bottom", "front", "back"][index]
-						}
+						key={["edge", "spine", "top", "bottom", "front", "back"][index]}
 						attach={`material-${index}`}
 						{...BOOK_MATERIAL}
 						map={texture}
@@ -85,21 +143,49 @@ function CollectionBook({ book }: { book: ShelfBook }) {
 	);
 }
 
-export default function Bookshelves() {
+export default function Bookshelves({
+	onBookSelect,
+	hiddenBookId,
+	returningBookId,
+	blurredBookIds = [],
+}: {
+	onBookSelect?: (id: string, pose: BookPose) => void;
+	hiddenBookId?: string;
+	returningBookId?: string | null;
+	blurredBookIds?: string[];
+} = {}) {
 	return (
 		<Shelves fixedLevel={BOOKS_SHELF_LEVEL}>
-			{placements.map(({ book, position, rotation, shelfIndex }) => (
-				<group
-					key={book.id}
-					position={position}
-					rotation={rotation}
-					userData={{ shelfIndex }}
-				>
-					<Suspense fallback={null}>
-						<CollectionBook book={book} />
-					</Suspense>
-				</group>
-			))}
+			{blurredBookIds.length > 0 && (
+				<CollectionBlur
+					placements={placements.filter(
+						({ book }) =>
+							blurredBookIds.includes(book.id) &&
+							book.id !== hiddenBookId &&
+							book.id !== returningBookId,
+					)}
+				/>
+			)}
+			{placements
+				.filter(
+					({ book }) => book.id !== hiddenBookId && book.id !== returningBookId,
+				)
+				.map(({ book, position, rotation, shelfIndex }) => (
+					<group
+						key={book.id}
+						position={position}
+						rotation={rotation}
+						userData={{ shelfIndex }}
+					>
+						<Suspense fallback={null}>
+							<CollectionBook
+								book={book}
+								onSelect={onBookSelect}
+								blurred={blurredBookIds.includes(book.id)}
+							/>
+						</Suspense>
+					</group>
+				))}
 		</Shelves>
 	);
 }

@@ -9,7 +9,7 @@ import { progressionConfig } from "../shelves/progressionConfig";
 import { BOOKS_SHELF_LEVEL } from "../shelves/shelfBooks";
 import type { CameraView } from "./demoScenes";
 
-function shelfFraming(
+export function shelfFraming(
 	levelIndex: number,
 	aspect: number,
 	bookHeight = 0,
@@ -30,14 +30,34 @@ function shelfFraming(
 	const radius = Math.hypot(halfWidth, (top - bottom) / 2, (front - back) / 2);
 	const verticalFov = MathUtils.degToRad(45);
 	const horizontalFov = 2 * Math.atan(Math.tan(verticalFov / 2) * aspect);
-	const distance = collection
-		? Math.max(
-				halfWidth / Math.tan(horizontalFov / 2),
-				(top - bottom) / 2 / Math.tan(verticalFov / 2),
-			) *
-				1.2 +
-			(front - back) / 2
-		: (radius / Math.sin(Math.min(verticalFov, horizontalFov) / 2)) * 1.25;
+	let distance =
+		(radius / Math.sin(Math.min(verticalFov, horizontalFov) / 2)) * 1.25;
+	if (collection) {
+		// Fit the curved shelf itself to the screen edges, including camera tilt.
+		const elevation = 0.12;
+		const forward = Math.sqrt(1 - elevation ** 2);
+		distance = 0;
+		for (let i = 0; i <= 32; i++) {
+			const angle = -halfArc + (2 * halfArc * i) / 32;
+			for (const shelfRadius of [7, 8]) {
+				const x = shelfRadius * Math.sin(angle);
+				const z = -shelfRadius * Math.cos(angle) - target.z;
+				for (const height of [bottom, top]) {
+					const y = height - target.y;
+					const depth = elevation * y + forward * z;
+					distance = Math.max(
+						distance,
+						Math.abs(x) / (Math.tan(horizontalFov / 2) * 0.99) + depth,
+						Math.abs(forward * y - elevation * z) /
+							(Math.tan(verticalFov / 2) * 0.72) +
+							depth,
+					);
+				}
+			}
+		}
+		// Raise the collection in the frame to leave room for the caption and timeline.
+		target.y -= distance * Math.tan(verticalFov / 2) * 0.12;
+	}
 	return { target, distance, fullCircle: fraction === 1 };
 }
 

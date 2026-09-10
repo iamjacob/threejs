@@ -51,8 +51,8 @@ export default function BookBar({
 				]?.focus();
 			}}
 		>
-			<div className="flex h-8 items-center justify-between gap-2 pl-1">
-				<p className="truncate text-xs text-white/70" aria-live="polite">
+			<div className="flex min-h-10 items-center justify-between gap-2 pl-1">
+				<p className="truncate text-base text-white/85" aria-live="polite">
 					{book.title}
 				</p>
 				<button

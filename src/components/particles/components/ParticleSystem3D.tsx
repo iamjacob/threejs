@@ -7,6 +7,7 @@ import { createBookParticleGeometry } from "./colorExtractor";
 import { particleFragmentShader, particleVertexShader } from "./shaders";
 
 interface ParticleSystem3DProps {
+	floating?: boolean;
 	bookData: BookData;
 	textures: THREE.Texture[];
 	isParticleMode?: boolean;
@@ -15,6 +16,7 @@ interface ParticleSystem3DProps {
 }
 
 export default function ParticleSystem3D({
+	floating = true,
 	bookData,
 	textures,
 	isParticleMode = false,
@@ -61,8 +63,9 @@ export default function ParticleSystem3D({
 		material.uniforms.uViewportHeight.value =
 			state.size.height * state.gl.getPixelRatio();
 		if (pointsRef.current) {
-			pointsRef.current.rotation.y =
-				Math.sin(state.clock.elapsedTime * 0.2) * 0.1;
+			pointsRef.current.rotation.y = floating
+				? Math.sin(state.clock.elapsedTime * 0.2) * 0.1
+				: 0;
 		}
 	});
 

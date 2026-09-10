@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; font-src 'self' blob: data:; connect-src 'self' blob:; frame-src blob:; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; form-action 'none'" />
+		<title>Foliate reader</title>
+		<link rel="stylesheet" href="./reader.css" />
+		<script type="module" src="./reader.js"></script>
+	</head>
+	<body>
+		<main id="pages" aria-label="Book pages" tabindex="0"></main>
+		<section id="notice" aria-live="polite">
+			<img id="cover" alt="" hidden />
+			<p id="message">Opening book…</p>
+			<p id="hint" hidden>Open its EPUB or PDF to read here.</p>
+			<button id="retry" type="button" hidden>Try again</button>
+			<button id="sample" type="button" hidden>Try the Boooks PDF</button>
+			<button id="choose" type="button" hidden>Open book file</button>
+			<input id="book-file" type="file" accept=".epub,.pdf,.mobi,.azw3,.fb2,.cbz" hidden />
+		</section>
+	</body>
+</html>

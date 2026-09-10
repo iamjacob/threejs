@@ -7,7 +7,6 @@ import { useReadingStore } from "../../../stores/useReadingStore";
 import { useSelectedBook } from "../../stores/useBookStore";
 
 const ITEM_HEIGHT = 26;
-const MENU_HEIGHT = 144;
 
 const lerp = (start: number, end: number, amount: number): number =>
 	start * (1 - amount) + end * amount;
@@ -28,7 +27,15 @@ interface ThrottleState {
 	timer: ReturnType<typeof setTimeout> | null;
 }
 
-export default function BookPageSwiper() {
+export default function BookPageSwiper({
+	embedded = false,
+	onInteract,
+}: {
+	embedded?: boolean;
+	onInteract?: () => void;
+} = {}) {
+	const menuHeight = embedded ? 96 : 144;
+	const centerOffset = (menuHeight - ITEM_HEIGHT) / 2;
 	const book = useSelectedBook();
 	const total = book.demoPages;
 	const pageNumbers = useMemo(
@@ -38,9 +45,9 @@ export default function BookPageSwiper() {
 	const menuRef = useRef<HTMLDivElement>(null);
 	const itemsRef = useRef<Array<HTMLDivElement | null>>([]);
 	const stateRef = useRef<SwiperAnimationState>({
-		current: 0,
-		smooth: 0,
-		last: 0,
+		current: centerOffset,
+		smooth: centerOffset,
+		last: centerOffset,
 		dragging: false,
 		startY: 0,
 		scrollTimeout: null,
@@ -55,21 +62,34 @@ export default function BookPageSwiper() {
 
 	const [selectedPage, setSelectedPage] = useState<number>(0);
 	const setReadingSelected = useReadingStore((state) => state.setSelectedPage);
+	const readingPage = useReadingStore((state) => state.selectedPage);
+	const interaction = useRef(onInteract);
+	interaction.current = onInteract;
+
+	useEffect(() => {
+		const state = stateRef.current;
+		if (state.lastHighlight?.dataset.page === String(readingPage)) return;
+		const cycle = total * ITEM_HEIGHT;
+		const center = centerOffset - readingPage * ITEM_HEIGHT;
+		state.current =
+			center + Math.round((state.current - center) / cycle) * cycle;
+		state.smooth = state.current;
+		state.last = state.current;
+	}, [centerOffset, readingPage, total]);
 
 	const snap = useCallback((): void => {
 		const state = stateRef.current;
-		const middle = state.smooth + MENU_HEIGHT / 2;
-		const index = Math.round(middle / ITEM_HEIGHT);
-
-		state.current = index * ITEM_HEIGHT - MENU_HEIGHT / 2;
-	}, []);
+		state.current =
+			Math.round((state.smooth - centerOffset) / ITEM_HEIGHT) * ITEM_HEIGHT +
+			centerOffset;
+	}, [centerOffset]);
 
 	const highlight = useCallback((): void => {
 		const menu = menuRef.current;
 		if (!menu) return;
 
 		const menuTop = menu.getBoundingClientRect().top;
-		const menuMiddle = menuTop + MENU_HEIGHT / 2;
+		const menuMiddle = menuTop + menuHeight / 2;
 		const state = stateRef.current;
 		let found: HTMLDivElement | null = null;
 
@@ -121,7 +141,7 @@ export default function BookPageSwiper() {
 		}
 
 		state.lastHighlight = found;
-	}, [setReadingSelected]);
+	}, [menuHeight, setReadingSelected]);
 
 	useEffect(() => {
 		const state = stateRef.current;
@@ -172,6 +192,7 @@ export default function BookPageSwiper() {
 
 		const onWheel = (event: WheelEvent): void => {
 			event.preventDefault();
+			interaction.current?.();
 			state.current -= event.deltaY * 0.7;
 
 			if (state.scrollTimeout) clearTimeout(state.scrollTimeout);
@@ -179,6 +200,7 @@ export default function BookPageSwiper() {
 		};
 
 		const onMouseDown = (event: MouseEvent): void => {
+			interaction.current?.();
 			state.dragging = true;
 			state.startY = event.clientY;
 			menu.style.cursor = "grabbing";
@@ -202,6 +224,7 @@ export default function BookPageSwiper() {
 		const onTouchStart = (event: TouchEvent): void => {
 			const touch = event.touches[0];
 			if (!touch) return;
+			interaction.current?.();
 
 			state.startY = touch.clientY;
 			state.dragging = true;
@@ -247,15 +270,33 @@ export default function BookPageSwiper() {
 	return (
 		<aside
 			aria-label={`Selected page ${selectedPage}`}
-			className="absolute top-1/2 left-4 z-10 flex -translate-y-1/2 flex-col items-center justify-center overflow-hidden select-none"
+			className={
+				embedded
+					? "flex flex-col items-center justify-center overflow-hidden select-none"
+					: "absolute top-1/2 left-4 z-10 flex -translate-y-1/2 flex-col items-center justify-center overflow-hidden select-none"
+			}
 		>
 			<div
 				ref={menuRef}
-				className="relative z-10 mr-4 flex items-center justify-center overflow-hidden rounded-full border border-white/[0.18] bg-white/[0.08] text-[15px] font-medium tracking-wide text-white/90 backdrop-blur-xl transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-white/[0.28] hover:bg-white/[0.14] active:scale-[0.98] active:bg-white/[0.06]"
+				role="slider"
+				tabIndex={0}
+				aria-label="Book pages"
+				aria-valuemin={0}
+				aria-valuemax={total - 1}
+				aria-valuenow={selectedPage}
+				onKeyDown={(event) => {
+					const delta =
+						event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
+					if (!delta) return;
+					event.preventDefault();
+					interaction.current?.();
+					setReadingSelected((readingPage + delta + total) % total);
+				}}
+				className={`relative z-10 flex touch-none items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[#0c1424]/20 text-base font-medium tracking-wide text-white/90 backdrop-blur-sm transition-all duration-200 hover:-translate-y-0.5 hover:scale-[1.02] hover:border-white/[0.28] hover:bg-white/[0.14] active:scale-[0.98] active:bg-white/[0.06] ${embedded ? "" : "mr-4"}`}
 				style={{
 					cursor: "grab",
-					height: MENU_HEIGHT,
-					width: 42,
+					height: menuHeight,
+					width: 44,
 				}}
 			>
 				{pageNumbers.map((page, index) => (
@@ -268,12 +309,12 @@ export default function BookPageSwiper() {
 						className="absolute top-0 right-0 left-0 flex w-full flex-row items-center justify-between text-center"
 						style={{ height: ITEM_HEIGHT, opacity: 0.35 }}
 					>
-						<span className="w-full text-center text-stone-400">{page}</span>
+						<span className="w-full text-center text-white/90">{page}</span>
 					</div>
 				))}
 			</div>
-			{!book.pdf && (
-				<p className="mt-3 mr-4 text-[10px] text-white/50">drag</p>
+			{!embedded && !book.pdf && (
+				<p className="mt-3 mr-4 text-sm text-white/75">drag</p>
 			)}
 		</aside>
 	);

@@ -5,6 +5,7 @@ import { BOOK_DIMENSIONS, BOOK_MATERIAL } from "../../book/bookAppearance";
 import type { BookData, ParticlePhase } from "../types";
 
 interface ParticleBookProps {
+	floating?: boolean;
 	bookData: BookData;
 	textures: THREE.Texture[];
 	phase: ParticlePhase;
@@ -13,6 +14,7 @@ interface ParticleBookProps {
 }
 
 const ParticleBook = ({
+	floating = true,
 	bookData,
 	textures,
 	phase,
@@ -73,8 +75,9 @@ const ParticleBook = ({
 
 	useFrame((state) => {
 		if (meshRef.current) {
-			meshRef.current.rotation.y =
-				Math.sin(state.clock.elapsedTime * 0.2) * 0.1;
+			meshRef.current.rotation.y = floating
+				? Math.sin(state.clock.elapsedTime * 0.2) * 0.1
+				: 0;
 			meshRef.current.scale.setScalar(bookScale);
 		}
 	});

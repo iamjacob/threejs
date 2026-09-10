@@ -7,7 +7,7 @@ import type { ParticlePhase } from "../types";
 const FORMATION_DURATION_SECONDS = 8;
 const SHRINK_DURATION_SECONDS = 1;
 
-const ParticleAnimator = () => {
+const ParticleAnimator = ({ paused = false }: { paused?: boolean }) => {
 	const phase = useParticleStore((state) => state.phase);
 	const setParticleProgress = useParticleStore(
 		(state) => state.setParticleProgress,
@@ -21,6 +21,7 @@ const ParticleAnimator = () => {
 	const previousPhaseRef = useRef<ParticlePhase>(phase);
 
 	useFrame((_, delta) => {
+		if (paused) return;
 		if (phase !== previousPhaseRef.current) {
 			previousPhaseRef.current = phase;
 			elapsedRef.current = 0;

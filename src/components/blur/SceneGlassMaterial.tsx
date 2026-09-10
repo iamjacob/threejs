@@ -50,10 +50,13 @@ export const SceneGlassMaterial = shaderMaterial(
       #include <tonemapping_fragment>
       #include <colorspace_fragment>
 
-      // Quantize display colors so shadow detail does not collapse in linear space.
+      // Step brightness while keeping channel ratios, so warm covers retain
+      // their hues instead of collapsing to the same gray or yellow RGB bins.
       if (uColorLevels > 1.0) {
         float intervals = uColorLevels - 1.0;
-        gl_FragColor.rgb = floor(gl_FragColor.rgb * intervals + 0.5) / intervals;
+        float peak = max(gl_FragColor.r, max(gl_FragColor.g, gl_FragColor.b));
+        float steppedPeak = floor(peak * intervals + 0.5) / intervals;
+        gl_FragColor.rgb *= steppedPeak / max(peak, 0.00001);
       }
     }
   `,

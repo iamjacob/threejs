@@ -1,6 +1,10 @@
 import { createRouter, RouterProvider } from "@tanstack/react-router";
 import ReactDOM from "react-dom/client";
+import { Cache } from "three";
 import { routeTree } from "./routeTree.gen";
+
+// Share decoded image data between shelf, open-book and particle texture loaders.
+Cache.enabled = true;
 
 const router = createRouter({
 	routeTree,
