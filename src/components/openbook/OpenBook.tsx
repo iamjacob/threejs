@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 
 import { useReadingStore } from "../../../stores/useReadingStore.ts";
+import { bookImagePath } from "../../lib/bookImages";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
 import { useSelectedBook } from "../../stores/useBookStore";
 import { BOOK_MATERIAL } from "../book/bookAppearance";
@@ -108,9 +109,9 @@ const OpenBook = ({
 	const backUrl = coverImg || book.cover.back;
 
 	const [frontTex, spineTex, backTex] = useTexture([
-		publicAssetUrl(frontUrl),
-		publicAssetUrl(spineUrl),
-		publicAssetUrl(backUrl),
+		publicAssetUrl(bookImagePath(frontUrl)),
+		publicAssetUrl(bookImagePath(spineUrl)),
+		publicAssetUrl(bookImagePath(backUrl)),
 	]) as [THREE.Texture, THREE.Texture, THREE.Texture];
 
 	const activePdfUrl = pdfUrl ?? book.pdf ?? null;

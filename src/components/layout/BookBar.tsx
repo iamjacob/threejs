@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { books } from "../../lib/bookCatalog";
+import { bookImagePath } from "../../lib/bookImages";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
 import { useBookStore, useSelectedBook } from "../../stores/useBookStore";
 
@@ -77,7 +78,7 @@ export default function BookBar({
 						className="flex h-20 w-14 shrink-0 cursor-pointer items-center justify-center rounded-md p-1 opacity-60 transition-opacity hover:opacity-100 focus-visible:outline-2 focus-visible:outline-white aria-pressed:bg-white/10 aria-pressed:opacity-100"
 					>
 						<img
-							src={publicAssetUrl(item.cover.front)}
+							src={publicAssetUrl(bookImagePath(item.cover.front, "low"))}
 							alt=""
 							className="h-full w-full object-contain"
 							draggable={false}

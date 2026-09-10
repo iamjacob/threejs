@@ -205,7 +205,7 @@ export default function TourOverlay() {
 						label="Open book"
 						onClick={advance}
 						disabled={loading}
-						hint={showHint("pick") ? "Press here" : undefined}
+						hint={showHint("pick") ? "Or press here" : undefined}
 					>
 						<BookOpen size={20} />
 					</IconButton>
@@ -260,7 +260,7 @@ export default function TourOverlay() {
 						label={blurred === books.length ? "Reveal books" : "Censor books"}
 						onClick={toggleAllBlur}
 						disabled={loading}
-						hint={showHint("censor") ? "Press here" : undefined}
+						hint={showHint("censor") ? "Tap a book or blur all" : undefined}
 					>
 						{blurred === books.length ? (
 							<Eye size={20} />

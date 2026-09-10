@@ -38,7 +38,11 @@ async function open(file) {
     for (const id of ['cover', 'hint', 'choose', 'retry', 'sample']) get(id).hidden = true
     try {
         await reader?.destroy()
-        const book = await makeBook(file)
+        // Let PDF.js stream/range-load remote PDFs instead of first buffering
+        // the entire response into a Blob (large PDFs can fail in that path).
+        const book = typeof file === 'string' && new URL(file).pathname.toLowerCase().endsWith('.pdf')
+            ? await (await import('./foliate/pdf.js')).makePDF(file)
+            : await makeBook(file)
         reader = new ContinuousBook(get('pages'), book, (doc, index) => {
             doc.addEventListener('keydown', keyboard)
             doc.addEventListener('click', event => {

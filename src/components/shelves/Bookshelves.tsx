@@ -1,13 +1,31 @@
-import { type ThreeEvent, useLoader, useThree } from "@react-three/fiber";
-import { Suspense, useEffect, useMemo, useState } from "react";
 import {
+	type ThreeEvent,
+	useFrame,
+	useLoader,
+	useThree,
+} from "@react-three/fiber";
+import {
+	Suspense,
+	startTransition,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
+import {
+	LoadingManager,
+	type Mesh,
 	Quaternion,
 	SRGBColorSpace,
-	type Texture,
 	TextureLoader,
 	Vector3,
 } from "three";
 import { books } from "../../lib/bookCatalog";
+import {
+	type BookImageLevel,
+	bookImageHeight,
+	bookImagePath,
+} from "../../lib/bookImages";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
 import { BOOK_MATERIAL } from "../book/bookAppearance";
 import { getBookTextureUrls } from "../book/bookTextures";
@@ -22,38 +40,9 @@ import {
 	type ShelfBook,
 } from "./shelfBooks";
 
-// Keep the original scans on disk; limit GPU texture memory for the collection.
-class ShelfTextureLoader extends TextureLoader {
-	load(
-		...[url, onLoad, onProgress, onError]: Parameters<TextureLoader["load"]>
-	) {
-		return super.load(
-			url,
-			(texture) => {
-				const image = texture.image as HTMLImageElement;
-				const scale = Math.min(1, 1024 / Math.max(image.width, image.height));
-				if (scale < 1) {
-					const canvas = document.createElement("canvas");
-					canvas.width = Math.max(1, Math.round(image.width * scale));
-					canvas.height = Math.max(1, Math.round(image.height * scale));
-					const context = canvas.getContext("2d");
-					if (context) {
-						context.drawImage(image, 0, 0, canvas.width, canvas.height);
-						(texture as Texture<HTMLImageElement | HTMLCanvasElement>).image =
-							canvas;
-					}
-				}
-				texture.colorSpace = SRGBColorSpace;
-				onLoad?.(texture);
-			},
-			onProgress,
-			onError,
-		);
-	}
-}
-
-// An instance keeps the shelf texture cache separate from full-resolution demo textures.
-const shelfTextureLoader = new ShelfTextureLoader();
+// Initial covers participate in the loader; later LOD upgrades stay in the background.
+const shelfTextureLoader = new TextureLoader();
+const detailTextureLoader = new TextureLoader(new LoadingManager());
 
 export const shelfBooks = books;
 const placements = layoutShelfBooks(
@@ -92,6 +81,55 @@ function CollectionBook({
 	deleteStartedAt?: number;
 	onDeleteComplete?: (id: string) => void;
 }) {
+	const mesh = useRef<Mesh>(null);
+	const [imageLevel, setImageLevel] = useState<BookImageLevel>("low");
+	const requestedLevel = useRef<BookImageLevel>("low");
+	const nextCheck = useRef(0);
+	const viewPosition = useMemo(() => new Vector3(), []);
+	useFrame(({ camera, size, gl, clock }) => {
+		if (!mesh.current || clock.elapsedTime < nextCheck.current) return;
+		nextCheck.current = clock.elapsedTime + 0.3;
+		// New shelf meshes have no rendered world matrix yet on their first frame.
+		mesh.current.updateWorldMatrix(true, false);
+		camera.updateMatrixWorld();
+		viewPosition
+			.setFromMatrixPosition(mesh.current.matrixWorld)
+			.applyMatrix4(camera.matrixWorldInverse);
+		if (viewPosition.z >= 0) return;
+		const projection = camera.projectionMatrix.elements;
+		const halfHeight =
+			(book.dimensions[1] * projection[5]) / (-2 * viewPosition.z);
+		const halfWidth =
+			((book.dimensions[0] + book.dimensions[2]) * projection[0]) /
+			(-2 * viewPosition.z);
+		if (
+			Math.abs((viewPosition.x * projection[0]) / -viewPosition.z) >
+				1 + halfWidth ||
+			Math.abs((viewPosition.y * projection[5]) / -viewPosition.z) >
+				1 + halfHeight
+		)
+			return;
+		const pixels = halfHeight * size.height * gl.getPixelRatio();
+		const lowHeight = bookImageHeight(book.cover.front, "low");
+		const detailHeight = bookImageHeight(book.cover.front, "detail");
+		const level: BookImageLevel =
+			pixels > detailHeight * 1.15
+				? "original"
+				: pixels > lowHeight * 1.15
+					? "detail"
+					: "low";
+		if (level === requestedLevel.current) return;
+		// Hysteresis prevents repeated swaps near a resolution boundary.
+		if (level === "low" && pixels > lowHeight * 0.8) return;
+		if (
+			requestedLevel.current === "original" &&
+			level === "detail" &&
+			pixels > detailHeight * 0.8
+		)
+			return;
+		requestedLevel.current = level;
+		startTransition(() => setImageLevel(level));
+	});
 	const [hovered, setHovered] = useState(false);
 	useEffect(() => {
 		if (!hovered || !onSelect || deleteStartedAt !== undefined) return;
@@ -101,10 +139,22 @@ function CollectionBook({
 		};
 	}, [hovered, onSelect, deleteStartedAt]);
 	const urls = useMemo(
-		() => getBookTextureUrls(book.cover).map((url) => publicAssetUrl(url)),
-		[book.cover],
+		() =>
+			getBookTextureUrls(book.cover).map((url) =>
+				publicAssetUrl(bookImagePath(url, imageLevel)),
+			),
+		[book.cover, imageLevel],
 	);
-	const textures = useLoader(shelfTextureLoader, urls);
+	const textures = useLoader(
+		imageLevel === "low" ? shelfTextureLoader : detailTextureLoader,
+		urls,
+	);
+	useEffect(() => {
+		for (const texture of textures) {
+			texture.colorSpace = SRGBColorSpace;
+			texture.needsUpdate = true;
+		}
+	}, [textures]);
 	const anisotropy = useThree((state) =>
 		Math.min(4, state.gl.capabilities.getMaxAnisotropy()),
 	);
@@ -112,8 +162,10 @@ function CollectionBook({
 		<group>
 			{/* biome-ignore lint/a11y/noStaticElementInteractions: Canvas book; the Open book button offers a keyboard alternative. */}
 			<mesh
+				ref={mesh}
 				name={`shelf-book-${book.id}`}
 				userData={{
+					imageLevel,
 					title: book.title,
 					bookId: book.id,
 					blurred,

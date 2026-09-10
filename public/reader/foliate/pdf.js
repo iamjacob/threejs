@@ -113,14 +113,20 @@ const makeTOCItem = item => ({
 })
 
 export const makePDF = async file => {
-    const transport = new pdfjsLib.PDFDataRangeTransport(file.size, [])
-    transport.requestDataRange = (begin, end) => {
-        file.slice(begin, end).arrayBuffer().then(chunk => {
-            transport.onDataRange(begin, chunk)
-        })
+    // Boooks: support URL loading so a large PDF need not become a Blob first.
+    let source
+    if (typeof file === 'string') source = { url: file }
+    else {
+        const transport = new pdfjsLib.PDFDataRangeTransport(file.size, [])
+        transport.requestDataRange = (begin, end) => {
+            file.slice(begin, end).arrayBuffer().then(chunk => {
+                transport.onDataRange(begin, chunk)
+            })
+        }
+        source = { range: transport }
     }
     const pdf = await pdfjsLib.getDocument({
-        range: transport,
+        ...source,
         cMapUrl: pdfjsPath('cmaps/'),
         standardFontDataUrl: pdfjsPath('standard_fonts/'),
         isEvalSupported: false,

@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
+import { bookImagePath } from "../../lib/bookImages";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
 import { useSelectedBook } from "../../stores/useBookStore";
 import { useTourStore } from "../../stores/useTourStore";
@@ -12,7 +13,7 @@ export default function ReaderOverlay() {
 	const readingFile = book.epub ?? book.pdf;
 	const query = new URLSearchParams({
 		title: book.title,
-		cover: publicAssetUrl(book.cover.front),
+		cover: publicAssetUrl(bookImagePath(book.cover.front, "low")),
 		...(readingFile ? { url: publicAssetUrl(readingFile) } : {}),
 	});
 	useEffect(() => {

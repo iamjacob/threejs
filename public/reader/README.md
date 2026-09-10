@@ -14,3 +14,8 @@ height, so long PDFs and EPUBs do not keep every page rendered in memory.
 
 Catalog entries with an `epub` or `pdf` path open directly. Covers without a reading file
 show the local file chooser. All public URLs respect the app's deployment base.
+
+Local extension in `foliate/pdf.js`: `makePDF` also accepts a URL. Catalog PDFs
+use PDF.js's streaming/range loading instead of `makeBook`'s full-response Blob
+download, which failed for the 13.9 MB Fangekoret PDF in Chrome. Uploaded files
+still use Foliate's original File/range-transport path.

@@ -10,7 +10,6 @@ import TourCamera from "../components/tour/TourCamera";
 import TourDirector from "../components/tour/TourDirector";
 import TourOverlay from "../components/tour/TourOverlay";
 import TourScene from "../components/tour/TourScene";
-import { tourStages } from "../components/tour/tourStages";
 import { useTourStore } from "../stores/useTourStore";
 
 export const Route = createFileRoute("/")({ component: Home });
@@ -40,7 +39,6 @@ function Home() {
 			<Header>
 				{started && (
 					<SceneToolbar
-						activeId={tourStages[stage].demo}
 						showBlur={false}
 						onChangeBook={() => useTourStore.getState().enter("library")}
 					/>
