@@ -1,6 +1,6 @@
 import type { DemoId } from "./demoScenes";
 
-export type SpecsId = DemoId | "Boooks" | "ChooseBook";
+export type SpecsId = DemoId | "Boooks";
 type DemoSpecs = {
 	title: string;
 	description: string;
@@ -85,28 +85,15 @@ const shelves: DemoSpecs = {
 		],
 	],
 	needs:
-		"Level thresholds, shelf fractions and wood textures. PDF loading currently belongs to Open Book; the shelves are not yet populated with books.",
+		"Level thresholds, shelf fractions, wood textures, and the selected book's covers and dimensions.",
 	enhancements: [
-		"Place real books along each arc using their widths, then connect selection to Open Book and its PDF loader.",
+		"Connect shelf book selection to Open Book and its PDF loader.",
 		"Reuse geometry or deform it on the GPU during growth, and instance repeated books for larger collections.",
 	],
 	hint: "Play the tour or change levels manually. Dragging the camera pauses the tour.",
 };
 
 export const DEMO_SPECS: Record<SpecsId, DemoSpecs> = {
-	ChooseBook: {
-		title: "Choose your book",
-		description: "A cover carousel sets the example book for every experiment.",
-		values: [
-			[
-				"Selection",
-				"Shared covers and physical dimensions across all book components.",
-			],
-		],
-		needs: "Front, back and spine images and book dimensions in the catalog.",
-		enhancements: ["Add more books to the collection."],
-		hint: "Swipe the covers or use the arrows, then choose a book.",
-	},
 	Boooks: {
 		title: "Boooks R3F!",
 		description:

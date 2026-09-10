@@ -14,7 +14,7 @@ const LevelController = () => {
 	const shelfCount = level.shelves.filter((fraction) => fraction > 0).length;
 
 	return (
-		<div className="absolute bottom-6 left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-3 rounded-2xl border border-white/10 bg-black/20 px-5 py-3 text-white backdrop-blur-xl">
+		<div className="absolute bottom-[calc(5rem+env(safe-area-inset-bottom))] left-1/2 z-10 flex -translate-x-1/2 flex-col items-center gap-3 rounded-2xl border border-white/10 bg-black/15 px-5 py-3 text-white backdrop-blur-sm md:bottom-6">
 			<div className="whitespace-nowrap text-center text-sm">
 				<p className="font-medium">
 					Level {levelIndex} / {progressionConfig.levels.length - 1}

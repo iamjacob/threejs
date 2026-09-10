@@ -1,3 +1,6 @@
+# Tap on book, shows info of book and dbl click make it fly out and change to open book. 
+
+# add read book that  onclick first zoooms in and then it transition ever so smoothly into foliate and pause the canvas so it is not using battery.
 
 # Change first copy on first page
 
@@ -18,7 +21,7 @@
 # Blur will need a fake look alike book underneath so it is not possible to reverse engineer the books identity.
 
 # Thanks for visiting, both intro and outro + my contacts at the end.
-# Maybe more about the syack and me here?
+# Maybe more about the stack and me here?
 # about AI? ;D And would love that page curl effect like apple?
 
 # Let them know foliate.js reader will be integrated too
@@ -27,7 +30,7 @@
 
 # In general make each copy short done and needed on each specs
 
-# Change icons for light and specs to not look AI
+# Change icons for light and specs to not look AI - ,maybe just icon and instead of reddish light just stron moving light or?
 
 # When multi books show mobil look!
 

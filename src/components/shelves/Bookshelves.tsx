@@ -3,7 +3,6 @@ import { Suspense, useMemo } from "react";
 import { SRGBColorSpace, type Texture, TextureLoader } from "three";
 import { books } from "../../lib/bookCatalog";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
-import { useSelectedBook } from "../../stores/useBookStore";
 import { BOOK_MATERIAL } from "../book/bookAppearance";
 import { getBookTextureUrls } from "../book/bookTextures";
 import { progressionConfig } from "./progressionConfig";
@@ -58,7 +57,6 @@ export const tallestShelfBook = Math.max(
 );
 
 function CollectionBook({ book }: { book: ShelfBook }) {
-	const selectedBook = useSelectedBook();
 	const urls = useMemo(
 		() => getBookTextureUrls(book.cover).map((url) => publicAssetUrl(url)),
 		[book.cover],
@@ -69,17 +67,6 @@ function CollectionBook({ book }: { book: ShelfBook }) {
 	);
 	return (
 		<group>
-			{selectedBook.id === book.id && (
-				<mesh
-					name="selected-book-marker"
-					position={[0, -book.dimensions[1] / 2 + 0.003, 0]}
-				>
-					<boxGeometry
-						args={[book.dimensions[0] + 0.06, 0.008, book.dimensions[2] + 0.06]}
-					/>
-					<meshBasicMaterial color="#ed3541" />
-				</mesh>
-			)}
 			<mesh name={`shelf-book-${book.id}`} userData={{ title: book.title }}>
 				<boxGeometry args={book.dimensions} />
 				{textures.map((texture, index) => (

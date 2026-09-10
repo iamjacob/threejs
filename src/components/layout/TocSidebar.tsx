@@ -15,6 +15,7 @@ type NodeProps = {
 	depth: number;
 	activeId: string;
 	onSelect: (id: string) => void;
+	compact?: boolean;
 };
 
 type TocSidebarProps = {
@@ -27,7 +28,7 @@ type TocSidebarProps = {
 
 const DEFAULT_ITEMS: TocItem[] = [
 	{ id: "Boooks", label: "Boooks R3F!", opensDialog: true },
-	{ id: "ChooseBook", label: "Choose your book", opensDialog: true },
+	{ id: "mobile-books", label: "Shelves with books" },
 	{
 		id: "3DBook",
 		label: "3D Book",
@@ -52,11 +53,6 @@ const DEFAULT_ITEMS: TocItem[] = [
 			},
 			{ id: "level-four-shelves", label: "Level 4 Shelves" },
 			{
-				id: "mobile-books",
-				label: "Mobile view with books",
-				shortLabel: "Shelves with books",
-			},
-			{
 				id: "level-top-shelves",
 				label: "Top level is 360degrees",
 				shortLabel: "360° shelves",
@@ -79,7 +75,7 @@ const DEFAULT_ITEMS: TocItem[] = [
 	},
 ];
 
-function Node({ item, depth, activeId, onSelect }: NodeProps) {
+function Node({ item, depth, activeId, onSelect, compact = false }: NodeProps) {
 	const isActive = item.id === activeId;
 	const hasChildren = Boolean(item.children?.length);
 
@@ -91,8 +87,8 @@ function Node({ item, depth, activeId, onSelect }: NodeProps) {
 				disabled={item.disabled}
 				aria-current={isActive ? "true" : undefined}
 				aria-haspopup={item.opensDialog ? "dialog" : undefined}
-				className="group relative my-1 flex min-h-11 w-full cursor-pointer items-center py-2 pr-3 text-left transition-colors disabled:cursor-default disabled:opacity-40 md:min-h-0 md:items-start md:py-1"
-				style={{ paddingLeft: 16 + depth * 16 }}
+				className={`group relative flex min-h-11 w-full cursor-pointer items-center pr-3 text-left transition-colors disabled:cursor-default disabled:opacity-40 md:min-h-0 md:items-start md:py-1 ${compact ? "rounded-lg py-1 hover:bg-white/5 aria-current:bg-white/10" : "my-1 py-2"}`}
+				style={{ paddingLeft: compact ? 12 + depth * 12 : 16 + depth * 16 }}
 			>
 				{isActive && (
 					<span
@@ -102,13 +98,13 @@ function Node({ item, depth, activeId, onSelect }: NodeProps) {
 				)}
 
 				<span
-					className={`text-[15px] leading-snug transition-colors ${
+					className={`${compact ? "text-sm" : "text-[15px]"} leading-snug transition-colors ${
 						isActive
 							? "font-medium text-stone-100"
 							: "text-stone-300 group-hover:text-stone-100 md:text-stone-500 md:group-hover:text-stone-300"
 					}`}
 				>
-					{item.label}
+					{compact ? (item.shortLabel ?? item.label) : item.label}
 				</span>
 			</button>
 
@@ -121,6 +117,7 @@ function Node({ item, depth, activeId, onSelect }: NodeProps) {
 							depth={depth + 1}
 							activeId={activeId}
 							onSelect={onSelect}
+							compact={compact}
 						/>
 					))}
 				</div>
@@ -169,7 +166,7 @@ function MobileToc({
 		<>
 			<nav
 				aria-label="Demo navigation"
-				className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-[1100] flex items-center gap-2 rounded-2xl border border-white/15 bg-[#172554]/95 p-2 text-white shadow-xl backdrop-blur-xl md:hidden"
+				className="fixed inset-x-3 bottom-[calc(0.75rem+env(safe-area-inset-bottom))] z-[1100] mx-auto flex max-w-[420px] items-center gap-1 rounded-2xl border border-white/10 bg-black/15 p-1 text-white shadow-sm backdrop-blur-sm md:hidden"
 			>
 				<button
 					type="button"
@@ -177,7 +174,7 @@ function MobileToc({
 					title={previous?.label}
 					disabled={!previous}
 					onClick={() => previous && onSelect(previous.id)}
-					className="flex h-12 w-12 shrink-0 touch-manipulation items-center justify-center rounded-xl bg-white/10 active:bg-white/20 disabled:opacity-30"
+					className="flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl bg-white/5 active:bg-white/15 disabled:opacity-30"
 				>
 					<ChevronLeft size={24} aria-hidden="true" />
 				</button>
@@ -186,14 +183,22 @@ function MobileToc({
 					aria-label={`Choose demo: ${current?.label ?? title}`}
 					aria-haspopup="dialog"
 					aria-controls={dialogId}
-					onClick={() => dialogRef.current?.showModal()}
-					className="flex min-h-12 min-w-0 flex-1 touch-manipulation items-center justify-center gap-2 rounded-xl px-1 text-left active:bg-white/10"
+					onClick={() => {
+						const dialog = dialogRef.current;
+						dialog?.showModal();
+						const selected = dialog?.querySelector<HTMLButtonElement>(
+							'[aria-current="true"]',
+						);
+						selected?.focus({ preventScroll: true });
+						selected?.scrollIntoView({ block: "nearest" });
+					}}
+					className="flex min-h-11 min-w-0 flex-1 touch-manipulation items-center justify-center gap-2 rounded-xl px-1 text-left active:bg-white/10"
 				>
 					<div className="min-w-0 flex-1" aria-live="polite" aria-atomic="true">
-						<p className="text-[10px] tracking-wider text-white/50">
+						<p className="sr-only">
 							{title} · {Math.max(0, currentIndex + 1)} / {entries.length}
 						</p>
-						<p className="truncate text-sm font-medium">
+						<p className="truncate text-xs font-medium">
 							{current?.shortLabel ?? current?.label ?? "Choose a demo"}
 						</p>
 					</div>
@@ -209,7 +214,7 @@ function MobileToc({
 					title={next?.label}
 					disabled={!next}
 					onClick={() => next && onSelect(next.id)}
-					className="flex h-12 w-12 shrink-0 touch-manipulation items-center justify-center rounded-xl bg-[#d91b24] active:bg-[#b9161e] disabled:bg-white/10 disabled:opacity-30"
+					className="flex h-11 w-11 shrink-0 touch-manipulation items-center justify-center rounded-xl bg-white/5 active:bg-white/15 disabled:opacity-30"
 				>
 					<ChevronRight size={24} aria-hidden="true" />
 				</button>
@@ -219,28 +224,32 @@ function MobileToc({
 				id={dialogId}
 				closedby="any"
 				aria-labelledby={headingId}
-				className="fixed inset-x-0 top-auto bottom-0 m-0 max-h-[85dvh] w-full max-w-none overflow-y-auto overscroll-contain rounded-t-3xl border border-white/15 bg-[#172554] px-3 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))] text-white shadow-2xl backdrop:bg-black/60 backdrop:backdrop-blur-sm md:hidden"
+				className="fixed inset-x-3 top-auto bottom-[calc(4.75rem+env(safe-area-inset-bottom))] mx-auto my-0 max-h-[min(26rem,calc(100dvh-9rem-env(safe-area-inset-top)-env(safe-area-inset-bottom)))] w-[calc(100%-1.5rem)] max-w-[420px] flex-col overflow-hidden rounded-2xl border border-white/15 bg-[#0c1424]/90 p-0 text-white shadow-xl backdrop-blur-sm backdrop:bg-black/10 open:flex md:hidden"
 			>
-				<div className="sticky -top-3 z-10 flex items-center justify-between bg-[#172554] px-3 pt-2 pb-3">
-					<h2 id={headingId} className="text-lg font-medium">
+				<div className="flex shrink-0 items-center justify-between border-b border-white/10 px-3 py-1">
+					<h2 id={headingId} className="text-sm font-medium">
 						{title}
 					</h2>
 					<button
 						type="button"
 						aria-label="Close demo menu"
 						onClick={() => dialogRef.current?.close()}
-						className="flex h-11 w-11 items-center justify-center rounded-full bg-white/10"
+						className="flex h-11 w-11 items-center justify-center rounded-lg text-white/65 hover:bg-white/10 hover:text-white"
 					>
 						<X size={20} aria-hidden="true" />
 					</button>
 				</div>
-				<nav aria-label={`${title} menu`}>
+				<nav
+					aria-label={`${title} menu`}
+					className="min-h-0 overflow-y-auto overscroll-contain p-2 [scrollbar-width:thin]"
+				>
 					{items.map((item) => (
 						<Node
 							key={item.id}
 							item={item}
 							depth={0}
 							activeId={activeId}
+							compact
 							onSelect={(id) => {
 								dialogRef.current?.close();
 								onSelect(id);

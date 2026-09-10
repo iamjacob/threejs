@@ -1,21 +1,37 @@
-import { Eye, Info, Sparkles, X } from "lucide-react";
-import { useId, useRef } from "react";
+import { Eye, Info, LampDesk, X } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
 import { useSelectedBook } from "../../stores/useBookStore";
 import { usePresentationStore } from "../../stores/usePresentationStore";
+import BookBar from "./BookBar";
 import { DEMO_SPECS, type SpecsId } from "./demoSpecs";
 
 export default function SceneToolbar({
 	activeId,
 	showBlur,
-	onChangeBook,
 }: {
 	activeId: SpecsId;
 	showBlur: boolean;
-	onChangeBook: () => void;
 }) {
 	const book = useSelectedBook();
-	const lighting = usePresentationStore((state) => state.redAccent);
+	const [bookBarOpen, setBookBarOpen] = useState(false);
+	const toolbarRef = useRef<HTMLFieldSetElement>(null);
+	const bookButtonRef = useRef<HTMLButtonElement>(null);
+	const bookBarId = useId();
+	const closeBookBar = () => {
+		setBookBarOpen(false);
+		bookButtonRef.current?.focus();
+	};
+	useEffect(() => {
+		if (!bookBarOpen) return;
+		const closeOutside = (event: PointerEvent) => {
+			if (!toolbarRef.current?.contains(event.target as Node))
+				setBookBarOpen(false);
+		};
+		document.addEventListener("pointerdown", closeOutside);
+		return () => document.removeEventListener("pointerdown", closeOutside);
+	}, [bookBarOpen]);
+	const lighting = usePresentationStore((state) => state.movingLight);
 	const blur = usePresentationStore((state) => state.blurEnabled);
 	const toggleLighting = usePresentationStore((state) => state.toggleLighting);
 	const toggleBlur = usePresentationStore((state) => state.toggleBlur);
@@ -24,20 +40,24 @@ export default function SceneToolbar({
 	const descriptionId = useId();
 	const spec = DEMO_SPECS[activeId];
 	const toggleClass =
-		"flex min-h-11 touch-manipulation cursor-pointer items-center justify-center gap-1.5 rounded-xl border border-white/15 bg-black/20 px-2 text-xs font-medium text-white/75 backdrop-blur-xl transition-colors hover:bg-white/10 aria-pressed:border-cyan-200/30 aria-pressed:bg-cyan-300/15 aria-pressed:text-cyan-100";
+		"flex h-11 w-10 shrink-0 touch-manipulation cursor-pointer items-center justify-center rounded-lg text-white/70 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-white aria-pressed:bg-white/20 aria-pressed:text-white sm:w-11";
 
 	return (
 		<>
 			<fieldset
-				className="absolute top-16 left-4 z-20 m-0 flex flex-wrap min-w-0 max-w-[calc(100%-2rem)] items-center gap-2 border-0 p-0"
+				ref={toolbarRef}
+				className="m-0 flex min-w-0 items-center border-0 p-0 sm:gap-1"
 				aria-label="Scene options"
 			>
 				<button
+					ref={bookButtonRef}
 					type="button"
-					onClick={onChangeBook}
+					onClick={() => setBookBarOpen((open) => !open)}
 					aria-label={`Change book: ${book.title}`}
 					aria-haspopup="dialog"
-					title={book.title}
+					aria-expanded={bookBarOpen}
+					aria-controls={bookBarId}
+					title={`Change book: ${book.title}`}
 					className={toggleClass}
 				>
 					<img
@@ -45,47 +65,45 @@ export default function SceneToolbar({
 						alt=""
 						className="h-7 w-5 rounded-sm object-cover"
 					/>
-					<span className="hidden min-[420px]:inline">Change book</span>
 				</button>
 				<button
 					type="button"
-					aria-label="Red accent light"
-					title="Add a red accent; soft studio lighting stays on"
+					aria-label="Moving spotlight"
+					title={
+						lighting ? "Turn off moving spotlight" : "Turn on moving spotlight"
+					}
 					aria-pressed={lighting}
 					onClick={toggleLighting}
 					className={toggleClass}
 				>
-					<Sparkles size={16} aria-hidden="true" />
-					Red light
-					<span className="text-[10px] opacity-60">
-						{lighting ? "On" : "Off"}
-					</span>
+					<LampDesk size={20} strokeWidth={1.6} aria-hidden="true" />
 				</button>
 				{showBlur && (
 					<button
 						type="button"
 						aria-label="Blur book"
+						title={blur ? "Reveal book" : "Blur book"}
 						aria-pressed={blur}
 						onClick={toggleBlur}
 						className={toggleClass}
 					>
-						<Eye size={16} aria-hidden="true" />
-						Blur
-						<span className="text-[10px] opacity-60">
-							{blur ? "On" : "Off"}
-						</span>
+						<Eye size={20} strokeWidth={1.6} aria-hidden="true" />
 					</button>
 				)}
 				<button
 					type="button"
 					aria-label="Element specs"
+					title="Element specs"
 					aria-haspopup="dialog"
-					onClick={() => dialogRef.current?.showModal()}
+					onClick={() => {
+						setBookBarOpen(false);
+						dialogRef.current?.showModal();
+					}}
 					className={toggleClass}
 				>
-					<Info size={16} aria-hidden="true" />
-					Specs
+					<Info size={20} strokeWidth={1.6} aria-hidden="true" />
 				</button>
+				{bookBarOpen && <BookBar id={bookBarId} onClose={closeBookBar} />}
 			</fieldset>
 			<dialog
 				ref={dialogRef}
@@ -126,7 +144,7 @@ export default function SceneToolbar({
 						],
 						[
 							"Lighting",
-							lighting ? "Soft studio + red accent" : "Soft studio · always on",
+							lighting ? "Soft studio + moving white spotlight" : "Soft studio",
 						],
 					].map(([label, value]) => (
 						<div key={label} className="grid grid-cols-[6rem_1fr] gap-3 py-3">

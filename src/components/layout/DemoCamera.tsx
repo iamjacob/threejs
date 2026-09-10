@@ -85,7 +85,11 @@ export default function DemoCamera({ view }: { view: CameraView }) {
 					);
 			}
 		} else {
-			const portraitScale = Math.max(1, size.height / size.width);
+			// Keep a single cover close on phones while leaving room for an open spread.
+			const portraitScale = Math.max(
+				1,
+				(size.height / size.width) * (view === "book" ? 0.7 : 1),
+			);
 			const position =
 				view === "page"
 					? new Vector3(0.7, 0.25, 1.65)
@@ -145,6 +149,10 @@ export default function DemoCamera({ view }: { view: CameraView }) {
 		<OrbitControls
 			ref={controls}
 			makeDefault
+			enableDamping
+			dampingFactor={0.08}
+			zoomSpeed={size.width < 768 ? 0.75 : 1}
+			rotateSpeed={size.width < 768 ? 0.75 : 1}
 			minDistance={isShelves ? 2 : 0.6}
 			maxDistance={isShelves ? 150 : 12}
 			onStart={() => {

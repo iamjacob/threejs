@@ -1,5 +1,6 @@
 import { ArrowRight, X } from "lucide-react";
 import { useEffect, useRef } from "react";
+import ContactLinks from "./ContactLinks";
 
 type AboutBoooksProps = {
 	isOpen: boolean;
@@ -50,43 +51,37 @@ export default function AboutBoooks({
 				id="about-boooks-description"
 				className="text-base leading-relaxed text-stone-200"
 			>
-Hi, I’m Jacob, the founder of Boooks, from Aarhus, Denmark.
-					</p>
-			
-			<p className="mt-4 text-sm leading-relaxed text-stone-300">
-			
-		Boooks is an experimental 3D reading platform built with React Three
-		Fiber and Three.js. I’m exploring how covers, pages, shelves, and
-		playful interactions can make a digital book collection feel more
-		personal and alive.
-	</p>
+				Hi, I’m Jacob, the founder of Boooks, from Aarhus, Denmark.
+			</p>
 
 			<p className="mt-4 text-sm leading-relaxed text-stone-300">
-	
-		This playground brings together some of the early components behind
-		that experience. Explore the books, turn their pages, watch the shelves
-		grow, and try the animations for adding and removing books.
-	</p>
+				Boooks is an experimental 3D reading platform built with React Three
+				Fiber and Three.js. I’m exploring how covers, pages, shelves, and
+				playful interactions can make a digital book collection feel more
+				personal and alive.
+			</p>
 
 			<p className="mt-4 text-sm leading-relaxed text-stone-300">
-	
-		Choose a demo from the Components menu and have a play. Boooks is still
-		evolving, so feedback, ideas, and contributions are very welcome.
-	</p>
+				This playground brings together some of the early components behind that
+				experience. Explore the books, turn their pages, watch the shelves grow,
+				and try the animations for adding and removing books.
+			</p>
 
 			<p className="mt-4 text-sm leading-relaxed text-stone-300">
-	
-		You can explore the code on GitHub using the link in the top-right
-		corner.
-	</p>
-			
-			
+				Choose a demo from the Components menu and have a play. Boooks is still
+				evolving, so feedback, ideas, and contributions are very welcome.
+			</p>
+
+			<div className="mt-5">
+				<ContactLinks />
+			</div>
+
 			<button
 				type="button"
 				onClick={onExplore}
 				className="mt-6 flex min-h-12 w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-[#d91b24] px-5 py-3 text-sm font-medium text-white transition-colors hover:bg-[#b9161e]"
 			>
-				Choose your book
+				Explore the shelves
 				<ArrowRight size={18} aria-hidden="true" />
 			</button>
 		</dialog>

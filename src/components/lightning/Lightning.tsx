@@ -1,8 +1,49 @@
 import { Environment, Lightformer } from "@react-three/drei";
+import { useFrame } from "@react-three/fiber";
+import { useMemo, useRef } from "react";
+import { Object3D, type SpotLight, type Vector3 } from "three";
 import { usePresentationStore } from "../../stores/usePresentationStore";
 
-export default function Lightning() {
-	const redAccent = usePresentationStore((state) => state.redAccent);
+function MovingSpotlight({ shelves }: { shelves: boolean }) {
+	const lightRef = useRef<SpotLight>(null);
+	const target = useMemo(() => new Object3D(), []);
+	const elapsed = useRef(0);
+	const radius = shelves ? 11 : 2.4;
+
+	useFrame((state, delta) => {
+		const light = lightRef.current;
+		if (!light) return;
+		elapsed.current += Math.min(delta, 0.1);
+		const angle = elapsed.current * 0.65;
+		// Follow the scene's orbit target, including the shelves away from the origin.
+		const controls = state.controls as { target?: Vector3 } | null;
+		if (controls?.target) target.position.copy(controls.target);
+		light.position.set(
+			target.position.x + Math.sin(angle) * radius,
+			target.position.y + radius * (0.6 + Math.sin(angle * 0.7) * 0.2),
+			target.position.z + Math.cos(angle) * radius,
+		);
+	});
+
+	return (
+		<group name="moving-spotlight">
+			<primitive object={target} />
+			<spotLight
+				ref={lightRef}
+				target={target}
+				color="#fffaf2"
+				intensity={radius ** 2 * 6}
+				distance={radius * 4}
+				decay={2}
+				angle={shelves ? 0.85 : 0.6}
+				penumbra={0.55}
+			/>
+		</group>
+	);
+}
+
+export default function Lightning({ shelves = false }: { shelves?: boolean }) {
+	const movingLight = usePresentationStore((state) => state.movingLight);
 
 	return (
 		<group name="studio-lighting">
@@ -25,20 +66,7 @@ export default function Lightning() {
 					intensity={1.4}
 				/>
 			</group>
-			{redAccent && (
-				<group name="red-accent-lighting">
-					<directionalLight
-						position={[-4, 2, 3]}
-						color="#ff514a"
-						intensity={3}
-					/>
-					<directionalLight
-						position={[2, 1, -4]}
-						color="#ff806b"
-						intensity={2}
-					/>
-				</group>
-			)}
+			{movingLight && <MovingSpotlight shelves={shelves} />}
 			<Environment resolution={128} frames={1}>
 				<Lightformer
 					form="rect"
