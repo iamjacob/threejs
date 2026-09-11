@@ -8,9 +8,9 @@ export default function LibraryCount() {
 
 	return (
 		<div>
-			<p className="text-sm leading-relaxed text-white/75 sm:text-base">
+			{/* <p className="text-sm leading-relaxed text-white/75 sm:text-base">
 				Level {level} / {progressionConfig.levels.length - 1}
-			</p>
+			</p> */}
 			<h2 className="flex items-baseline gap-3 text-white sm:gap-4">
 				<NumberFlow
 					value={count}

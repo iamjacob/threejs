@@ -1,4 +1,6 @@
-Run `npm run images` after adding or changing catalog cover images.
+The optional cover-image generator requires a local installation of `sharp`,
+which is not a direct project dependency. With it installed, run
+`npm run images` after adding or changing catalog cover images.
 
 The generator keeps every original and writes WebP variants to
 `public/book-images/`, with their paths and dimensions in
