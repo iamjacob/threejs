@@ -8,6 +8,7 @@ import { useTourStore } from "../../stores/useTourStore";
 import { shelfFraming } from "../layout/DemoCamera";
 import { tallestShelfBook } from "../shelves/Bookshelves";
 import { focusBookPosition } from "./tourBookPose";
+import { tourStages } from "./tourStages";
 
 export default function TourCamera() {
 	const { camera, size } = useThree();
@@ -16,6 +17,10 @@ export default function TourCamera() {
 	const level = useLevelStore((state) => state.levelIndex);
 	const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
 	const initialized = useRef(false);
+	const reducedMotion = useMemo(
+		() => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+		[],
+	);
 	const startPosition = useMemo(() => new Vector3(), []);
 	const startTarget = useMemo(() => new Vector3(), []);
 	const target = useMemo(() => new Vector3(), []);
@@ -78,17 +83,40 @@ export default function TourCamera() {
 			return;
 		}
 		if (tour.paused) return;
+		const introDuration = tourStages.library.duration ?? 7;
+		const introOrbit =
+			stage === "library" &&
+			tour.elapsed >= introDuration - 2 &&
+			!reducedMotion;
 		if (shelves) {
 			target.copy(framing.target);
-			const angle = framing.fullCircle
-				? tour.elapsed * 0.22
-				: Math.sin(tour.elapsed * 0.18) * 0.075;
-			const elevation = framing.fullCircle ? 0.5 : 0.12;
-			const radius = framing.distance * Math.sqrt(1 - elevation ** 2);
+			const angle = introOrbit
+				? MathUtils.smootherstep(
+						(tour.elapsed - (introDuration - 2)) / 2,
+						0,
+						1,
+					) *
+					Math.PI *
+					2
+				: framing.fullCircle
+					? tour.elapsed * 0.22
+					: stage === "library"
+						? 0
+						: Math.sin(tour.elapsed * 0.18) * 0.075;
+			const elevation = introOrbit
+				? 0.12 + Math.sin(angle / 2) * 0.16
+				: framing.fullCircle
+					? 0.5
+					: 0.12;
+			// Pull back at the sides so the curved shelf stays inside the view.
+			const distance =
+				framing.distance *
+				(introOrbit ? 1 + Math.sin(angle / 2) ** 2 * 0.2 : 1);
+			const radius = distance * Math.sqrt(1 - elevation ** 2);
 			position
 				.set(
 					Math.sin(angle) * radius,
-					framing.distance * elevation,
+					distance * elevation,
 					Math.cos(angle) * radius,
 				)
 				.add(target);
@@ -106,7 +134,11 @@ export default function TourCamera() {
 			);
 			position.add(target);
 		}
-		if (stage === "pull" || stage === "return") {
+		if (introOrbit) {
+			// Follow the arc directly; lerping positions would cut through the shelf.
+			camera.position.copy(position);
+			orbit.target.copy(target);
+		} else if (stage === "pull" || stage === "return") {
 			const t = MathUtils.smootherstep(
 				tour.elapsed / (stage === "return" ? 1.8 : 2),
 				0,

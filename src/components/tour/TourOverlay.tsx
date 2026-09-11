@@ -21,6 +21,8 @@ import { useTourStore } from "../../stores/useTourStore";
 import MarkLoader from "../layout/MarkLoader";
 import BookPageSwiper from "../openbook/BookPageSwiper";
 import ReaderOverlay from "../reader/ReaderOverlay";
+import { requestReaderFullscreen } from "../reader/readerFullscreen";
+import ShakeToRead from "../reader/ShakeToRead";
 import ControlHint from "./ControlHint";
 import LibraryCount from "./LibraryCount";
 import { tourChapters, tourStages } from "./tourStages";
@@ -168,6 +170,7 @@ export default function TourOverlay() {
 					: null;
 	return (
 		<>
+			<ShakeToRead />
 			<div
 				key={stage}
 				className="tour-caption pointer-events-none fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-5 z-20 max-w-[calc(100%-2.5rem)] [text-shadow:0_1px_8px_#080d1a] sm:left-10 sm:max-w-md"
@@ -215,6 +218,7 @@ export default function TourOverlay() {
 						label={reader === "zooming" ? "Opening reader" : "Read book"}
 						onClick={() => {
 							dismissHint("reader");
+							requestReaderFullscreen();
 							openReader();
 						}}
 						disabled={loading || reader !== "closed"}

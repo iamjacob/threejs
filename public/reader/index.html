@@ -9,6 +9,20 @@
 		<script type="module" src="./reader.js"></script>
 	</head>
 	<body>
+		<div id="reader-controls">
+			<button id="settings-toggle" type="button" aria-label="Settings" title="Settings" aria-expanded="false" aria-controls="settings">
+				<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="m9.5 3-.6 2.2-2 .9-2-.6-2.5 4.3 1.5 1.6v2.2l-1.5 1.6 2.5 4.3 2-.6 2 .9.6 2.2h5l.6-2.2 2-.9 2 .6 2.5-4.3-1.5-1.6v-2.2l1.5-1.6L19.1 5l-2 .6-2-.9L14.5 3Z"/><circle cx="12" cy="12" r="3"/></svg>
+			</button>
+			<section id="settings" aria-label="Reader settings" hidden>
+				<strong>Settings</strong>
+				<div class="setting-row"><span id="size-label">Text size</span><div class="size-controls"><button id="size-down" type="button" aria-label="Decrease text size">A−</button><output id="size-value" aria-live="polite">18</output><button id="size-up" type="button" aria-label="Increase text size">A+</button></div></div>
+				<label class="setting-row" for="dark-mode">Dark mode<input id="dark-mode" type="checkbox" role="switch" /></label>
+				<button id="fullscreen" type="button">Enter fullscreen</button>
+				<label id="shake-row" class="setting-row" for="shake">Shake to resume<input id="shake" type="checkbox" role="switch" /></label>
+				<p id="settings-hint">Return to your last page by shaking your phone.</p>
+				<p id="settings-status" role="status"></p>
+			</section>
+		</div>
 		<main id="pages" aria-label="Book pages" tabindex="0"></main>
 		<section id="notice" aria-live="polite">
 			<img id="cover" alt="" hidden />

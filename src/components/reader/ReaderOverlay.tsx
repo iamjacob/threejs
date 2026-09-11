@@ -4,6 +4,7 @@ import { bookImagePath } from "../../lib/bookImages";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
 import { useSelectedBook } from "../../stores/useBookStore";
 import { useTourStore } from "../../stores/useTourStore";
+import { exitReaderFullscreen } from "./readerFullscreen";
 
 export default function ReaderOverlay() {
 	const book = useSelectedBook();
@@ -12,6 +13,7 @@ export default function ReaderOverlay() {
 	const frame = useRef<HTMLIFrameElement>(null);
 	const readingFile = book.epub ?? book.pdf;
 	const query = new URLSearchParams({
+		book: book.id,
 		title: book.title,
 		cover: publicAssetUrl(bookImagePath(book.cover.front, "low")),
 		...(readingFile ? { url: publicAssetUrl(readingFile) } : {}),
@@ -30,6 +32,7 @@ export default function ReaderOverlay() {
 		window.addEventListener("message", receive);
 		return () => {
 			window.removeEventListener("message", receive);
+			exitReaderFullscreen();
 			// Wait until React removes the modal and mounts the next chapter.
 			queueMicrotask(() => {
 				if (document.querySelector("dialog[open]")) return;
@@ -56,13 +59,16 @@ export default function ReaderOverlay() {
 			<button
 				type="button"
 				aria-label="Close reader"
-				className="absolute right-[calc(0.5rem+env(safe-area-inset-right))] top-[calc(0.5rem+env(safe-area-inset-top))] z-10 flex h-11 w-11 cursor-pointer items-center justify-center rounded-full bg-[#f6f3ed]/80 backdrop-blur-sm hover:bg-[#f6f3ed] focus-visible:outline-2 focus-visible:outline-stone-800"
+				title="Close reader"
+				className="absolute right-[calc(0.5rem+env(safe-area-inset-right))] top-[calc(0.5rem+env(safe-area-inset-top))] z-10 flex h-12 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full border border-stone-300 bg-white px-4 text-sm font-semibold text-stone-950 shadow-lg shadow-black/25 hover:bg-stone-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
 				onClick={close}
 			>
-				<X size={20} aria-hidden="true" />
+				<X size={22} strokeWidth={2.5} aria-hidden="true" />
+				<span>Close reader</span>
 			</button>
 			<iframe
 				ref={frame}
+				allowFullScreen
 				title={`Read ${book.title}`}
 				src={`${publicAssetUrl("/reader/index.html")}?${query}`}
 				className="block h-full w-full border-0"

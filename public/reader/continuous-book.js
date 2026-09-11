@@ -1,10 +1,11 @@
 // Foliate's book interface, rendered as one scroll with nearby sections mounted.
 export class ContinuousBook {
-    constructor(host, book, onDocument) {
+    constructor(host, book, onDocument, settings = { size: 18, zoom: 1, dark: false }) {
         this.host = host
         this.book = book
         this.onDocument = onDocument
         this.fixed = book.rendition?.layout === 'pre-paginated'
+        this.settings = settings
         this.records = []
         this.destroyed = false
         this.observer = new IntersectionObserver(entries => {
@@ -23,23 +24,25 @@ export class ContinuousBook {
         this.resize.observe(host)
     }
 
-    async open() {
+    async open(position) {
         this.host.replaceChildren()
         this.host.scrollTop = 0
         for (const [index, section] of this.book.sections.entries()) {
             if (section.linear === 'no') continue
             const element = document.createElement('section')
             element.className = `book-section ${this.fixed ? 'fixed-page' : 'chapter'}`
+            if (this.fixed) element.style.width = `${this.settings.zoom * 100}%`
             element.dataset.section = String(index)
             element.setAttribute('aria-label', `${this.fixed ? 'Page' : 'Chapter'} ${this.records.length + 1}`)
             element.style.height = `${this.fixed ? this.host.clientWidth * 1.5 : Math.max(300, this.host.clientHeight)}px`
             this.host.append(element)
             this.records.push({ index, section, element, wanted: false })
         }
-        const first = this.records[0]
+        const first = this.records.find(record => record.index === position?.index) ?? this.records[0]
         if (!first) throw new Error('Empty book')
         first.wanted = true
         await this.load(first)
+        if (position) this.restorePosition(position)
         for (const record of this.records) this.observer.observe(record.element)
     }
 
@@ -75,14 +78,14 @@ export class ContinuousBook {
                 record.onZoom = typeof source === 'object' ? source.onZoom : null
                 await this.resizePage(record)
             } else {
-                const style = doc.createElement('style')
-                style.textContent = 'html { overflow: hidden; height: auto !important; } body { box-sizing: border-box; margin: 0 !important; padding: 24px !important; min-height: 0 !important; height: auto !important; color: #292524; background: #f6f3ed; font: 18px/1.7 Georgia, serif; overflow-wrap: break-word; } img, svg, video { max-width: 100% !important; height: auto; }'
-                doc.head.append(style)
+                record.style = doc.createElement('style')
+                doc.head.append(record.style)
+                this.styleDocument(record)
                 frame.style.height = '1px'
                 const fit = () => {
                     if (this.destroyed || !record.doc) return
                     const height = Math.ceil(Math.max(doc.body.getBoundingClientRect().height, doc.body.scrollHeight))
-                    record.element.style.height = `${height}px`
+                    this.setHeight(record, height)
                     frame.style.height = `${height}px`
                 }
                 fit()
@@ -114,7 +117,7 @@ export class ContinuousBook {
         record.resizing = true
         record.renderedWidth = width
         const scale = width / record.width
-        record.element.style.height = `${record.height * scale}px`
+        this.setHeight(record, record.height * scale)
         if (record.onZoom) {
             record.frame.style.width = `${width}px`
             record.frame.style.height = `${record.height * scale}px`
@@ -141,6 +144,52 @@ export class ContinuousBook {
         record.renderedWidth = null
         delete record.element.dataset.loaded
         record.section.unload?.()
+    }
+
+    getPosition() {
+        const top = this.host.scrollTop
+        const record = this.records.find(item => item.element.offsetTop + item.element.offsetHeight > top)
+            ?? this.records.at(-1)
+        if (!record) return null
+        return { index: record.index, fraction: Math.max(0, Math.min(1,
+            (top - record.element.offsetTop) / Math.max(1, record.element.offsetHeight))) }
+    }
+
+    restorePosition(position) {
+        const record = this.records.find(item => item.index === position?.index)
+        if (!record) return
+        const fraction = Math.max(0, Math.min(1, Number(position.fraction) || 0))
+        this.host.scrollTop = record.element.offsetTop + fraction * record.element.offsetHeight
+    }
+
+    setHeight(record, height) {
+        const position = this.getPosition()
+        record.element.style.height = `${height}px`
+        if (position) this.restorePosition(position)
+    }
+
+    styleDocument(record) {
+        if (!record.style) return
+        const { size, dark } = this.settings
+        record.style.textContent = `
+            html { overflow: hidden; height: auto !important; font-size: ${size}px !important; }
+            body { box-sizing: border-box; margin: 0 !important; padding: 64px 24px 32px !important;
+                min-height: 0 !important; height: auto !important; color: ${dark ? '#e7e2d9' : '#292524'} !important;
+                background: ${dark ? '#171b22' : '#f6f3ed'} !important; font: 1rem/1.7 Georgia, serif !important; overflow-wrap: break-word; }
+            p, li, blockquote, dd, dt { font-size: 1rem !important; line-height: 1.7 !important; }
+            img, svg, video { max-width: 100% !important; height: auto; }
+            ${dark ? 'body *:not(svg):not(svg *) { color: inherit !important; background-color: transparent !important; } a { color: #a8c8ff !important; }' : ''}
+        `
+    }
+
+    setSettings(settings) {
+        this.settings = settings
+        for (const record of this.records) {
+            if (this.fixed) {
+                record.element.style.width = `${settings.zoom * 100}%`
+                if (record.doc) this.resizePage(record)
+            } else this.styleDocument(record)
+        }
     }
 
     async goTo(href) {
