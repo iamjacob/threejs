@@ -11,7 +11,7 @@ export default function Book({
 	const book = providedBook ?? selectedBook;
 	const materials = useBookMaterials(book.textureUrls);
 	return (
-		<mesh name="book" material={materials}>
+		<mesh name="book" material={materials} castShadow receiveShadow>
 			<boxGeometry args={book.dimensions} />
 		</mesh>
 	);

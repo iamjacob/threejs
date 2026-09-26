@@ -164,6 +164,9 @@ function CollectionBook({
 			<mesh
 				ref={mesh}
 				name={`shelf-book-${book.id}`}
+				// Stop casting the solid box silhouette when the cover dissolves.
+				castShadow={deleteStartedAt === undefined}
+				receiveShadow
 				userData={{
 					imageLevel,
 					title: book.title,

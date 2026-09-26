@@ -50,10 +50,23 @@ export default function Lightning({ shelves = false }: { shelves?: boolean }) {
 			<ambientLight intensity={0.3} />
 			<hemisphereLight args={["#eef3ff", "#34303b", 0.7]} />
 			<group name="soft-lighting">
+				{/* Light the covers from above/front-left; shadows fall back and sideways. */}
 				<directionalLight
-					position={[-3, 5, 4]}
+					position={[-8, 10, 6]}
 					color="#fff0df"
-					intensity={1.8}
+					intensity={2.6}
+					castShadow
+					shadow-mapSize={[1024, 1024]}
+					shadow-camera-left={-10}
+					shadow-camera-right={10}
+					shadow-camera-top={10}
+					shadow-camera-bottom={-10}
+					shadow-camera-near={0.1}
+					shadow-camera-far={30}
+					shadow-intensity={0.85}
+					shadow-radius={2}
+					shadow-bias={-0.0003}
+					shadow-normalBias={0.02}
 				/>
 				<directionalLight
 					position={[4, 2, 2]}
@@ -61,9 +74,9 @@ export default function Lightning({ shelves = false }: { shelves?: boolean }) {
 					intensity={0.8}
 				/>
 				<directionalLight
-					position={[1, 3, -5]}
+					position={[1, 3, 5]}
 					color="#f1edff"
-					intensity={1.4}
+					intensity={0.5}
 				/>
 			</group>
 			{movingLight && <MovingSpotlight shelves={shelves} />}
@@ -86,11 +99,11 @@ export default function Lightning({ shelves = false }: { shelves?: boolean }) {
 				/>
 				<Lightformer
 					form="rect"
-					position={[0, 2, -5]}
+					position={[0, 2, 5]}
 					target={[0, 0, 0]}
 					scale={[5, 3, 1]}
 					color="#f3efff"
-					intensity={1.5}
+					intensity={0.7}
 				/>
 			</Environment>
 		</group>

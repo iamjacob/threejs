@@ -56,15 +56,13 @@ export default function AboutBoooks({
 			</p>
 
 			<p className="mt-4 text-base leading-relaxed text-stone-200">
-				Boooks is an experimental 3D reading platform built with React Three
-				Fiber and Three.js. I’m exploring how covers, pages, shelves, and
-				playful interactions can make a digital book collection feel more
-				personal and alive.
+				Boooks is built with React Three.
+				I hope to make this app as good at what we saw, 
+				at the conference - personal and alive.
 			</p>
 
 			<p className="mt-4 text-base leading-relaxed text-stone-200">
-				This playground brings together some of the early components behind that
-				experience. Contribute and get your code into the Boooks app before
+				Contribute and get your code into the Boooks app before
 				we're testing in the school system early 2027.
 			</p>
 

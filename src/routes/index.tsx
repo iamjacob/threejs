@@ -49,6 +49,7 @@ function Home() {
 				<>
 					<div className="fixed inset-0" data-scene={stage}>
 						<Canvas
+							shadows="percentage"
 							camera={{ position: [0, 4, 8], fov: 45, near: 0.01, far: 500 }}
 						>
 							<Suspense fallback={null}>

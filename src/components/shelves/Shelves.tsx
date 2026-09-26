@@ -95,6 +95,8 @@ const Shelf = ({
 			{/* Visible shelf */}
 			<mesh
 				ref={meshRef}
+				castShadow
+				receiveShadow
 				raycast={() => null}
 				// onDoubleClick={() => toggle()}
 			>
@@ -105,6 +107,7 @@ const Shelf = ({
 					normalMap={normalMap}
 					roughnessMap={roughnessMap}
 					side={THREE.DoubleSide}
+					shadowSide={THREE.BackSide}
 				/>
 			</mesh>
 		</group>
