@@ -8,9 +8,9 @@ import { useSelectedBook } from "../../stores/useBookStore";
 
 export { BOOK_COVER_PATH, BOOK_DIMENSIONS } from "./bookTextures";
 export const BOOK_MATERIAL = {
-	roughness: 0.62,
+	roughness: 0.28,
 	metalness: 0,
-	envMapIntensity: 0.7,
+	envMapIntensity: 1.35,
 };
 export function useBookTextures(urls?: string[]) {
 	const book = useSelectedBook();

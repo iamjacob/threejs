@@ -1,6 +1,7 @@
 import { useProgress } from "@react-three/drei";
 import {
 	ArrowUpRight,
+	ArrowLeft,
 	BookOpen,
 	ChevronRight,
 	Eye,
@@ -21,6 +22,8 @@ import { useTourStore } from "../../stores/useTourStore";
 import MarkLoader from "../layout/MarkLoader";
 import BookPageSwiper from "../openbook/BookPageSwiper";
 import ReaderOverlay from "../reader/ReaderOverlay";
+
+const SHOW_TOUR_TEXT = false;
 import { requestReaderFullscreen } from "../reader/readerFullscreen";
 import ShakeToRead from "../reader/ShakeToRead";
 import ControlHint from "./ControlHint";
@@ -171,11 +174,12 @@ export default function TourOverlay() {
 	return (
 		<>
 			<ShakeToRead />
-			<div
-				key={stage}
-				className="tour-caption pointer-events-none fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-5 z-20 max-w-[calc(100%-2.5rem)] [text-shadow:0_1px_8px_#080d1a] sm:left-10 sm:max-w-md"
-				aria-live="polite"
-			>
+			{SHOW_TOUR_TEXT && (
+				<div
+					key={stage}
+					className="tour-caption pointer-events-none fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-5 z-20 max-w-[calc(100%-2.5rem)] [text-shadow:0_1px_8px_#080d1a] sm:left-10 sm:max-w-md"
+					aria-live="polite"
+				>
 				{stage === "end" && (
 					<a
 						href="https://boooks.app"
@@ -198,11 +202,23 @@ export default function TourOverlay() {
 						{hint}
 					</p>
 				)}
-			</div>
+				</div>
+			)}
 			<aside
 				className="fixed right-2 top-1/2 z-30 flex w-11 -translate-y-1/2 flex-col items-center gap-1 sm:right-5"
 				aria-label="Demo controls"
 			>
+				{stage === "pick" && (
+					<IconButton
+						label="Back to shelves"
+						onClick={() => {
+							useTourStore.getState().enter("library");
+						}}
+						disabled={loading}
+					>
+						<ArrowLeft size={20} />
+					</IconButton>
+				)}
 				{stage === "pick" && (
 					<IconButton
 						label="Open book"

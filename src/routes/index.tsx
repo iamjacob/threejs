@@ -1,7 +1,7 @@
 import { Stars } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { createFileRoute } from "@tanstack/react-router";
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import AboutBoooks from "../components/layout/AboutBoooks";
 import Header from "../components/layout/header/header";
 import SceneToolbar from "../components/layout/SceneToolbar";
@@ -14,14 +14,20 @@ import { useTourStore } from "../stores/useTourStore";
 
 export const Route = createFileRoute("/")({ component: Home });
 
+const SHOW_INTRODUCTION = false;
+const SHOW_HEADER = false;
+
 function Home() {
-	const [started, setStarted] = useState(false);
+	const [started, setStarted] = useState(!SHOW_INTRODUCTION);
 	const stage = useTourStore((state) => state.stage);
 	const start = () => {
 		if (started) return;
 		useTourStore.getState().start();
 		setStarted(true);
 	};
+	useEffect(() => {
+		if (!SHOW_INTRODUCTION) useTourStore.getState().start();
+	}, []);
 	const shelves = [
 		"library",
 		"pick",
@@ -36,15 +42,19 @@ function Home() {
 		"radial-gradient(ellipse at 15% 20%, #1f2146 0%, transparent 55%), radial-gradient(ellipse at 85% 85%, #083746 0%, transparent 55%), #080d1a";
 	return (
 		<div className="fixed inset-0" style={{ background }}>
-			<Header>
-				{started && (
-					<SceneToolbar
-						showBlur={false}
-						onChangeBook={() => useTourStore.getState().enter("library")}
-					/>
-				)}
-			</Header>
-			<AboutBoooks isOpen={!started} onClose={start} onExplore={start} />
+			{SHOW_HEADER && (
+				<Header>
+					{started && (
+						<SceneToolbar
+							showBlur={false}
+							onChangeBook={() => useTourStore.getState().enter("library")}
+						/>
+					)}
+				</Header>
+			)}
+			{SHOW_INTRODUCTION && (
+				<AboutBoooks isOpen={!started} onClose={start} onExplore={start} />
+			)}
 			{started && (
 				<>
 					<div className="fixed inset-0" data-scene={stage}>

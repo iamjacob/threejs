@@ -2,7 +2,6 @@ import { Environment, Lightformer } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useMemo, useRef } from "react";
 import { Object3D, type SpotLight, type Vector3 } from "three";
-import { usePresentationStore } from "../../stores/usePresentationStore";
 
 function MovingSpotlight({ shelves }: { shelves: boolean }) {
 	const lightRef = useRef<SpotLight>(null);
@@ -43,8 +42,6 @@ function MovingSpotlight({ shelves }: { shelves: boolean }) {
 }
 
 export default function Lightning({ shelves = false }: { shelves?: boolean }) {
-	const movingLight = usePresentationStore((state) => state.movingLight);
-
 	return (
 		<group name="studio-lighting">
 			<ambientLight intensity={0.3} />
@@ -79,7 +76,7 @@ export default function Lightning({ shelves = false }: { shelves?: boolean }) {
 					intensity={0.5}
 				/>
 			</group>
-			{movingLight && <MovingSpotlight shelves={shelves} />}
+			<MovingSpotlight shelves={shelves} />
 			<Environment resolution={128} frames={1}>
 				<Lightformer
 					form="rect"

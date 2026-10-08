@@ -6,7 +6,7 @@ import { useSelectedBook } from "../../stores/useBookStore";
 import { useLevelStore } from "../../stores/useLevelStore";
 import { useTourStore } from "../../stores/useTourStore";
 import { shelfFraming } from "../layout/DemoCamera";
-import { tallestShelfBook } from "../shelves/Bookshelves";
+import { shelfBookPose, tallestShelfBook } from "../shelves/Bookshelves";
 import { focusBookPosition } from "./tourBookPose";
 import { tourStages } from "./tourStages";
 
@@ -89,7 +89,14 @@ export default function TourCamera() {
 			tour.elapsed >= introDuration - 2 &&
 			!reducedMotion;
 		if (shelves) {
-			target.copy(framing.target);
+			const focusSelectedBook =
+				stage === "pick" || stage === "end";
+			if (focusSelectedBook) {
+				const selectedShelfBook = shelfBookPose(book.id);
+				target.set(...selectedShelfBook.position);
+			} else {
+				target.copy(framing.target);
+			}
 			const angle = introOrbit
 				? MathUtils.smootherstep(
 						(tour.elapsed - (introDuration - 2)) / 2,
@@ -109,9 +116,10 @@ export default function TourCamera() {
 					? 0.5
 					: 0.12;
 			// Pull back at the sides so the curved shelf stays inside the view.
-			const distance =
-				framing.distance *
-				(introOrbit ? 1 + Math.sin(angle / 2) ** 2 * 0.2 : 1);
+			const distance = focusSelectedBook
+				? Math.max(bookScale * 2.8, 2.8)
+				: framing.distance *
+					  (introOrbit ? 1 + Math.sin(angle / 2) ** 2 * 0.2 : 1);
 			const radius = distance * Math.sqrt(1 - elevation ** 2);
 			position
 				.set(
