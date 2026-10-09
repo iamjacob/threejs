@@ -4,6 +4,7 @@ import { type ComponentRef, useLayoutEffect, useMemo, useRef } from "react";
 import { MathUtils, Vector3 } from "three";
 import { useSelectedBook } from "../../stores/useBookStore";
 import { useLevelStore } from "../../stores/useLevelStore";
+import { usePresentationStore } from "../../stores/usePresentationStore";
 import { useTourStore } from "../../stores/useTourStore";
 import { shelfFraming } from "../layout/DemoCamera";
 import { shelfBookPose, tallestShelfBook } from "../shelves/Bookshelves";
@@ -15,6 +16,7 @@ export default function TourCamera() {
 	const book = useSelectedBook();
 	const stage = useTourStore((state) => state.stage);
 	const level = useLevelStore((state) => state.levelIndex);
+	const cameraMode = usePresentationStore((state) => state.cameraMode);
 	const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
 	const initialized = useRef(false);
 	const reducedMotion = useMemo(
@@ -90,10 +92,16 @@ export default function TourCamera() {
 			!reducedMotion;
 		if (shelves) {
 			const focusSelectedBook =
-				stage === "pick" || stage === "end";
+				cameraMode === "focus" ||
+				cameraMode === "book" ||
+				stage === "pick" ||
+				stage === "end";
 			if (focusSelectedBook) {
-				const selectedShelfBook = shelfBookPose(book.id);
-				target.set(...selectedShelfBook.position);
+				if (cameraMode === "book") target.set(...focusBookPosition(book.id));
+				else {
+					const selectedShelfBook = shelfBookPose(book.id);
+					target.set(...selectedShelfBook.position);
+				}
 			} else {
 				target.copy(framing.target);
 			}
@@ -117,7 +125,9 @@ export default function TourCamera() {
 					: 0.12;
 			// Pull back at the sides so the curved shelf stays inside the view.
 			const distance = focusSelectedBook
-				? Math.max(bookScale * 2.8, 2.8)
+				? cameraMode === "book"
+					? 2.6 * Math.max(1, (size.height / size.width) * 0.9) * bookScale
+					: Math.max(bookScale * 2.8, 2.8)
 				: framing.distance *
 					  (introOrbit ? 1 + Math.sin(angle / 2) ** 2 * 0.2 : 1);
 			const radius = distance * Math.sqrt(1 - elevation ** 2);

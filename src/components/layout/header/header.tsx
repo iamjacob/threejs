@@ -1,13 +1,19 @@
 import type { ReactNode } from "react";
 import GitHubIcon from "../GitHubIcon";
 
-const Header = ({ children }: { children?: ReactNode }) => {
+const Header = ({
+	children,
+	showBrand = true,
+}: {
+	children?: ReactNode;
+	showBrand?: boolean;
+}) => {
 	return (
-		<header className="flex justify-between bg-white/[0.03] backdrop-blur-sm absolute z-[1200] top-0 w-screen items-center gap-1 p-2 pt-[calc(0.5rem+env(safe-area-inset-top))] md:bg-white/[0.08] md:backdrop-blur-xl">
+		<header className="absolute top-0 z-[1200] flex w-screen items-center justify-end gap-1 p-2 pt-[calc(0.5rem+env(safe-area-inset-top))]">
 			<a
 				href={import.meta.env.BASE_URL}
 				aria-label="Boooks home"
-				className="flex shrink-0 flex-col items-start pl-2 min-[380px]:flex-row min-[380px]:items-center min-[380px]:gap-1"
+				className={`flex shrink-0 flex-col items-start pl-2 min-[380px]:flex-row min-[380px]:items-center min-[380px]:gap-1 ${showBrand ? "" : "hidden"}`}
 			>
 				<svg
 					className="h-6 sm:h-8"

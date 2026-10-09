@@ -6,22 +6,14 @@ import { Object3D, type SpotLight, type Vector3 } from "three";
 function MovingSpotlight({ shelves }: { shelves: boolean }) {
 	const lightRef = useRef<SpotLight>(null);
 	const target = useMemo(() => new Object3D(), []);
-	const elapsed = useRef(0);
-	const radius = shelves ? 11 : 2.4;
 
-	useFrame((state, delta) => {
+	useFrame((state) => {
 		const light = lightRef.current;
 		if (!light) return;
-		elapsed.current += Math.min(delta, 0.1);
-		const angle = elapsed.current * 0.65;
-		// Follow the scene's orbit target, including the shelves away from the origin.
+		// The viewer is the light source, so the flare follows every camera orbit.
 		const controls = state.controls as { target?: Vector3 } | null;
 		if (controls?.target) target.position.copy(controls.target);
-		light.position.set(
-			target.position.x + Math.sin(angle) * radius,
-			target.position.y + radius * (0.6 + Math.sin(angle * 0.7) * 0.2),
-			target.position.z + Math.cos(angle) * radius,
-		);
+		light.position.copy(state.camera.position);
 	});
 
 	return (
@@ -31,10 +23,10 @@ function MovingSpotlight({ shelves }: { shelves: boolean }) {
 				ref={lightRef}
 				target={target}
 				color="#fffaf2"
-				intensity={radius ** 2 * 6}
-				distance={radius * 4}
+				intensity={shelves ? 80 : 45}
+				distance={shelves ? 40 : 20}
 				decay={2}
-				angle={shelves ? 0.85 : 0.6}
+				angle={shelves ? 0.95 : 0.75}
 				penumbra={0.55}
 			/>
 		</group>
