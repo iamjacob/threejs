@@ -1,9 +1,13 @@
 import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
-import { books } from "../../lib/bookCatalog";
+
 import { bookImagePath } from "../../lib/bookImages";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
-import { useBookStore, useSelectedBook } from "../../stores/useBookStore";
+import {
+	useLibraryBooks,
+	useBookStore,
+	useSelectedBook,
+} from "../../stores/useBookStore";
 
 export default function BookBar({
 	id,
@@ -12,6 +16,7 @@ export default function BookBar({
 	id: string;
 	onClose: () => void;
 }) {
+	const books = useLibraryBooks();
 	const book = useSelectedBook();
 	const selectBook = useBookStore((state) => state.selectBook);
 	const barRef = useRef<HTMLDivElement>(null);

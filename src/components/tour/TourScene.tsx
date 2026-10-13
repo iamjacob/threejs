@@ -1,8 +1,12 @@
 import { useFrame } from "@react-three/fiber";
 import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import { type Group, MathUtils, type Mesh, Quaternion, Vector3 } from "three";
-import { books } from "../../lib/bookCatalog";
-import { useBookStore, useSelectedBook } from "../../stores/useBookStore";
+
+import {
+	useLibraryBooks,
+	useBookStore,
+	useSelectedBook,
+} from "../../stores/useBookStore";
 import { useTourStore } from "../../stores/useTourStore";
 import OpenBook from "../openbook/OpenBook";
 import Bookshelves, { shelfBookPose } from "../shelves/Bookshelves";
@@ -59,6 +63,7 @@ function TourBook({
 	id: string;
 	returning?: boolean;
 }) {
+	const books = useLibraryBooks();
 	const book = books.find((item) => item.id === id) ?? books[0];
 	const stage = useTourStore((state) => state.stage);
 	const origin = useTourStore((state) => state.origin);
@@ -160,9 +165,10 @@ export default function TourScene() {
 							stage === "end" ||
 							stage === "read"
 								? (id) => {
-									selectBook(id);
-									if (stage === "library") useTourStore.getState().enter("pick");
-								}
+										selectBook(id);
+										if (stage === "library")
+											useTourStore.getState().enter("pick");
+									}
 								: undefined
 						}
 						hiddenBookId={

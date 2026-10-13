@@ -1,3 +1,4 @@
+import { useShelfControlsStore } from "../../../stores/useShelfControlsStore";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import {
@@ -139,13 +140,14 @@ function ZenBackdrop({ opacity }: { opacity: number }) {
 export default function SceneEnvironment() {
 	const { scene } = useThree();
 	const environment = usePresentationStore((state) => state.environment);
+	const editing = useShelfControlsStore((state) => state.editing);
 	const root = useRef<Group>(null);
 	const opacity = useRef(1);
 
 	useEffect(() => {
-		scene.background = new Color(BACKGROUNDS[environment]);
+		scene.background = editing && environment === "library" ? null : new Color(BACKGROUNDS[environment]);
 		opacity.current = 0;
-	}, [environment, scene]);
+	}, [environment, editing, scene]);
 
 	useFrame((_, delta) => {
 		if (!root.current) return;

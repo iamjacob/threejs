@@ -1,0 +1,378 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { test, beforeEach } from "node:test";
+import { Box3, Euler, Matrix4, Quaternion, Vector3 } from "three";
+import {
+	getShelfBooks,
+	SHELF_THICKNESS,
+	SHELF_SPACING,
+} from "../src/components/shelves/shelfBooks.ts";
+import {
+	arrangeShelfBooks,
+	arrangedBookPose,
+	arrangedBooksBounds,
+	frameShelfSelection,
+} from "../src/components/shelves/shelfArrangement.ts";
+import { useShelfControlsStore as store } from "../stores/useShelfControlsStore.ts";
+
+const books = getShelfBooks(
+	JSON.parse(
+		readFileSync(
+			new URL("../public/blockchain/data.json", import.meta.url),
+			"utf8",
+		),
+	),
+);
+const idOf = (title) => books.find((book) => book.title === title).id;
+const state = () => store.getState();
+const placements = () => arrangeShelfBooks(books, state().document);
+const stack = () =>
+	state().document.stacks.find((entry) => entry.id === state().activeStackId);
+const closeTo = (actual, expected, message) =>
+	assert.ok(
+		Math.abs(actual - expected) < 1e-7,
+		`${message}: ${actual} != ${expected}`,
+	);
+function bounds(placement) {
+	const [w, h, d] = placement.book.dimensions;
+	return new Box3(
+		new Vector3(-w / 2, -h / 2, -d / 2),
+		new Vector3(w / 2, h / 2, d / 2),
+	).applyMatrix4(
+		new Matrix4().compose(
+			new Vector3(...placement.position),
+			new Quaternion().setFromEuler(new Euler(...placement.rotation)),
+			new Vector3().setScalar(placement.scale),
+		),
+	);
+}
+function validateDocument() {
+	const { document, selectedIds, activeStackId } = state();
+	assert.equal(new Set(document.order).size, document.order.length);
+	assert.deepEqual(
+		[...Object.keys(document.items)].sort(),
+		[...document.order].sort(),
+	);
+	const membership = document.stacks.flatMap((entry) => entry.bookIds);
+	assert.equal(
+		new Set(membership).size,
+		membership.length,
+		"A book cannot belong to two stacks",
+	);
+	for (const entry of document.stacks) {
+		assert.ok(entry.bookIds.length >= 2);
+		assert.equal(
+			new Set(entry.bookIds.map((id) => document.items[id]?.shelf)).size,
+			1,
+			"Stack books stay on one shelf",
+		);
+	}
+	for (const id of [
+		...membership,
+		...selectedIds,
+		...document.groups.flatMap((entry) => entry.bookIds),
+	])
+		assert.ok(document.items[id], `Stale book reference: ${id}`);
+	if (activeStackId) assert.ok(stack(), "Selected stack still exists");
+	assert.equal(placements().length, document.order.length);
+}
+
+beforeEach(() => {
+	store.setState({
+		initialized: false,
+		past: [],
+		future: [],
+		interaction: null,
+		selectedIds: [],
+		activeStackId: null,
+		multiSelect: false,
+		panel: "arrange",
+	});
+	state().initialize(books);
+});
+
+test("initial arrangement contains each catalog book exactly once and a real three-book stack", () => {
+	validateDocument();
+	assert.equal(state().document.order.length, books.length);
+	state().selectStack("business-stack");
+	assert.deepEqual(
+		stack().bookIds.map((id) => books.find((book) => book.id === id).title),
+		["Traction", "Blitzscaling", "Empowered"],
+	);
+});
+
+test("tilt affects only selected books, remains on the arc, and rests on the shelf", () => {
+	const id = idOf("Stilness is the Key");
+	const before = placements();
+	state().selectBook(id);
+	for (const angle of [-45, -10, 0, 25, 45]) {
+		state().setAngle(angle);
+		const result = placements().find((item) => item.book.id === id);
+		closeTo(
+			Math.hypot(result.position[0], result.position[2]),
+			7.4,
+			"Book stays on shelf arc",
+		);
+		closeTo(
+			bounds(result).min.y,
+			(result.shelfIndex - 1) * SHELF_SPACING + SHELF_THICKNESS,
+			"Book bottom touches shelf",
+		);
+		for (const other of before.filter(
+			(item) => item.shelfIndex !== result.shelfIndex,
+		)) {
+			assert.deepEqual(
+				placements().find((item) => item.book.id === other.book.id),
+				other,
+				"Other shelves do not rotate",
+			);
+		}
+	}
+	state().setAngle(180);
+	assert.equal(state().document.items[id].angle, 45);
+});
+
+test("flat books and spine-facing tilted books stay grounded", () => {
+	const id = idOf("Shaolin spirit");
+	state().selectBook(id);
+	for (const face of ["cover", "spine", "back"]) {
+		state().setFace(face);
+		state().setAngle(30);
+		let placement = placements().find((item) => item.book.id === id);
+		closeTo(bounds(placement).min.y, 2.08, `${face} tilted bottom`);
+		state().setLayout("flat");
+		placement = placements().find((item) => item.book.id === id);
+		closeTo(bounds(placement).min.y, 2.08, "Flat bottom");
+		closeTo(
+			bounds(placement).max.y - bounds(placement).min.y,
+			placement.book.dimensions[2] * placement.scale,
+			"Flat height equals thickness",
+		);
+	}
+});
+
+test("stack arrows reorder the actual 3D heights, enforce endpoints, and undo", () => {
+	state().selectStack("business-stack");
+	const empowered = idOf("Empowered");
+	const before = placements().find((item) => item.book.id === empowered)
+		.position[1];
+	state().moveInStack(empowered, "up");
+	assert.equal(state().past.length, 0, "Top boundary is a no-op");
+	state().moveInStack(empowered, "down");
+	assert.ok(
+		placements().find((item) => item.book.id === empowered).position[1] <
+			before,
+	);
+	assert.equal(stack().bookIds.at(-1), idOf("Blitzscaling"));
+	state().undo();
+	assert.equal(stack().bookIds.at(-1), empowered);
+	state().redo();
+	assert.equal(stack().bookIds.at(-1), idOf("Blitzscaling"));
+	validateDocument();
+});
+
+test("stack geometry has no overlapping books and alternate spines changes every other orientation", () => {
+	state().selectStack("business-stack");
+	const original = placements();
+	const stackPlacements = stack().bookIds.map((id) =>
+		original.find((item) => item.book.id === id),
+	);
+	for (let i = 1; i < stackPlacements.length; i++)
+		assert.ok(
+			bounds(stackPlacements[i]).min.y > bounds(stackPlacements[i - 1]).max.y,
+		);
+	state().toggleAlternateSpines();
+	stack().bookIds.forEach((id, index) => {
+		const before = original.find((item) => item.book.id === id);
+		const after = placements().find((item) => item.book.id === id);
+		assert.deepEqual(after.position, before.position);
+		if (index % 2) assert.notDeepEqual(after.rotation, before.rotation);
+		else assert.deepEqual(after.rotation, before.rotation);
+	});
+});
+
+test("add on top moves an existing book once, prevents duplicates, and unstack preserves all books", () => {
+	state().selectStack("business-stack");
+	const id = idOf("THE SOURCE");
+	state().addToStack(id);
+	assert.equal(stack().bookIds.at(-1), id);
+	state().addToStack(id);
+	assert.equal(stack().bookIds.length, 4);
+	validateDocument();
+	const count = state().document.order.length;
+	state().unstack();
+	assert.equal(state().document.stacks.length, 0);
+	assert.equal(state().document.order.length, count);
+	assert.equal(state().activeStackId, null);
+	validateDocument();
+});
+
+test("creating a stack detaches previous memberships and moving it moves every member", () => {
+	state().selectStack("business-stack");
+	state().setMultiSelect(true);
+	state().selectBook(idOf("THE SOURCE"));
+	state().createStack();
+	assert.equal(state().document.stacks.length, 1);
+	assert.equal(stack().bookIds.length, 4);
+	state().moveToShelf(3);
+	validateDocument();
+	for (const id of stack().bookIds)
+		assert.equal(
+			placements().find((entry) => entry.book.id === id).shelfIndex,
+			3,
+		);
+});
+
+test("a continuous slider gesture is a single undo step", () => {
+	const initial = state().document;
+	state().beginInteraction();
+	for (let angle = -40; angle <= 40; angle++) state().setAngle(angle);
+	state().endInteraction();
+	assert.equal(state().past.length, 1);
+	state().undo();
+	assert.deepEqual(state().document, initial);
+	state().redo();
+	assert.equal(state().document.items[state().selectedIds[0]].angle, 40);
+});
+
+test("grouping keeps books addressable, sorting handles multiple authors, and ungrouping retains books", () => {
+	state().selectBooks([
+		idOf("Discipline is Destiny"),
+		idOf("Stilness is the Key"),
+	]);
+	state().groupSelection("Evening reading");
+	const group = state().document.groups.find(
+		(entry) => entry.name === "Evening reading",
+	);
+	assert.ok(group);
+	state().selectGroup(group.id);
+	assert.equal(state().selectedIds.length, 2);
+	state().ungroup();
+	assert.equal(
+		state().document.groups.some((entry) => entry.id === group.id),
+		false,
+	);
+	state().groupBy("author", books);
+	assert.ok(
+		state().document.groups.some(
+			(entry) => entry.name === "Ryan Holiday" && entry.bookIds.length === 3,
+		),
+	);
+	validateDocument();
+});
+
+test("removing a stack cleans references; undo restores its exact order and selection", () => {
+	state().selectStack("business-stack");
+	const before = state().document;
+	state().removeSelection();
+	assert.equal(state().document.order.length, books.length - 3);
+	assert.equal(state().document.stacks.length, 0);
+	validateDocument();
+	state().undo();
+	assert.deepEqual(state().document, before);
+	assert.equal(state().activeStackId, "business-stack");
+	validateDocument();
+});
+
+test("spacing changes tangential positions without moving books off the shelf radius", () => {
+	const before = placements();
+	state().setSpacing(0.3);
+	assert.notDeepEqual(
+		placements().map((item) => item.position),
+		before.map((item) => item.position),
+	);
+	for (const item of placements())
+		closeTo(
+			Math.hypot(item.position[0], item.position[2]),
+			7.4,
+			"Shelf radius",
+		);
+	state().setSpacing(-1);
+	assert.equal(state().document.spacing, 0.03);
+});
+
+test("world poses match the parent shelf transform used by the reading transition", () => {
+	for (const placement of placements()) {
+		const pose = arrangedBookPose(placement);
+		closeTo(pose.position[0], placement.position[2], "World X");
+		closeTo(pose.position[1], placement.position[1] - 0.8, "World Y");
+		closeTo(pose.position[2], -placement.position[0], "World Z");
+		closeTo(new Quaternion(...pose.quaternion).length(), 1, "Unit rotation");
+	}
+});
+
+test("a full-library stack fits below the next shelf, with every member still grounded in the pile", () => {
+	state().selectBooks(state().document.order);
+	state().createStack();
+	validateDocument();
+	const result = placements();
+	const totalBounds = new Box3();
+	for (const item of result) totalBounds.union(bounds(item));
+	assert.ok(totalBounds.max.y - totalBounds.min.y <= 0.84 + 1e-7);
+	const bottom = result.find((entry) => entry.book.id === stack().bookIds[0]);
+	closeTo(
+		totalBounds.min.y,
+		(bottom.shelfIndex - 1) * SHELF_SPACING + SHELF_THICKNESS,
+		"Tall stack bottom",
+	);
+});
+
+test("fanning a large selection keeps angles inside the controls' range and books below the shelf above", () => {
+	state().selectBooks(state().document.order);
+	state().setLayout("fan");
+	for (const item of placements()) {
+		assert.ok(Math.abs(state().document.items[item.book.id].angle) <= 30);
+		const box = bounds(item);
+		assert.ok(box.max.y - box.min.y <= 0.9 + 1e-7);
+	}
+	validateDocument();
+});
+
+test("opening a book editor clears multi-selection and requests a fresh camera focus", () => {
+	state().setEditing(false);
+	state().selectBooks(state().document.order);
+	state().setMultiSelect(true);
+	const id = idOf("Shaolin spirit");
+	const revision = state().viewRevision;
+	const document = state().document;
+	state().openBookEditor(id);
+	assert.equal(state().editing, true);
+	assert.equal(state().multiSelect, false);
+	assert.deepEqual(state().selectedIds, [id]);
+	assert.equal(state().panel, "arrange");
+	assert.equal(state().shelfView, "front");
+	assert.ok(state().viewRevision > revision);
+	assert.equal(
+		state().document,
+		document,
+		"Opening the editor does not change the arrangement",
+	);
+});
+
+test("long-press editing a stacked book selects its whole stack without rearranging it", () => {
+	state().openBookEditor(idOf("Empowered"));
+	assert.equal(state().activeStackId, "business-stack");
+	assert.equal(state().panel, "stack");
+	assert.equal(state().selectedIds.length, 3);
+	validateDocument();
+});
+
+test("camera focus is computed from the chosen book's real position and adapts to portrait screens", () => {
+	const chosen = placements().filter(
+		({ book }) => book.id === idOf("Shaolin spirit"),
+	);
+	const bounds = arrangedBooksBounds(chosen);
+	const desktop = frameShelfSelection(chosen, 1440, 900);
+	const mobile = frameShelfSelection(chosen, 320, 844);
+	assert.deepEqual(desktop.target, bounds.getCenter(new Vector3()));
+	assert.deepEqual(mobile.target, desktop.target);
+	assert.ok(mobile.distance >= desktop.distance);
+	assert.equal(frameShelfSelection([], 390, 844), null);
+	const other = placements().filter(
+		({ book }) => book.id === idOf("THE SOURCE"),
+	);
+	assert.notDeepEqual(
+		frameShelfSelection(other, 390, 844).target,
+		mobile.target,
+	);
+});

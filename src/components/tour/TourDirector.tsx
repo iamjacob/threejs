@@ -1,3 +1,4 @@
+import { useShelfControlsStore } from "../../../stores/useShelfControlsStore";
 import { useProgress } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useParticleStore } from "../../../stores/useParticleStore";
@@ -6,12 +7,17 @@ import { useLevelStore } from "../../stores/useLevelStore";
 import { useTourStore } from "../../stores/useTourStore";
 import { progressionConfig } from "../shelves/progressionConfig";
 import { tourStages } from "./tourStages";
+import { SHOW_DEMO_UI } from "../../lib/featureFlags";
 
 export default function TourDirector() {
 	useFrame((_, delta) => {
 		const tour = useTourStore.getState();
+		if (!SHOW_DEMO_UI && (tour.stage === "library" || tour.stage === "pick"))
+			return;
 		if (
 			!tour.ready ||
+			(useShelfControlsStore.getState().editing &&
+				(tour.stage === "library" || tour.stage === "pick")) ||
 			tour.paused ||
 			useProgress.getState().active ||
 			document.hidden ||
@@ -41,8 +47,10 @@ export default function TourDirector() {
 			tour.action === "running" &&
 			tour.stage === "add" &&
 			useParticleStore.getState().phase === "visible"
-		)
+		) {
 			tour.finishAdd();
+			return;
+		}
 		const duration = tourStages[tour.stage].duration;
 		if (duration && elapsed >= duration) tour.advance();
 	});

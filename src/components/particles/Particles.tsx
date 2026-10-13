@@ -9,10 +9,12 @@ const Particles = ({
 	paused = false,
 	floating = true,
 	formationDelay = 0,
+	duration = 8,
 }: {
 	paused?: boolean;
 	floating?: boolean;
 	formationDelay?: number;
+	duration?: number;
 }) => {
 	const bookData = useSelectedBook();
 	const phase = useParticleStore((state) => state.phase);
@@ -32,7 +34,7 @@ const Particles = ({
 
 	return (
 		<>
-			<ParticleAnimator paused={paused} />
+			<ParticleAnimator paused={paused} duration={duration} />
 			<ParticleBook
 				floating={floating}
 				bookData={bookData}

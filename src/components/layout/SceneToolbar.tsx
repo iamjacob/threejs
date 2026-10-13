@@ -1,4 +1,4 @@
-import { ChevronDown, Eye, LampDesk, Layers3 } from "lucide-react";
+import { ChevronDown, Eye, LampDesk, Layers3, Sparkles } from "lucide-react";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { bookImagePath } from "../../lib/bookImages";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
@@ -24,7 +24,7 @@ export default function SceneToolbar({
 }) {
 	const book = useSelectedBook();
 	const [bookBarOpen, setBookBarOpen] = useState(false);
-	const [menu, setMenu] = useState<"scene" | null>(null);
+	const [menu, setMenu] = useState<"scene" | "lights" | null>(null);
 	const toolbarRef = useRef<HTMLFieldSetElement>(null);
 	const bookButtonRef = useRef<HTMLButtonElement>(null);
 	const bookBarId = useId();
@@ -55,6 +55,21 @@ export default function SceneToolbar({
 	const toggleLighting = usePresentationStore((state) => state.toggleLighting);
 	const toggleBlur = usePresentationStore((state) => state.toggleBlur);
 	const setEnvironment = usePresentationStore((state) => state.setEnvironment);
+	const lightShowDuration = usePresentationStore((state) => state.lightShowDuration);
+	const lightShowCycles = usePresentationStore((state) => state.lightShowCycles);
+	const lightPulse = usePresentationStore((state) => state.lightPulse);
+	const lightFlareSize = usePresentationStore((state) => state.lightFlareSize);
+	const fireIntensity = usePresentationStore((state) => state.fireIntensity);
+	const fireReflection = usePresentationStore((state) => state.fireReflection);
+	const fireReach = usePresentationStore((state) => state.fireReach);
+	const setLightShowDuration = usePresentationStore((state) => state.setLightShowDuration);
+	const setLightShowCycles = usePresentationStore((state) => state.setLightShowCycles);
+	const setLightPulse = usePresentationStore((state) => state.setLightPulse);
+	const setLightFlareSize = usePresentationStore((state) => state.setLightFlareSize);
+	const setFireIntensity = usePresentationStore((state) => state.setFireIntensity);
+	const setFireReflection = usePresentationStore((state) => state.setFireReflection);
+	const setFireReach = usePresentationStore((state) => state.setFireReach);
+	const replayLightShow = usePresentationStore((state) => state.replayLightShow);
 	const toggleClass =
 		"flex h-11 w-10 shrink-0 touch-manipulation cursor-pointer items-center justify-center rounded-lg text-white/80 transition-colors hover:bg-white/10 hover:text-white focus-visible:outline-2 focus-visible:outline-white aria-pressed:bg-white/20 aria-pressed:text-white sm:w-11";
 
@@ -130,9 +145,52 @@ export default function SceneToolbar({
 					/>
 				))}
 			</MenuButton>
+			<MenuButton
+				label="Light show"
+				icon={<Sparkles size={18} aria-hidden="true" />}
+				open={menu === "lights"}
+				onClick={() => setMenu(menu === "lights" ? null : "lights")}
+			>
+				<LightControl label="Time" value={lightShowDuration} min={0.4} max={5} step={0.1} suffix="s" onChange={setLightShowDuration} />
+				<LightControl label="Sweep math" value={lightShowCycles} min={1} max={10} step={0.5} suffix="x" onChange={setLightShowCycles} />
+				<LightControl label="Pulse" value={lightPulse} min={0} max={2} step={0.1} suffix="x" onChange={setLightPulse} />
+				<LightControl label="Flare size" value={lightFlareSize} min={0.4} max={2} step={0.1} suffix="x" onChange={setLightFlareSize} />
+				<LightControl label="Fire brightness" value={fireIntensity} min={0} max={5} step={0.1} suffix="x" onChange={setFireIntensity} />
+				<LightControl label="Book reflection" value={fireReflection} min={0} max={5} step={0.1} suffix="x" onChange={setFireReflection} />
+				<LightControl label="Fire reach" value={fireReach} min={5} max={25} step={1} suffix="u" onChange={setFireReach} />
+				<button type="button" onClick={replayLightShow} className="mt-1 flex w-full items-center justify-center rounded-lg bg-white/15 px-3 py-2 text-sm text-white hover:bg-white/25">Replay light show</button>
+			</MenuButton>
 
 			{bookBarOpen && <BookBar id={bookBarId} onClose={closeBookBar} />}
 		</fieldset>
+	);
+}
+
+function LightControl({
+	label,
+	value,
+	min,
+	max,
+	step,
+	suffix,
+	onChange,
+}: {
+	label: string;
+	value: number;
+	min: number;
+	max: number;
+	step: number;
+	suffix: string;
+	onChange: (value: number) => void;
+}) {
+	return (
+		<label className="block w-56 px-2 py-2 text-xs text-white/75">
+			<span className="mb-1 flex items-center justify-between gap-3">
+				<span>{label}</span>
+				<strong className="font-medium text-white">{value.toFixed(1)}{suffix}</strong>
+			</span>
+			<input type="range" min={min} max={max} step={step} value={value} onChange={(event) => onChange(Number(event.target.value))} className="w-full accent-white" />
+		</label>
 	);
 }
 

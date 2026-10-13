@@ -2,6 +2,7 @@ import { TanStackDevtools } from "@tanstack/react-devtools";
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { useSyncExternalStore } from "react";
+import { SHOW_DEMO_UI } from "../lib/featureFlags";
 
 import "../styles.css";
 
@@ -27,7 +28,7 @@ function RootComponent() {
 	return (
 		<>
 			<Outlet />
-			{isDesktop && (
+			{SHOW_DEMO_UI && isDesktop && (
 				<TanStackDevtools
 					config={{
 						position: "bottom-right",

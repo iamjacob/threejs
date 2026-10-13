@@ -4,10 +4,15 @@ import * as THREE from "three";
 import { useParticleStore } from "../../../../stores/useParticleStore";
 import type { ParticlePhase } from "../types";
 
-const FORMATION_DURATION_SECONDS = 8;
 const SHRINK_DURATION_SECONDS = 1;
 
-const ParticleAnimator = ({ paused = false }: { paused?: boolean }) => {
+const ParticleAnimator = ({
+	paused = false,
+	duration = 8,
+}: {
+	paused?: boolean;
+	duration?: number;
+}) => {
 	const phase = useParticleStore((state) => state.phase);
 	const setParticleProgress = useParticleStore(
 		(state) => state.setParticleProgress,
@@ -21,7 +26,7 @@ const ParticleAnimator = ({ paused = false }: { paused?: boolean }) => {
 	const previousPhaseRef = useRef<ParticlePhase>(phase);
 
 	useFrame((_, delta) => {
-		if (paused) return;
+		if (paused || document.hidden) return;
 		if (phase !== previousPhaseRef.current) {
 			previousPhaseRef.current = phase;
 			elapsedRef.current = 0;
@@ -29,10 +34,10 @@ const ParticleAnimator = ({ paused = false }: { paused?: boolean }) => {
 
 		if (phase === "forming") {
 			elapsedRef.current = Math.min(
-				elapsedRef.current + delta,
-				FORMATION_DURATION_SECONDS,
+				elapsedRef.current + Math.min(delta, 0.1),
+				duration,
 			);
-			const time = elapsedRef.current / FORMATION_DURATION_SECONDS;
+			const time = elapsedRef.current / duration;
 			const easedProgress = Math.sin((Math.PI * time) / 2);
 			setParticleProgress(easedProgress);
 

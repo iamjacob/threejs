@@ -1,3 +1,4 @@
+import { useShelfControlsStore } from "../../../stores/useShelfControlsStore";
 import { useProgress } from "@react-three/drei";
 import {
 	ArrowUpRight,
@@ -16,8 +17,8 @@ import {
 } from "lucide-react";
 import { type ReactNode, useEffect, useRef } from "react";
 import { useParticleStore } from "../../../stores/useParticleStore";
-import { books } from "../../lib/bookCatalog";
-import { useSelectedBook } from "../../stores/useBookStore";
+
+import { useLibraryBooks, useSelectedBook } from "../../stores/useBookStore";
 import { useTourStore } from "../../stores/useTourStore";
 import MarkLoader from "../layout/MarkLoader";
 import BookPageSwiper from "../openbook/BookPageSwiper";
@@ -31,6 +32,7 @@ import LibraryCount from "./LibraryCount";
 import { tourChapters, tourStages } from "./tourStages";
 
 function Timeline() {
+	const books = useLibraryBooks();
 	const stage = useTourStore((state) => state.stage);
 	const elapsed = useTourStore((state) => state.elapsed);
 	const action = useTourStore((state) => state.action);
@@ -138,6 +140,8 @@ function IconButton({
 }
 
 export default function TourOverlay() {
+	const books = useLibraryBooks();
+	const editing = useShelfControlsStore((state) => state.editing);
 	const stage = useTourStore((state) => state.stage);
 	const paused = useTourStore((state) => state.paused);
 	const ready = useTourStore((state) => state.ready);
@@ -171,6 +175,8 @@ export default function TourOverlay() {
 				: stage === "delete"
 					? "Tap any book to delete it."
 					: null;
+	if (editing && (stage === "library" || stage === "pick"))
+		return <MarkLoader />;
 	return (
 		<>
 			<ShakeToRead />
@@ -180,28 +186,28 @@ export default function TourOverlay() {
 					className="tour-caption pointer-events-none fixed bottom-[calc(4.5rem+env(safe-area-inset-bottom))] left-5 z-20 max-w-[calc(100%-2.5rem)] [text-shadow:0_1px_8px_#080d1a] sm:left-10 sm:max-w-md"
 					aria-live="polite"
 				>
-				{stage === "end" && (
-					<a
-						href="https://boooks.app"
-						target="_blank"
-						rel="noopener noreferrer"
-						className="pointer-events-auto mb-4 inline-flex min-h-11 items-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-2 text-base font-medium text-white backdrop-blur-sm hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-white"
-					>
-						Join the waitlist <ArrowUpRight size={18} aria-hidden="true" />
-					</a>
-				)}
-				{stage === "grow" ? (
-					<LibraryCount />
-				) : (
-					<h2 className="text-2xl font-medium leading-tight text-white sm:text-3xl">
-						{chapter.title}
-					</h2>
-				)}
-				{hint && (
-					<p className="mt-2 text-base leading-relaxed text-white/80 sm:text-lg">
-						{hint}
-					</p>
-				)}
+					{stage === "end" && (
+						<a
+							href="https://boooks.app"
+							target="_blank"
+							rel="noopener noreferrer"
+							className="pointer-events-auto mb-4 inline-flex min-h-11 items-center gap-2 rounded-full border border-white/30 bg-white/10 px-5 py-2 text-base font-medium text-white backdrop-blur-sm hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-white"
+						>
+							Join the waitlist <ArrowUpRight size={18} aria-hidden="true" />
+						</a>
+					)}
+					{stage === "grow" ? (
+						<LibraryCount />
+					) : (
+						<h2 className="text-2xl font-medium leading-tight text-white sm:text-3xl">
+							{chapter.title}
+						</h2>
+					)}
+					{hint && (
+						<p className="mt-2 text-base leading-relaxed text-white/80 sm:text-lg">
+							{hint}
+						</p>
+					)}
 				</div>
 			)}
 			<aside

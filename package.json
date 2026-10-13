@@ -12,6 +12,8 @@
     "dev:worker": "npm run build && wrangler dev",
     "cf-typegen": "wrangler types",
     "typecheck": "npm run cf-typegen && tsc --noEmit && tsc --project tsconfig.worker.json",
+    "test:shelf": "node --test tests/shelf-controls.test.mjs tests/book-long-press.test.mjs tests/book-drag.test.mjs",
+    "test:scanner": "node --test tests/scanner.test.mjs tests/scanner-integration.test.mjs",
     "test:paths": "node --test tests/paths.test.mjs",
     "preview": "vite preview",
     "format": "biome format",

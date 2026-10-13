@@ -2,9 +2,8 @@ import { OrbitControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { type ComponentRef, useLayoutEffect, useMemo, useRef } from "react";
 import { MathUtils, Vector3 } from "three";
-import { useSelectedBook } from "../../stores/useBookStore";
+import { useLibraryBooks, useSelectedBook } from "../../stores/useBookStore";
 import { useLevelStore } from "../../stores/useLevelStore";
-import { tallestShelfBook } from "../shelves/Bookshelves";
 import { progressionConfig } from "../shelves/progressionConfig";
 import { BOOKS_SHELF_LEVEL } from "../shelves/shelfBooks";
 import type { CameraView } from "./demoScenes";
@@ -63,6 +62,10 @@ export function shelfFraming(
 
 export default function DemoCamera({ view }: { view: CameraView }) {
 	const book = useSelectedBook();
+	const books = useLibraryBooks();
+	const tallestShelfBook = Math.max(
+		...books.map((entry) => entry.dimensions[1]),
+	);
 	const { camera, size } = useThree();
 	const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
 	const levelIndex = useLevelStore((state) => state.levelIndex);
@@ -83,7 +86,14 @@ export default function DemoCamera({ view }: { view: CameraView }) {
 				isCollection ? tallestShelfBook : book.dimensions[1],
 				isCollection,
 			),
-		[levelIndex, size.width, size.height, isCollection, book.dimensions],
+		[
+			levelIndex,
+			size.width,
+			size.height,
+			isCollection,
+			book.dimensions,
+			tallestShelfBook,
+		],
 	);
 
 	useLayoutEffect(() => {

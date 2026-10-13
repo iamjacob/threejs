@@ -7,7 +7,7 @@ import {
 	nextTourStage,
 	type TourStage,
 } from "../components/tour/tourStages";
-import { books } from "../lib/bookCatalog";
+
 import { useBookStore } from "./useBookStore";
 import { useLevelStore } from "./useLevelStore";
 import { usePresentationStore } from "./usePresentationStore";
@@ -32,6 +32,8 @@ type TourState = {
 	finishDelete: (id: string) => void;
 	resetDeletedBooks: () => void;
 	finishAdd: () => void;
+	userAddition: boolean;
+	addScannedBook: (id: string) => void;
 	blurredBookIds: string[];
 	toggleBookBlur: (id: string) => void;
 	toggleAllBlur: () => void;
@@ -95,7 +97,7 @@ export const useTourStore = create<TourState>((set, get) => ({
 		const state = get();
 		if (
 			state.stage !== "delete" ||
-			!books.some((book) => book.id === id) ||
+			!useBookStore.getState().books.some((book) => book.id === id) ||
 			state.deletedBookIds.includes(id) ||
 			state.deletingBooks[id] !== undefined
 		)
@@ -121,8 +123,40 @@ export const useTourStore = create<TourState>((set, get) => ({
 	},
 	resetDeletedBooks: () =>
 		set({ deletingBooks: {}, deletedBookIds: [], action: "idle" }),
+	userAddition: false,
+	addScannedBook: (id) => {
+		const book = useBookStore.getState().books.find((entry) => entry.id === id);
+		if (!book) return;
+		useBookStore.getState().selectBook(id);
+		resetEffects();
+		useLevelStore.getState().startDemo(4, false);
+		usePresentationStore.setState({ movingLight: false, blurEnabled: false });
+		set((state) => ({
+			stage: "add",
+			userAddition: true,
+			action: "running",
+			paused: false,
+			ready: false,
+			reader: "closed",
+			elapsed: 0,
+			runId: state.runId + 1,
+		}));
+		useParticleStore.getState().requestBook(book);
+	},
 	finishAdd: () => {
 		if (get().stage !== "add" || get().action !== "running") return;
+		if (get().userAddition) {
+			set((state) => ({
+				stage: "library",
+				userAddition: false,
+				action: "done",
+				paused: true,
+				ready: false,
+				elapsed: 0,
+				runId: state.runId + 1,
+			}));
+			return;
+		}
 		set((state) => ({
 			deletedBookIds: state.deletedBookIds.filter(
 				(id) => id !== useBookStore.getState().selectedBookId,
@@ -142,9 +176,9 @@ export const useTourStore = create<TourState>((set, get) => ({
 		set((state) => ({
 			usedHints: [...new Set([...state.usedHints, "censor"])],
 			blurredBookIds:
-				state.blurredBookIds.length === books.length
+				state.blurredBookIds.length === useBookStore.getState().books.length
 					? []
-					: books.map((book) => book.id),
+					: useBookStore.getState().books.map((book) => book.id),
 		})),
 	start: () => {
 		resetEffects();
@@ -190,6 +224,7 @@ export const useTourStore = create<TourState>((set, get) => ({
 		}
 		set((state) => ({
 			stage,
+			userAddition: false,
 			usedHints: [],
 			reader: "closed",
 			elapsed: 0,
@@ -201,7 +236,7 @@ export const useTourStore = create<TourState>((set, get) => ({
 	},
 	openBook: (id, origin) => {
 		if (
-			!books.some((book) => book.id === id) ||
+			!useBookStore.getState().books.some((book) => book.id === id) ||
 			!["library", "pick", "end", "read"].includes(get().stage)
 		)
 			return;
@@ -241,11 +276,13 @@ export const useTourStore = create<TourState>((set, get) => ({
 	runAction: () => {
 		const { stage, action } = get();
 		if (stage === "delete") {
-			const remaining = books.find(
-				(book) =>
-					!get().deletedBookIds.includes(book.id) &&
-					get().deletingBooks[book.id] === undefined,
-			);
+			const remaining = useBookStore
+				.getState()
+				.books.find(
+					(book) =>
+						!get().deletedBookIds.includes(book.id) &&
+						get().deletingBooks[book.id] === undefined,
+				);
 			if (remaining) get().deleteBook(remaining.id);
 			return;
 		}
@@ -254,9 +291,11 @@ export const useTourStore = create<TourState>((set, get) => ({
 			const restoreId = get().deletedBookIds.at(-1);
 			if (restoreId) useBookStore.getState().selectBook(restoreId);
 			const book =
-				books.find(
-					(item) => item.id === useBookStore.getState().selectedBookId,
-				) ?? books[0];
+				useBookStore
+					.getState()
+					.books.find(
+						(item) => item.id === useBookStore.getState().selectedBookId,
+					) ?? useBookStore.getState().books[0];
 			useParticleStore.getState().requestBook(book);
 		}
 		get().dismissHint("add");

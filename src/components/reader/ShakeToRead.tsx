@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { books } from "../../lib/bookCatalog";
+
 import { useBookStore } from "../../stores/useBookStore";
 import { useTourStore } from "../../stores/useTourStore";
 import { createShakeDetector } from "./shakeDetector";
@@ -42,7 +42,12 @@ export default function ShakeToRead() {
 				const last = JSON.parse(
 					localStorage.getItem("boooks-last-reader") ?? "null",
 				);
-				if (!books.some((book) => book.id === last?.bookId)) return;
+				if (
+					!useBookStore
+						.getState()
+						.books.some((book) => book.id === last?.bookId)
+				)
+					return;
 				useBookStore.getState().selectBook(last.bookId);
 				tour.enter("read");
 				// A shake has no browser user activation; resume in the full viewport.
