@@ -85,6 +85,15 @@ export default function ShelfControls() {
 	const layout = stack ? "stack" : first?.layout;
 	const mixedLayout =
 		!stack && selectedIds.some((id) => shelf.items[id]?.layout !== layout);
+	const orientationActive = (orientation: "cover" | "spine" | "flat") =>
+		selectedIds.length > 0 &&
+		selectedIds.every((id) => {
+			const item = shelf.items[id];
+			const stacked = shelf.stacks.some((entry) => entry.bookIds.includes(id));
+			return orientation === "flat"
+				? stacked || item?.layout === "flat"
+				: !stacked && item?.layout === "upright" && item.face === orientation;
+		});
 	useEffect(() => {
 		const keydown = (event: KeyboardEvent) => {
 			const element = event.target as HTMLElement;
@@ -655,25 +664,25 @@ export default function ShelfControls() {
 				>
 					<ShelfButton
 						label="Show front cover"
-						active={first?.face === "cover"}
-						disabled={!canChangeFace}
-						onClick={() => state.setFace("cover")}
+						active={orientationActive("cover")}
+						disabled={!selectedIds.length}
+						onClick={() => state.setBookOrientation("cover")}
 					>
 						<BookFaceIcon face="cover" />
 					</ShelfButton>
 					<ShelfButton
 						label="Show spine"
-						active={first?.face === "spine"}
-						disabled={!canChangeFace}
-						onClick={() => state.setFace("spine")}
+						active={orientationActive("spine")}
+						disabled={!selectedIds.length}
+						onClick={() => state.setBookOrientation("spine")}
 					>
 						<BookFaceIcon face="spine" />
 					</ShelfButton>
 					<ShelfButton
 						label="Lay book down"
-						active={layout === "flat"}
+						active={orientationActive("flat")}
 						disabled={!selectedIds.length}
-						onClick={() => state.setLayout("flat")}
+						onClick={() => state.setBookOrientation("flat")}
 					>
 						<LayoutIcon layout="flat" />
 					</ShelfButton>
@@ -766,15 +775,17 @@ function BookPicker({
 			</label>
 			{mode === "select" && !search && (
 				<div className="shelf-picker-collections">
-					{SHOW_PICTURE_FRAME && <button
-						type="button"
-						onClick={() => {
-							state.togglePictureFrame();
-							onClose();
-						}}
-					>
-						<ImagePlus size={17} /> Picture frame
-					</button>}
+					{SHOW_PICTURE_FRAME && (
+						<button
+							type="button"
+							onClick={() => {
+								state.togglePictureFrame();
+								onClose();
+							}}
+						>
+							<ImagePlus size={17} /> Picture frame
+						</button>
+					)}
 					<button
 						type="button"
 						onClick={() => {

@@ -131,6 +131,7 @@ export default function TourCamera() {
 				size.width / size.height,
 				collection ? tallestShelfBook : book.dimensions[1],
 				collection,
+				size.width < 768,
 			),
 		[
 			collection,

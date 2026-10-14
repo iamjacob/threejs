@@ -51,7 +51,6 @@
 .shelf-editor-header {
 	position: absolute;
 	top: calc(12.8px + env(safe-area-inset-top));
-	left: 12.8px;
 	right: 12.8px;
 	display: flex;
 	align-items: center;

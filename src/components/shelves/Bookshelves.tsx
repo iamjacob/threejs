@@ -410,10 +410,13 @@ export default function Bookshelves({
 								}
 								onEdit={
 									canEdit
-										? (id, position) =>
-												onBookEdit?.(id, position) ??
-												(useTourStore.getState().previewBook(id),
-												useShelfControlsStore.getState().openBookEditor(id))
+										? (id, position) => {
+												if (onBookEdit) onBookEdit(id, position);
+												else {
+													useTourStore.getState().previewBook(id);
+													useTourStore.getState().editPreview();
+												}
+											}
 										: undefined
 								}
 								blurred={blurredBookIds.includes(placement.book.id)}

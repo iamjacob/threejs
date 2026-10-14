@@ -1,5 +1,4 @@
 import {
-	ArrowLeft,
 	ArrowRight,
 	BookOpen,
 	Camera,
@@ -355,28 +354,7 @@ export default function BookScanner({
 			</nav>
 			{(step === "welcome" || step === "consent" || step === "requesting") && (
 				<div className="scan-intro">
-					<div className="scan-book-art" aria-hidden="true">
-						<div className="scan-art-orbit" />
-						<div className="scan-art-book">
-							<span>
-								YOUR
-								<br />
-								NEXT
-								<br />
-								CHAPTER.
-							</span>
-							<BookOpen size={30} strokeWidth={1.2} />
-							<small>
-								FROM YOUR WORLD
-								<br />
-								TO YOUR SHELF
-							</small>
-						</div>
-						<span className="scan-art-spark scan-art-spark-one" />
-						<span className="scan-art-spark scan-art-spark-two" />
-						<span className="scan-art-corner scan-art-tl" />
-						<span className="scan-art-corner scan-art-br" />
-					</div>
+					
 					<div className="scan-intro-copy">
 						{/* <p className="scan-eyebrow">A little more you</p> */}
 						<h1 ref={heading} tabIndex={-1}>
@@ -394,7 +372,7 @@ export default function BookScanner({
 						</h1>
 						<p>
 							{step === "welcome"
-								? "Find a book you love. Scan its cover, refine the corners, and watch it come to life on your shelf."
+								? "Find a book you love. Scan its cover!"
 								: step === "requesting"
 									? "Choose Allow in your browser’s camera request. Your book is up next."
 									: "With your permission, we’ll open the camera so you can photograph your book’s cover."}

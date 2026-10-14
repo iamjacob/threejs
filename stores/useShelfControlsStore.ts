@@ -55,6 +55,7 @@ type ShelfControlsState = Snapshot & {
 	stepAngle: (amount: number) => void;
 	setLayout: (layout: ShelfLayout) => void;
 	setFace: (face: ShelfFace) => void;
+	setBookOrientation: (orientation: "cover" | "spine" | "flat") => void;
 	setShelfView: (view: ShelfView) => void;
 	setSpacing: (spacing: number) => void;
 	setAlignment: (alignment: ShelfDocument["alignment"]) => void;
@@ -338,6 +339,29 @@ export const useShelfControlsStore = create<ShelfControlsState>((set, get) => {
 				`${layout[0].toUpperCase()}${layout.slice(1)} layout applied.`,
 				{ activeStackId: null },
 			);
+			set({ panel: "arrange" });
+		},
+		setBookOrientation: (orientation) => {
+			const { document, selectedIds, drag } = get();
+			if (drag || !selectedIds.length) return;
+			const ids = expandShelfSelection(document, selectedIds);
+			const stacked = document.stacks.some((stack) => stack.bookIds.some((id) => ids.includes(id)));
+			// Flat stacks are already lying down; keep their physical order intact.
+			if (orientation === "flat" && stacked && ids.every((id) =>
+				document.items[id].layout === "flat" || document.stacks.some((stack) => stack.bookIds.includes(id)),
+			)) return;
+			const layout = orientation === "flat" ? "flat" : "upright";
+			const face = orientation === "spine" ? "spine" : "cover";
+			if (!stacked && ids.every((id) => {
+				const item = document.items[id];
+				return item.layout === layout && item.face === face && item.angle === 0;
+			})) return;
+			const next = detachBooks(document, ids);
+			const items = { ...next.items };
+			for (const id of ids) items[id] = { ...items[id], layout, face, angle: 0 };
+			commit({ ...next, items, groups: document.groups },
+				orientation === "flat" ? "Books laid flat." : `Books upright, ${orientation} facing out.`,
+				{ selectedIds: ids, activeStackId: null });
 			set({ panel: "arrange" });
 		},
 		setFace: (face) =>

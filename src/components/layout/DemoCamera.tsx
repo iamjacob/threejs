@@ -13,6 +13,7 @@ export function shelfFraming(
 	aspect: number,
 	bookHeight = 0,
 	collection = false,
+	isMobile = false,
 ) {
 	const fractions = progressionConfig.levels[levelIndex].shelves;
 	const fraction = Math.max(...fractions, 0.08);
@@ -54,7 +55,7 @@ export function shelfFraming(
 				}
 			}
 		}
-		distance *= 0.55;
+		distance *= isMobile ? 0.65 : 0.75;
 		// Lower the collection in the frame to leave more space above it.
 		target.y += distance * Math.tan(verticalFov / 2) * 0.02;
 	}
@@ -86,6 +87,7 @@ export default function DemoCamera({ view }: { view: CameraView }) {
 				size.width / size.height,
 				isCollection ? tallestShelfBook : book.dimensions[1],
 				isCollection,
+				size.width < 768,
 			),
 		[
 			levelIndex,

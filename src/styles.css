@@ -37,7 +37,7 @@ body {
   outline-offset: 4px;
 }
 
-.menu-logo[data-shelf="true"] {
+.menu-logo[data-scanning="true"] {
   width: 70px;
 }
 
@@ -62,12 +62,12 @@ body {
   transform: translateX(-10px);
 }
 
-.menu-logo[data-shelf="true"] .menu-logo-icon {
+.menu-logo[data-scanning="true"] .menu-logo-icon {
   opacity: 0;
   transform: translateX(-8px) scale(0.86);
 }
 
-.menu-logo[data-shelf="true"] .menu-logo-wordmark {
+.menu-logo[data-scanning="true"] .menu-logo-wordmark {
   opacity: 1;
   transform: translateX(0);
 }
@@ -113,7 +113,7 @@ body {
     height: 32px;
   }
 
-  .menu-logo[data-shelf="true"] {
+  .menu-logo[data-scanning="true"] {
     width: 90px;
   }
 

@@ -132,6 +132,52 @@ test("tilt affects only selected books, remains on the arc, and rests on the she
 	assert.equal(state().document.items[id].angle, 45);
 });
 
+test("orientation buttons can be reused with full-size geometry and atomic undo/redo", () => {
+	const id = idOf("Shaolin spirit");
+	state().selectBook(id);
+	for (const orientation of ["flat", "cover", "spine", "flat", "spine", "cover", "flat"]) {
+		const previous = structuredClone(state().document);
+		const historyLength = state().past.length;
+		state().setBookOrientation(orientation);
+		const expected = structuredClone(state().document);
+		const item = expected.items[id];
+		assert.equal(item.layout, orientation === "flat" ? "flat" : "upright");
+		assert.equal(item.face, orientation === "spine" ? "spine" : "cover");
+		assert.equal(state().past.length, historyLength + 1);
+		const placement = placements().find((entry) => entry.book.id === id);
+		assert.equal(placement.scale, 1);
+		closeTo(bounds(placement).min.y, 2.08, "Book stays on shelf");
+		closeTo(bounds(placement).max.y - bounds(placement).min.y,
+			placement.book.dimensions[orientation === "flat" ? 2 : 1], "Full physical height");
+		state().setBookOrientation(orientation);
+		assert.equal(state().past.length, historyLength + 1, "Repeated active button is a no-op");
+		state().undo();
+		assert.deepEqual(state().document, previous);
+		state().redo();
+		assert.deepEqual(state().document, expected);
+		assert.deepEqual(state().selectedIds, [id]);
+	}
+});
+
+test("orientation controls stand a selected stack upright and undo restores it", () => {
+	state().selectStack("business-stack");
+	const previous = structuredClone(state().document);
+	const ids = [...state().selectedIds];
+	state().setBookOrientation("flat");
+	assert.deepEqual(state().document, previous);
+	assert.equal(state().past.length, 0);
+	state().setBookOrientation("spine");
+	assert.equal(state().activeStackId, null);
+	for (const id of ids) {
+		assert.equal(state().document.items[id].layout, "upright");
+		assert.equal(state().document.items[id].face, "spine");
+	}
+	validateDocument();
+	state().undo();
+	assert.deepEqual(state().document, previous);
+	assert.equal(state().activeStackId, "business-stack");
+});
+
 test("flat books and spine-facing tilted books stay grounded", () => {
 	const id = idOf("Shaolin spirit");
 	state().selectBook(id);

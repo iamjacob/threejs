@@ -8,7 +8,6 @@ import Header from "../components/layout/header/header";
 import SceneEnvironment from "../components/layout/SceneEnvironment";
 import SceneToolbar from "../components/layout/SceneToolbar";
 import ShelfControls from "../components/layout/ShelfControls";
-import BookEditMenu from "../components/library/BookEditMenu";
 import BookInfoCard from "../components/library/BookInfoCard";
 import HelixNav from "../components/library/HelixNav";
 import Lightning from "../components/lightning/Lightning";
@@ -40,10 +39,6 @@ function Home() {
 		new URLSearchParams(window.location.search).has("controls");
 	const [scanning, setScanning] = useState(false);
 	const [notice, setNotice] = useState("");
-	const [bookMenu, setBookMenu] = useState<{
-		id: string;
-		position: { x: number; y: number };
-	} | null>(null);
 	const stage = useTourStore((state) => state.stage);
 	const bookPanel = useTourStore((state) => state.bookPanel);
 	const reader = useTourStore((state) => state.reader);
@@ -115,7 +110,6 @@ function Home() {
 	}, []);
 	useEffect(() => {
 		if (!editableStage) useShelfControlsStore.getState().setEditing(false);
-		if (!editableStage) setBookMenu(null);
 	}, [editableStage]);
 	useEffect(() => {
 		if (!notice) return;
@@ -153,20 +147,6 @@ function Home() {
 			saved ? "" : "Added for this visit. Device storage is unavailable.",
 		);
 	};
-	const closeBookMenu = () => setBookMenu(null);
-	const arrangeBook = () => {
-		if (!bookMenu) return;
-		const id = bookMenu.id;
-		setBookMenu(null);
-		useTourStore.getState().previewBook(id);
-		useShelfControlsStore.getState().openBookEditor(id);
-	};
-	const editBookDetails = () => {
-		if (!bookMenu) return;
-		const id = bookMenu.id;
-		setBookMenu(null);
-		useTourStore.getState().previewBook(id);
-	};
 	return (
 		<div
 			className="fixed inset-0 bg-[#080d1a]"
@@ -182,7 +162,7 @@ function Home() {
 			<button
 				type="button"
 				className="menu-logo fixed left-3 top-[calc(0.5rem+env(safe-area-inset-top))] z-[1600]"
-				data-shelf={!scanning}
+				data-scanning={scanning}
 				onClick={toggleScanner}
 				aria-label={scanning ? "Go to shelf" : "Scan a book"}
 				title={scanning ? "Go to shelf" : "Scan a book"}
@@ -288,9 +268,7 @@ function Home() {
 				>
 					<Suspense fallback={null}>
 						<SceneEnvironment />
-						<TourScene
-							onBookEdit={(id, position) => setBookMenu({ id, position })}
-						/>
+						<TourScene />
 					</Suspense>
 					<TourCamera />
 					<TourDirector />
@@ -300,14 +278,6 @@ function Home() {
 			</div>
 			{SHOW_DEMO_UI && !scanning && bookPanel === "closed" && <TourOverlay />}
 			{!scanning && reader === "open" && <ReaderOverlay />}
-			{!scanning && bookMenu && (
-				<BookEditMenu
-					position={bookMenu.position}
-					onArrange={arrangeBook}
-					onEditDetails={editBookDetails}
-					onClose={closeBookMenu}
-				/>
-			)}
 		</div>
 	);
 }
