@@ -1,0 +1,75 @@
+.book-edit-menu {
+	position: fixed;
+	z-index: 60;
+	display: flex;
+	align-items: center;
+	gap: 5px;
+	padding: 5px;
+	transform: translate(-50%, -50%);
+	border: 1px solid rgb(255 255 255 / 11%);
+	border-radius: 18px;
+	background: rgb(17 20 32 / 78%);
+	box-shadow: 0 10px 34px rgb(0 0 0 / 28%);
+	backdrop-filter: blur(18px) saturate(130%);
+	-webkit-backdrop-filter: blur(18px) saturate(130%);
+	color: #f8f6ef;
+	animation: book-edit-menu-in 150ms ease-out both;
+}
+.book-edit-menu button {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 7px;
+	min-height: 38px;
+	border: 0;
+	border-radius: 13px;
+	padding: 0 12px;
+	background: transparent;
+	color: inherit;
+	font: 600 12px / 1 system-ui, sans-serif;
+	cursor: pointer;
+	transition: background 150ms ease, transform 150ms ease;
+}
+.book-edit-menu button:hover,
+.book-edit-menu button:focus-visible {
+	background: rgb(255 255 255 / 14%);
+}
+.book-edit-menu button:active {
+	transform: scale(0.95);
+}
+.book-edit-menu button:focus-visible {
+	outline: 2px solid #f7f2de;
+	outline-offset: 2px;
+}
+.book-edit-menu-close {
+	width: 38px;
+	padding: 0 !important;
+	color: rgb(255 255 255 / 55%) !important;
+}
+@keyframes book-edit-menu-in {
+	from {
+		opacity: 0;
+		transform: translate(-50%, -44%) scale(0.96);
+	}
+	to {
+		opacity: 1;
+		transform: translate(-50%, -50%) scale(1);
+	}
+}
+@media (max-width: 480px) {
+	.book-edit-menu button:not(.book-edit-menu-close) span {
+		display: none;
+	}
+	.book-edit-menu button:not(.book-edit-menu-close) {
+		width: 38px;
+		padding: 0;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.book-edit-menu {
+		animation: none;
+	}
+	.book-edit-menu button {
+		transition: none;
+	}
+}

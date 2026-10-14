@@ -313,7 +313,7 @@ export default function BookScanner({
 				}}
 			/>
 			<header className="scan-header">
-				<button
+				{/* <button
 					type="button"
 					className="scan-icon"
 					aria-label={step === "welcome" ? "Explore shelf" : "Back"}
@@ -325,13 +325,14 @@ export default function BookScanner({
 					) : (
 						<ArrowLeft size={19} />
 					)}
-				</button>
-				<span className="scan-wordmark">
+				</button> */}
+				{/* <span className="scan-wordmark">
 					boooks<span className="scan-wordmark-dot">.</span>
-				</span>
+				</span> */}
 				<button
 					type="button"
 					className="scan-icon"
+					style={{ marginLeft: "auto" }}	
 					aria-label="Close scanner and explore shelf"
 					disabled={busy}
 					onClick={close}
@@ -377,13 +378,13 @@ export default function BookScanner({
 						<span className="scan-art-corner scan-art-br" />
 					</div>
 					<div className="scan-intro-copy">
-						<p className="scan-eyebrow">A little more you</p>
+						{/* <p className="scan-eyebrow">A little more you</p> */}
 						<h1 ref={heading} tabIndex={-1}>
 							{step === "welcome" ? (
 								<>
-									Find a book.
-									<br />
-									Make it part of your world.
+									Scan a book.
+									{/* <br />
+									Make it part of your world. */}
 								</>
 							) : step === "requesting" ? (
 								"One more yes."

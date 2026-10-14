@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { useDissolveStore } from "../../stores/useDissolveStore";
 import { useParticleStore } from "../../stores/useParticleStore";
 import { useReadingStore } from "../../stores/useReadingStore";
+import { useShelfControlsStore } from "../../stores/useShelfControlsStore";
 import {
 	type BookPose,
 	nextTourStage,
@@ -18,6 +19,15 @@ type TourState = {
 	paused: boolean;
 	ready: boolean;
 	reader: "closed" | "zooming" | "open";
+	bookPanel: "closed" | "preview" | "open";
+	focusRevision: number;
+	returnToEditor: boolean;
+	pendingBookId: string | null;
+	navigateBook: (id: string) => void;
+	previewBook: (id: string) => void;
+	openPreview: () => void;
+	dismissPreview: () => void;
+	editPreview: () => void;
 	openReader: () => void;
 	closeReader: () => void;
 	runId: number;
@@ -71,13 +81,112 @@ export const useTourStore = create<TourState>((set, get) => ({
 	paused: false,
 	ready: false,
 	reader: "closed",
+	bookPanel: "closed",
+	focusRevision: 0,
+	returnToEditor: false,
+	pendingBookId: null,
+	navigateBook: (id) => {
+		const shelf = useShelfControlsStore.getState();
+		if (
+			get().reader !== "closed" ||
+			shelf.editing ||
+			!useBookStore.getState().books.some((book) => book.id === id) ||
+			(shelf.initialized && !shelf.document.items[id]) ||
+			get().deletedBookIds.includes(id)
+		)
+			return;
+		if (get().stage === "return") {
+			set({ pendingBookId: id, returnToEditor: false });
+			return;
+		}
+		if (get().stage === "read") {
+			if (useBookStore.getState().selectedBookId === id) return;
+			get().closeBook();
+			set({ pendingBookId: id });
+			return;
+		}
+		if (get().stage === "pull" && get().bookPanel === "open")
+			get().dismissPreview();
+		get().previewBook(id);
+	},
+	previewBook: (id) => {
+		if (
+			!["library", "pick", "end"].includes(get().stage) ||
+			get().reader !== "closed" ||
+			!useBookStore.getState().books.some((book) => book.id === id)
+		)
+			return;
+		useBookStore.getState().selectBook(id);
+		get().enter("pick");
+		set((state) => ({
+			bookPanel: "preview",
+			paused: true,
+			focusRevision: state.focusRevision + 1,
+		}));
+	},
+	openPreview: () => {
+		if (
+			get().bookPanel !== "preview" ||
+			get().stage !== "pick" ||
+			get().reader !== "closed"
+		)
+			return;
+		get().openBook(useBookStore.getState().selectedBookId);
+		set({ bookPanel: "open" });
+	},
+	dismissPreview: () => {
+		if (get().reader !== "closed") return;
+		if (get().stage === "read" && get().bookPanel === "open") {
+			get().closeBook();
+			return;
+		}
+		if (
+			get().bookPanel !== "preview" &&
+			!(get().bookPanel === "open" && get().stage === "pull")
+		)
+			return;
+		get().enter("library");
+		set((state) => ({ paused: true, focusRevision: state.focusRevision + 1 }));
+	},
+	editPreview: () => {
+		if (get().reader !== "closed") return;
+		if (get().bookPanel === "open" && get().stage === "read") {
+			get().closeBook();
+			set({ returnToEditor: true });
+		} else if (get().bookPanel === "preview" && get().stage === "pick") {
+			useShelfControlsStore
+				.getState()
+				.openBookEditor(useBookStore.getState().selectedBookId);
+		}
+	},
 	openReader: () => {
+		const library = useBookStore.getState();
+		const book = library.books.find(
+			(entry) => entry.id === library.selectedBookId,
+		);
+		if (!book?.epub && !book?.pdf) return;
+		if (
+			get().bookPanel !== "closed" &&
+			["pick", "read"].includes(get().stage) &&
+			get().reader === "closed"
+		) {
+			set({ reader: "open", paused: true });
+			return;
+		}
 		if (get().stage === "read" && get().reader === "closed")
 			set({ reader: "zooming", paused: true });
 	},
 	closeReader: () => {
 		const { reader, stage } = get();
 		if (reader === "closed") return;
+		if (get().bookPanel !== "closed") {
+			set((state) => ({
+				reader: "closed",
+				paused: true,
+				focusRevision: state.focusRevision + 1,
+			}));
+			return;
+		}
 		if (reader === "open" && stage === "read") {
 			get().enter("grow");
 			return;
@@ -133,6 +242,9 @@ export const useTourStore = create<TourState>((set, get) => ({
 		usePresentationStore.setState({ movingLight: false, blurEnabled: false });
 		set((state) => ({
 			stage: "add",
+			pendingBookId: null,
+			bookPanel: "closed",
+			returnToEditor: false,
 			userAddition: true,
 			action: "running",
 			paused: false,
@@ -224,6 +336,9 @@ export const useTourStore = create<TourState>((set, get) => ({
 		}
 		set((state) => ({
 			stage,
+			pendingBookId: null,
+			bookPanel: "closed",
+			returnToEditor: false,
 			userAddition: false,
 			usedHints: [],
 			reader: "closed",
@@ -260,10 +375,25 @@ export const useTourStore = create<TourState>((set, get) => ({
 		useReadingStore.getState().closeBook();
 	},
 	advance: () => {
-		const { stage, action } = get();
+		const { stage, action, bookPanel, returnToEditor, pendingBookId } = get();
+		if (stage === "read" && bookPanel === "open") return;
+		if (stage === "pull" && bookPanel === "open") {
+			get().enter("read");
+			set((state) => ({
+				bookPanel: "open",
+				paused: true,
+				focusRevision: state.focusRevision + 1,
+			}));
+			return;
+		}
 		if (stage === "return") {
 			get().enter("library");
 			set({ paused: true });
+			if (pendingBookId) get().previewBook(pendingBookId);
+			else if (returnToEditor) {
+				get().previewBook(useBookStore.getState().selectedBookId);
+				get().editPreview();
+			}
 			return;
 		}
 		if (stage === "pick")

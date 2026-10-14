@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url'
 import sharp from 'sharp'
 
 const root = new URL('../', import.meta.url)
-const catalog = JSON.parse(await readFile(new URL('public/blockchain/data.json', root)))
+const catalog = JSON.parse(await readFile(new URL('public/books.json', root)))
 const sources = new Set(catalog.flatMap(book =>
     (book.coverImage ?? []).flatMap(cover => Object.values(cover))))
 sources.add('/experience/books/assets/booktexture.webp')

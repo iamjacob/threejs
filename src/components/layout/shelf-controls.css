@@ -1,7 +1,9 @@
 .shelf-editor {
-	--shelf-ink: #f6f4ee;
-	--shelf-panel: rgb(24 25 36 / 64%);
-	--shelf-accent: #ed1725;
+	--shelf-ink: #fff;
+	--shelf-control: #808080;
+	--shelf-button-size: 42px;
+	--shelf-panel: rgb(46 46 46 / 94%);
+	--shelf-accent: #808080;
 	position: fixed;
 	inset: 0;
 	z-index: 1100;
@@ -32,23 +34,19 @@
 }
 .shelf-editor svg {
 	flex: none;
-	stroke-width: 1.65;
-}
-.shelf-pill,
-.shelf-glass {
-	background: var(--shelf-panel, rgb(24 25 36 / 64%));
-	backdrop-filter: blur(19.2px) saturate(1.15);
-	-webkit-backdrop-filter: blur(19.2px) saturate(1.15);
+	stroke-width: 1.8;
 }
 .shelf-pill {
-	box-shadow: inset 0 0 0 1px #ffffff09;
-	border-radius: 799.2px;
+	background: var(--shelf-control, #808080);
+	border-radius: 999px;
+	color: #fff;
 }
 .shelf-glass {
-	border-radius: 22.4px;
-	box-shadow:
-		0 9.6px 38.4px #0002,
-		inset 0 1px 0 #ffffff06;
+	background: var(--shelf-panel, rgb(46 46 46 / 94%));
+	backdrop-filter: blur(16px);
+	-webkit-backdrop-filter: blur(16px);
+	border-radius: 24px;
+	box-shadow: 0 12px 40px #0002;
 }
 .shelf-editor-header {
 	position: absolute;
@@ -60,60 +58,35 @@
 	justify-content: space-between;
 	pointer-events: none;
 }
-.shelf-editor-header > button {
+.shelf-editor-header > button,
+.shelf-header-tools {
 	pointer-events: auto;
 }
-.shelf-library-button {
-	border: 0;
-	min-height: 38.4px;
+.shelf-header-tools {
 	display: flex;
-	gap: 9.6px;
-	align-items: center;
-	padding: 0 14.4px;
-	font-weight: 650 !important;
-	max-width: calc(100% - 51.2px);
+	gap: 10px;
 }
-.shelf-library-button span {
-	overflow: hidden;
-	white-space: nowrap;
-	text-overflow: ellipsis;
-}
-.shelf-editor-heading {
-	display: none;
-}
-.shelf-zoom-button {
+.shelf-editor-context {
 	position: absolute;
-	top: calc(62px + env(safe-area-inset-top));
-	right: 12.8px;
+	top: calc(78px + env(safe-area-inset-top));
+	left: 16px;
+	right: 16px;
 	display: flex;
-	align-items: center;
-	gap: 7px;
-	min-width: 98px;
-	height: 38.4px;
-	padding: 0 12px;
-	border: 0;
-	color: inherit;
-	pointer-events: auto;
+	flex-direction: column;
+	gap: 5px;
+	pointer-events: none;
+	text-shadow: 0 1px 8px #0008;
 }
-.shelf-zoom-button > span:first-of-type {
-	flex: 1;
-	text-align: left;
+.shelf-editor-context span:first-child {
+	max-width: min(360px, 80%);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-size: 13px;
 }
-.shelf-zoom-steps {
-	display: flex;
-	gap: 3px;
-	align-items: center;
-}
-.shelf-zoom-steps i {
-	width: 3px;
-	height: 3px;
-	border-radius: 50%;
-	background: #ffffff40;
-}
-.shelf-zoom-steps i[data-active="true"] {
-	height: 9px;
-	border-radius: 3px;
-	background: #f5eddc;
+.shelf-editor-context span:last-child {
+	color: #ffffff8c;
+	font-size: 11px;
 }
 .shelf-editor[data-dragging="true"] .shelf-dock {
 	opacity: 0.28;
@@ -135,36 +108,38 @@
 		sans-serif;
 }
 .shelf-icon-button svg {
-	width: 18px;
-	height: 18px;
+	width: 21px;
+	height: 21px;
 }
 .shelf-icon-button {
-	border: 0;
-	width: 36.8px;
-	height: 36.8px;
+	border: 1px solid rgb(255 255 255 / 14%);
+	width: var(--shelf-button-size);
+	height: var(--shelf-button-size);
 	flex-shrink: 0;
 	border-radius: 50%;
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	color: inherit;
-	background: transparent;
+	color: #fff;
+	background: rgb(255 255 255 / 10%);
+	backdrop-filter: blur(18px) saturate(130%);
+	-webkit-backdrop-filter: blur(18px) saturate(130%);
+	box-shadow: 0 8px 24px rgb(0 0 0 / 16%);
 	transition:
 		background 0.18s,
 		color 0.18s,
 		transform 0.18s;
 }
-.shelf-icon-button.shelf-pill {
-	width: 38.4px;
-	height: 38.4px;
-	background: var(--shelf-panel);
-}
 .shelf-editor button:not(:disabled):hover {
-	background-color: #ffffff13;
+	background-color: #969696;
 }
 .shelf-editor .shelf-icon-button[aria-pressed="true"] {
-	color: #24231f;
-	background: #f3f0e6;
+	color: #565656;
+	background: #fff;
+}
+.shelf-editor-header .shelf-icon-button:not(:disabled):hover {
+	background: rgb(255 255 255 / 20%);
+	border-color: rgb(255 255 255 / 28%);
 }
 .shelf-editor .shelf-icon-button:not(:disabled):active {
 	transform: scale(0.94);
@@ -172,13 +147,36 @@
 .shelf-dock {
 	position: absolute;
 	bottom: calc(11.2px + env(safe-area-inset-bottom));
-	width: min(286.4px, calc(100% - 25.6px));
+	width: min(340px, calc(100% - 32px));
 	left: 50%;
 	transform: translateX(-50%);
 	display: flex;
 	flex-direction: column;
-	gap: 8px;
+	gap: 12px;
 	pointer-events: auto;
+	padding: 5px;
+}
+.shelf-tool-panel {
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+	max-height: max(
+		80px,
+		calc(
+			100dvh -
+			360px -
+			env(safe-area-inset-top) -
+			env(safe-area-inset-bottom)
+		)
+	);
+	overflow-y: auto;
+	overscroll-behavior: contain;
+	scrollbar-width: thin;
+	padding: 4px;
+	margin: -4px;
+}
+.shelf-tool-panel > * {
+	flex-shrink: 0;
 }
 .shelf-selection-caption {
 	display: flex;
@@ -215,27 +213,53 @@
 	justify-content: space-between;
 	gap: 6.4px;
 }
-.shelf-layout-label {
-	height: 38.4px;
-	padding: 0 14.4px;
-	display: flex;
-	align-items: center;
-	font-weight: 650;
-}
 .shelf-layout-options {
 	display: flex;
-	padding: 2px;
+	justify-content: center;
+	gap: 10px;
 }
-.shelf-layout-options .shelf-icon-button {
-	width: 35.2px;
-	height: 35.2px;
+.shelf-book-navigation {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 10px;
+}
+.shelf-book-count {
+	border: 0;
+	min-width: 102px;
+	height: var(--shelf-button-size);
+	padding: 0 18px;
+	font-size: 18px !important;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+.shelf-book-count span {
+	margin: 0 2px;
+}
+.shelf-direction-pad {
+	display: flex;
+	justify-content: center;
+	align-self: center;
+	background: var(--shelf-control);
+	border-radius: 999px;
+	padding: 0 8px;
+	gap: 6px;
+}
+.shelf-direction-pad .shelf-icon-button {
+	background: transparent;
+}
+.shelf-more-tools {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding-bottom: 6px;
 }
 .shelf-angle-slider {
 	display: flex;
 	align-items: center;
 	gap: 11.2px;
 	padding: 0 12.8px;
-	height: 38.4px;
+	height: var(--shelf-button-size);
 	flex: 1;
 	min-width: 0;
 }
@@ -289,9 +313,8 @@
 .shelf-toolbar {
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
-	padding: 2px;
-	min-height: 38.4px;
+	justify-content: center;
+	gap: 10px;
 }
 .shelf-danger {
 	color: #ff6270;
@@ -361,8 +384,8 @@
 	text-overflow: ellipsis;
 }
 .shelf-stack-list .shelf-icon-button {
-	width: 32px;
-	height: 35.2px;
+	width: 36px;
+	height: 36px;
 }
 .shelf-toggle-row {
 	display: flex;
@@ -410,7 +433,7 @@
 	font-weight: 650 !important;
 }
 .shelf-editor .shelf-primary:not(:disabled):hover {
-	background: #ff2937;
+	background: #969696;
 }
 .shelf-text-button {
 	border: 0;
@@ -420,7 +443,8 @@
 }
 .shelf-panel {
 	padding: 9.6px 14.4px 14.4px;
-	max-height: calc(100dvh - 184px);
+	max-height: min(42dvh, 360px);
+	flex-shrink: 0;
 	overflow-y: auto;
 }
 .shelf-panel-title {
@@ -681,97 +705,63 @@
 	white-space: nowrap;
 }
 .shelf-group-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
 	transform: translateY(-50%);
-	border: 0;
 	border-radius: 16px;
 	background: #1b1c2b;
+	white-space: nowrap;
+	padding: 3px 4px 3px 8px;
+	box-shadow: 0 4px 12px #0003;
+	}
+.shelf-group-select,
+.shelf-group-detach {
+	border: 0;
 	color: #fff;
 	font:
 		600 8.8px -apple-system,
 		BlinkMacSystemFont,
 		sans-serif;
-	white-space: nowrap;
-	padding: 5px 8.8px;
 	cursor: pointer;
 }
-.shelf-angle-handle {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 4.8px;
-	transform: translateY(-50%);
-	font:
-		650 8.8px -apple-system,
-		BlinkMacSystemFont,
-		sans-serif;
-	color: white;
+.shelf-group-select {
+	padding: 2px 0;
+	background: transparent;
 }
-.shelf-angle-handle > span {
-	padding: 4px 7.2px;
-	border-radius: 16px;
-	background: #1b1c2b;
-	transform: rotate(-10deg);
-}
-.shelf-angle-handle button {
+.shelf-group-detach {
 	display: grid;
 	place-items: center;
-	border: 0;
-	width: 24px;
-	height: 24px;
+	width: 22px;
+	height: 22px;
+	padding: 0;
 	border-radius: 50%;
-	background: #ed1725;
-	color: white;
-	font-size: 20.4px;
-	line-height: 1;
-	cursor: pointer;
+	background: #ffffff18;
+}
+.shelf-group-detach:hover {
+	background: #ffffff30;
 }
 @media (min-width: 700px) {
 	.shelf-editor-header {
-		top: 19.2px;
-		left: 22.4px;
-		right: 22.4px;
+		top: calc(24px + env(safe-area-inset-top));
+		left: 24px;
+		right: 24px;
 	}
-	.shelf-editor-heading {
-		display: flex;
-		flex-direction: column;
-		align-items: center;
-		gap: 5.6px;
-		position: absolute;
-		left: 50%;
-		transform: translateX(-50%);
-	}
-	.shelf-editor-heading span:first-child {
-		font-size: 9px;
-		letter-spacing: 0.22em;
-		color: #a5a9bf;
-	}
-	.shelf-editor-heading span:last-child {
-		font:
-			17.6px Georgia,
-			serif;
-		letter-spacing: -0.02em;
-		color: #eeece4;
+	.shelf-editor-context {
+		top: calc(92px + env(safe-area-inset-top));
+		left: 28px;
 	}
 	.shelf-dock {
-		bottom: 17.6px;
+		bottom: calc(24px + env(safe-area-inset-bottom));
 	}
 }
 @media (max-width: 360px) {
-	.shelf-dock {
-		width: min(286.4px, calc(100% - 19.2px));
+	.shelf-editor {
+		--shelf-button-size: 46px;
 	}
-	.shelf-layout-options .shelf-icon-button {
-		width: 31.2px;
-	}
-	.shelf-layout-label {
-		padding: 0 10.4px;
-	}
-	.shelf-rotation-row {
-		gap: 4.8px;
-	}
-	.shelf-angle-slider {
-		gap: 6.4px;
-		padding: 0 9.6px;
+	.shelf-toolbar,
+	.shelf-layout-options {
+		gap: 8px;
 	}
 	.shelf-history-row > span {
 		font-size: 9px;
@@ -808,9 +798,6 @@
 }
 .shelf-dock {
 	animation: shelf-editor-in 180ms ease-out both;
-}
-.shelf-library-button {
-	max-width: min(286px, calc(100% - 56px));
 }
 @keyframes shelf-editor-in {
 	from {

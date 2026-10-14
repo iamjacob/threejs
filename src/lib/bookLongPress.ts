@@ -3,7 +3,7 @@ const MOVE_TOLERANCE = 8;
 type Pointer = { pointerId: number; clientX: number; clientY: number };
 
 /** A hold is separate from a tap or an orbit/pinch gesture. */
-export function createBookLongPress(onHold: () => void) {
+export function createBookLongPress(onHold: (pointer: Pointer) => void) {
 	let timer: ReturnType<typeof setTimeout> | undefined;
 	let origin: Pointer | null = null;
 	let held = false;
@@ -25,7 +25,7 @@ export function createBookLongPress(onHold: () => void) {
 			timer = setTimeout(() => {
 				timer = undefined;
 				held = true;
-				onHold();
+				if (origin) onHold(origin);
 			}, BOOK_HOLD_MS);
 		},
 		move(pointer: Pointer) {

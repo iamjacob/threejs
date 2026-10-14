@@ -54,8 +54,9 @@ export function shelfFraming(
 				}
 			}
 		}
-		// Raise the collection in the frame to leave room for the caption and timeline.
-		target.y -= distance * Math.tan(verticalFov / 2) * 0.12;
+		distance *= 0.55;
+		// Lower the collection in the frame to leave more space above it.
+		target.y += distance * Math.tan(verticalFov / 2) * 0.02;
 	}
 	return { target, distance, fullCircle: fraction === 1 };
 }

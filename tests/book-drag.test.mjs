@@ -5,10 +5,10 @@ import { PerspectiveCamera, Vector3 } from "three";
 import { createBookDragGesture, moveShelfBooks } from "../src/lib/shelfDrag.ts";
 import { getShelfBooks } from "../src/components/shelves/shelfBooks.ts";
 import { arrangeShelfBooks, arrangedBookPose, arrangedBooksBounds, frameShelfEditor } from "../src/components/shelves/shelfArrangement.ts";
-import { createShelfDragProjector, shelfDropForPoint, shelfFloorY } from "../src/components/shelves/shelfDragGeometry.ts";
+import { createShelfDragProjector, createShelfStackTargeter, shelfDropForPoint, shelfFloorY } from "../src/components/shelves/shelfDragGeometry.ts";
 import { useShelfControlsStore as store } from "../stores/useShelfControlsStore.ts";
 
-const books = getShelfBooks(JSON.parse(readFileSync(new URL("../public/blockchain/data.json", import.meta.url), "utf8")));
+const books = getShelfBooks(JSON.parse(readFileSync(new URL("../public/books.json", import.meta.url), "utf8")));
 const state = () => store.getState();
 const idOf = title => books.find(book => book.title === title).id;
 const placements = () => arrangeShelfBooks(books, state().document);
@@ -101,6 +101,79 @@ test("dropping before any member of a stack inserts before the complete stack", 
 	assert.ok(moved.order.indexOf(id) < Math.min(...stack.bookIds.map(key => moved.order.indexOf(key))));
 	assert.deepEqual(moved.stacks, document.stacks);
 	assert.equal(new Set(moved.order).size, books.length);
+});
+
+test("dropping a book onto a stack adds it on top at full size and is one undoable change", () => {
+	const id = idOf("Four Thousand Weeks");
+	const target = state().document.stacks[0];
+	const before = state().document;
+	state().beginBookDrag(id);
+	const drop = { shelf: 1, beforeId: null, stackOnId: target.bookIds.at(-1) };
+	state().updateBookDrag([-1, 0.4, 0.2], drop);
+	const preview = moveShelfBooks(before, [id], drop);
+	assert.equal(state().document, before, "Hover is only a preview");
+	assert.deepEqual(preview.stacks[0].bookIds, [...target.bookIds, id]);
+	state().endBookDrag();
+	assert.deepEqual(state().document, preview);
+	assert.equal(state().past.length, 1);
+	assert.equal(state().activeStackId, target.id);
+	assert.deepEqual(state().selectedIds, [...target.bookIds, id]);
+	const pile = placements().filter((entry) => entry.stackId === target.id).sort((a, b) => a.position[1] - b.position[1]);
+	assert.equal(pile.at(-1).book.id, id);
+	for (const book of pile) assert.equal(book.scale, 1);
+	for (let i = 1; i < pile.length; i++) assert.ok(arrangedBooksBounds([pile[i]]).min.y > arrangedBooksBounds([pile[i - 1]]).max.y);
+	state().undo(); assert.deepEqual(state().document, before);
+	state().redo(); assert.deepEqual(state().document, preview);
+});
+
+test("dropping onto a single book creates a stack, and a moved stack keeps its bottom-to-top order", () => {
+	const id = idOf("Four Thousand Weeks"), targetId = idOf("THE SOURCE");
+	const original = state().document;
+	const result = moveShelfBooks(original, [id], { shelf: 1, beforeId: null, stackOnId: targetId });
+	const target = result.stacks.find((stack) => stack.bookIds.includes(targetId));
+	assert.deepEqual(target.bookIds, [targetId, id]);
+	const source = original.stacks[0];
+	const merged = moveShelfBooks(result, [source.bookIds[1]], { shelf: 1, beforeId: null, stackOnId: id });
+	assert.equal(merged.stacks.length, 1);
+	assert.deepEqual(merged.stacks[0].bookIds, [targetId, id, ...source.bookIds]);
+	assert.equal(new Set(merged.order).size, books.length);
+	assert.equal(merged.order.length, books.length);
+	for (const bookId of merged.stacks[0].bookIds) assert.equal(merged.items[bookId].shelf, 1);
+});
+
+test("stack drops ignore self and missing targets and cancellation leaves the shelf unchanged", () => {
+	const document = state().document;
+	const stack = document.stacks[0];
+	for (const targetId of [stack.bookIds[1], "missing"]) {
+		assert.equal(moveShelfBooks(document, [stack.bookIds[0]], { shelf: 1, beforeId: null, stackOnId: targetId }), document);
+	}
+	state().beginBookDrag(idOf("Four Thousand Weeks"));
+	state().updateBookDrag([-1, 0.3, 0.2], { shelf: 1, beforeId: null, stackOnId: stack.bookIds[0] });
+	state().endBookDrag(false);
+	assert.equal(state().document, document);
+	assert.equal(state().past.length, 0);
+});
+
+test("screen-space stack targets accept a book face or just above it and leave gaps for reordering", () => {
+	const all = placements(), id = idOf("Four Thousand Weeks");
+	const stack = state().document.stacks[0];
+	const bounds = arrangedBooksBounds(all.filter((entry) => stack.bookIds.includes(entry.book.id)));
+	const center = bounds.getCenter(new Vector3());
+	const camera = new PerspectiveCamera(45, 1, 0.01, 100);
+	camera.position.copy(center).add(new Vector3(0, 0.15, 3));
+	camera.lookAt(center); camera.updateMatrixWorld();
+	const toPointer = (point) => { const p = point.clone().project(camera); return pointer((p.x + 1) * 250, (1 - p.y) * 250); };
+	const pick = createShelfStackTargeter(camera, { left: 0, top: 0, width: 500, height: 500 }, all, [id]);
+	const hit = pick(toPointer(center));
+	assert.ok(stack.bookIds.includes(hit.stackOnId));
+	assert.equal(hit.shelf, 1);
+	const above = toPointer(new Vector3(center.x, bounds.max.y, bounds.max.z)); above.clientY -= 12;
+	assert.ok(stack.bookIds.includes(pick(above)?.stackOnId));
+	assert.equal(pick(pointer(-1000, -1000)), null);
+	assert.equal(pick(toPointer(new Vector3(...arrangedBookPose(all.find((entry) => entry.book.id === id)).position))), null, "Cannot stack onto the dragged book");
+	const savedPointer = toPointer(center);
+	camera.position.x += 5; camera.updateMatrixWorld();
+	assert.deepEqual(pick(savedPointer), hit, "Hit targets use the pickup camera");
 });
 test("multi-selection drags as a unit and automatically includes complete stacks", () => {
 	const stack = state().document.stacks[0];

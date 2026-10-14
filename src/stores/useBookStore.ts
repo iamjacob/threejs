@@ -18,7 +18,7 @@ export const useBookStore = create<BookState>()((set, get) => ({
 		set((state) => ({ books: [...state.books, book] }));
 		get().selectBook(book.id);
 	},
-	selectedBookId: books[Math.floor(Math.random() * books.length)].id,
+	selectedBookId: books[0].id,
 	selectBook: (id) => {
 		if (
 			get().selectedBookId === id ||

@@ -1,17 +1,18 @@
-import { useShelfControlsStore } from "../../../stores/useShelfControlsStore";
 import { useProgress } from "@react-three/drei";
 import { useFrame } from "@react-three/fiber";
 import { useParticleStore } from "../../../stores/useParticleStore";
 import { useReadingStore } from "../../../stores/useReadingStore";
+import { useShelfControlsStore } from "../../../stores/useShelfControlsStore";
+import { SHOW_DEMO_UI } from "../../lib/featureFlags";
 import { useLevelStore } from "../../stores/useLevelStore";
 import { useTourStore } from "../../stores/useTourStore";
 import { progressionConfig } from "../shelves/progressionConfig";
 import { tourStages } from "./tourStages";
-import { SHOW_DEMO_UI } from "../../lib/featureFlags";
 
 export default function TourDirector() {
 	useFrame((_, delta) => {
 		const tour = useTourStore.getState();
+		if (tour.bookPanel === "open" && tour.stage === "read") return;
 		if (!SHOW_DEMO_UI && (tour.stage === "library" || tour.stage === "pick"))
 			return;
 		if (

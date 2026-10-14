@@ -2,11 +2,7 @@ import { useFrame } from "@react-three/fiber";
 import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import { type Group, MathUtils, type Mesh, Quaternion, Vector3 } from "three";
 
-import {
-	useLibraryBooks,
-	useBookStore,
-	useSelectedBook,
-} from "../../stores/useBookStore";
+import { useLibraryBooks, useSelectedBook } from "../../stores/useBookStore";
 import { useTourStore } from "../../stores/useTourStore";
 import OpenBook from "../openbook/OpenBook";
 import Bookshelves, { shelfBookPose } from "../shelves/Bookshelves";
@@ -136,11 +132,15 @@ function TourBook({
 	);
 }
 
-export default function TourScene() {
+export default function TourScene({
+	onBookEdit,
+}: {
+	onBookEdit?: (id: string, position: { x: number; y: number }) => void;
+}) {
 	const stage = useTourStore((state) => state.stage);
 	const runId = useTourStore((state) => state.runId);
 	const paused = useTourStore((state) => state.paused);
-	const selectBook = useBookStore((state) => state.selectBook);
+	const previewBook = useTourStore((state) => state.previewBook);
 	const blurredBookIds = useTourStore((state) => state.blurredBookIds);
 	const toggleBookBlur = useTourStore((state) => state.toggleBookBlur);
 	const returningBookId = useTourStore((state) => state.returningBookId);
@@ -160,15 +160,8 @@ export default function TourScene() {
 				<ShelfBackdrop>
 					<Bookshelves
 						onBookSelect={
-							stage === "library" ||
-							stage === "pick" ||
-							stage === "end" ||
-							stage === "read"
-								? (id) => {
-										selectBook(id);
-										if (stage === "library")
-											useTourStore.getState().enter("pick");
-									}
+							stage === "library" || stage === "pick" || stage === "end"
+								? previewBook
 								: undefined
 						}
 						hiddenBookId={
@@ -177,6 +170,7 @@ export default function TourScene() {
 								: undefined
 						}
 						returningBookId={returningBookId}
+						onBookEdit={onBookEdit}
 					/>
 				</ShelfBackdrop>
 			)}

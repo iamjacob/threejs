@@ -2,7 +2,10 @@ import { type ThreeEvent, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import { MathUtils, Vector3 } from "three";
 import { useShelfControlsStore } from "../../../stores/useShelfControlsStore";
-import { createBookDragGesture } from "../../lib/shelfDrag";
+import {
+	createBookDragGesture,
+	expandShelfSelection,
+} from "../../lib/shelfDrag";
 import { useBookStore } from "../../stores/useBookStore";
 import {
 	arrangedBookPose,
@@ -11,6 +14,7 @@ import {
 } from "./shelfArrangement";
 import {
 	createShelfDragProjector,
+	createShelfStackTargeter,
 	shelfDropForPoint,
 	shelfFloorY,
 } from "./shelfDragGeometry";
@@ -25,6 +29,10 @@ export function useShelfBookDrag(enabled: boolean, placements: ArrangedBook[]) {
 		anchor: Vector3;
 		bottomY: number;
 		project: ReturnType<typeof createShelfDragProjector>;
+		stackTarget: ReturnType<typeof createShelfStackTargeter>;
+		placements: ArrangedBook[];
+		minX: number;
+		maxX: number;
 		release: () => void;
 	} | null>(null);
 	const gesture = useMemo(
@@ -42,20 +50,29 @@ export function useShelfBookDrag(enabled: boolean, placements: ArrangedBook[]) {
 					if (!context || !state.drag) return;
 					const delta = context.project(pointer);
 					if (!delta) return;
-					const x = MathUtils.clamp(context.anchor.x + delta.x, -1.95, 1.95);
+					const x = MathUtils.clamp(
+						context.anchor.x + delta.x,
+						context.minX,
+						context.maxX,
+					);
 					const bottomY = MathUtils.clamp(
 						context.bottomY + delta.y,
 						shelfFloorY(0),
-						shelfFloorY(3),
+						shelfFloorY(3) + 1.5,
 					);
-					const drop = shelfDropForPoint(
-						currentPlacements.current,
-						state.drag.ids,
-						x,
-						bottomY,
+					const drop =
+						context.stackTarget(pointer) ??
+						shelfDropForPoint(context.placements, state.drag.ids, x, bottomY);
+					// Pull the book toward the viewer while it travels across the arc.
+					// The extra depth is eased and bounded by the shelf's usable radius,
+					// which makes a drag feel like removing a book from the shelf.
+					const pull = MathUtils.clamp(
+						0.18 + Math.hypot(delta.x, delta.y) * 0.42,
+						0.18,
+						0.9,
 					);
 					state.updateBookDrag(
-						[x - context.anchor.x, bottomY - context.bottomY + 0.06, 0.2],
+						[x - context.anchor.x, bottomY - context.bottomY + 0.06, pull],
 						drop,
 					);
 				},
@@ -142,11 +159,16 @@ export function useShelfBookDrag(enabled: boolean, placements: ArrangedBook[]) {
 			if (!placement || !gesture.start(event.nativeEvent)) return;
 			event.stopPropagation();
 			const anchor = new Vector3(...arrangedBookPose(placement).position);
-			const stack = placement.stackId
-				? currentPlacements.current.filter(
-						(entry) => entry.stackId === placement.stackId,
-					)
-				: [placement];
+			const state = useShelfControlsStore.getState();
+			const ids = expandShelfSelection(
+				state.document,
+				state.selectedIds.includes(id) ? state.selectedIds : [id],
+			);
+			const moving = currentPlacements.current.filter((entry) =>
+				ids.includes(entry.book.id),
+			);
+			const libraryBounds = arrangedBooksBounds(currentPlacements.current);
+			const rect = gl.domElement.getBoundingClientRect();
 			// R3F supplies a capture proxy on target; its base DOM event type omits it.
 			const capture = event.target as EventTarget &
 				Pick<
@@ -157,10 +179,19 @@ export function useShelfBookDrag(enabled: boolean, placements: ArrangedBook[]) {
 				id,
 				pointerId: event.pointerId,
 				anchor,
-				bottomY: arrangedBooksBounds(stack).min.y,
+				bottomY: arrangedBooksBounds(moving).min.y,
+				placements: currentPlacements.current,
+				minX: Math.min(-1.95, libraryBounds.min.x - 0.5),
+				maxX: Math.max(1.95, libraryBounds.max.x + 0.5),
+				stackTarget: createShelfStackTargeter(
+					camera,
+					rect,
+					currentPlacements.current,
+					ids,
+				),
 				project: createShelfDragProjector(
 					camera,
-					gl.domElement.getBoundingClientRect(),
+					rect,
 					anchor,
 					event.nativeEvent,
 				),

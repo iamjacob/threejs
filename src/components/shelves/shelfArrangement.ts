@@ -29,7 +29,6 @@ export function arrangeShelfBooks(
 		ids: string[];
 		stackId?: string;
 		width: number;
-		fit: number;
 	}[][] = [[], [], [], []];
 	const widthOf = (id: string) => {
 		const book = catalog.get(id)!;
@@ -52,49 +51,29 @@ export function arrangeShelfBooks(
 		const width = stack
 			? Math.max(...ids.map((bookId) => catalog.get(bookId)!.dimensions[1]))
 			: widthOf(id);
-		const singleBook = catalog.get(id)!;
-		const singleItem = document.items[id];
-		const singleTilt = (singleItem.angle * Math.PI) / 180;
-		const singleHeight =
-			singleItem.layout === "flat"
-				? singleBook.dimensions[2]
-				: Math.abs(singleBook.dimensions[1] * Math.cos(singleTilt)) +
-					Math.abs(
-						singleBook.dimensions[singleItem.face === "spine" ? 2 : 0] *
-							Math.sin(singleTilt),
-					);
-		const height = stack
-			? ids.reduce(
-					(sum, bookId) => sum + catalog.get(bookId)!.dimensions[2],
-					0,
-				) +
-				(ids.length - 1) * 0.012
-			: singleHeight;
-		const fit = Math.min(1, (stack ? 0.84 : 0.9) / height);
 		rows[document.items[id].shelf].push({
 			ids,
 			stackId: stack?.id,
-			width: width * fit,
-			fit,
+			width,
 		});
 	}
 	return rows.flatMap((row, shelfIndex) => {
 		const fullWidth =
 			row.reduce((sum, unit) => sum + unit.width, 0) +
 			Math.max(0, row.length - 1) * document.spacing;
-		const scale = Math.min(1, capacity / Math.max(fullWidth, 0.001));
-		const width = fullWidth * scale;
+		// Arrangement never changes a book's physical dimensions.
+		const width = fullWidth;
+		const availableWidth = Math.max(capacity, width);
 		let cursor =
 			document.alignment === "left"
-				? -capacity / 2
+				? -availableWidth / 2
 				: document.alignment === "right"
-					? capacity / 2 - width
+					? availableWidth / 2 - width
 					: -width / 2;
 		return row.flatMap((unit) => {
-			const center = cursor + (unit.width * scale) / 2;
-			cursor += (unit.width + document.spacing) * scale;
+			const center = cursor + unit.width / 2;
+			cursor += unit.width + document.spacing;
 			const angle = -center / radius;
-			const bookScale = scale * unit.fit;
 			const base = new Quaternion().setFromEuler(
 				new Euler(0, angle - Math.PI / 2, 0),
 			);
@@ -119,7 +98,8 @@ export function arrangeShelfBooks(
 								new Euler(0, Math.PI / 2 + (alternate ? Math.PI : 0), 0),
 							)
 							.multiply(
-								new Quaternion().setFromEuler(new Euler(Math.PI / 2, 0, 0)),
+								// Lay the front cover upward so spine lettering reads upright.
+								new Quaternion().setFromEuler(new Euler(-Math.PI / 2, 0, 0)),
 							)
 					: new Quaternion()
 							.setFromEuler(new Euler(0, 0, -tilt))
@@ -142,13 +122,14 @@ export function arrangeShelfBooks(
 				const y =
 					(shelfIndex - 1) * SHELF_SPACING +
 					SHELF_THICKNESS +
-					(elevation + height / 2) * bookScale;
+					elevation +
+					height / 2;
 				if (stack) elevation += height + 0.012;
 				return {
 					book,
 					shelfIndex,
 					stackId: stack?.id,
-					scale: bookScale,
+					scale: 1,
 					position: [
 						Math.cos(angle) * radius,
 						y,

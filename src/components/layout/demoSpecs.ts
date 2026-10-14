@@ -134,7 +134,7 @@ export const DEMO_SPECS: Record<SpecsId, DemoSpecs> = {
 		values: [
 			[
 				"Collection",
-				"Books with front, back and spine images and dimensions in blockchain/data.json.",
+				"Books with front, back and spine images and dimensions in books.json.",
 			],
 			[
 				"Scale",

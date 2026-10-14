@@ -5,24 +5,25 @@ import {
 	ArrowDownUp,
 	Check,
 	ChevronDown,
+	ChevronLeft,
 	ChevronRight,
 	ChevronUp,
-	Rotate3D,
+	CopyCheck,
+	Cuboid,
 	GripVertical,
 	Group,
+	ImagePlus,
 	Layers3,
 	LibraryBig,
+	ListOrdered,
 	Plus,
 	Redo2,
 	RotateCcw,
 	RotateCw,
-	CopyCheck,
 	Search,
-	SlidersHorizontal,
 	Trash2,
 	Undo2,
 	UserRound,
-	Cuboid,
 	X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -30,16 +31,17 @@ import {
 	type ShelfLayout,
 	useShelfControlsStore,
 } from "../../../stores/useShelfControlsStore";
-import { useBookStore, useLibraryBooks } from "../../stores/useBookStore";
 import { bookImagePath } from "../../lib/bookImages";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
-import { useTourStore } from "../../stores/useTourStore";
+import { SHOW_PICTURE_FRAME } from "../../lib/featureFlags";
+import { useBookStore, useLibraryBooks } from "../../stores/useBookStore";
 import {
 	BookFaceIcon,
 	BookGroupIcon,
 	LayoutIcon,
 	ShelfButton,
 	ShelfRange,
+	TurnBookIcon,
 } from "./ShelfKit";
 import "./shelf-controls.css";
 
@@ -66,49 +68,23 @@ export default function ShelfControls() {
 		future,
 	} = state;
 	const [picker, setPicker] = useState<"select" | "add" | null>(null);
+	const [tool, setTool] = useState<"rotate" | "move" | "more" | "stack" | null>(
+		null,
+	);
 	const [groupName, setGroupName] = useState("");
 	const [draggedId, setDraggedId] = useState<string | null>(null);
 	const stack = shelf.stacks.find((entry) => entry.id === activeStackId);
 	const first = shelf.items[selectedIds[0]];
-	const canChangeFace =
-		selectedIds.length > 0 &&
-		!stack &&
-		selectedIds.every((id) => shelf.items[id]?.layout !== "flat");
+	const canChangeFace = selectedIds.length > 0 && !stack;
 	const selectedGroup = shelf.groups.find(
 		(group) =>
 			group.bookIds.length === selectedIds.length &&
 			group.bookIds.every((id) => selectedIds.includes(id)),
 	);
 	const angle = first?.angle ?? 0;
-	const zoomLabel =
-		state.zoomMode === "library"
-			? "All"
-			: state.zoomMode === "shelf"
-				? "Shelf"
-				: "Book";
-	const nextZoomLabel =
-		state.zoomMode === "book"
-			? "Shelf"
-			: state.zoomMode === "shelf"
-				? "All"
-				: "Book";
 	const layout = stack ? "stack" : first?.layout;
 	const mixedLayout =
 		!stack && selectedIds.some((id) => shelf.items[id]?.layout !== layout);
-	const title = stack
-		? `Stack · ${stack.bookIds.length} books`
-		: multiSelect
-			? `${selectedIds.length} selected`
-			: selectedGroup
-				? `${selectedGroup.name} · ${selectedGroup.bookIds.length}`
-				: selectedIds.length === 1
-					? titleOf(selectedIds[0])
-					: `My library · ${shelf.order.length}`;
-	const close = () => {
-		state.endInteraction();
-		state.setEditing(false);
-		useTourStore.setState({ paused: true });
-	};
 	useEffect(() => {
 		const keydown = (event: KeyboardEvent) => {
 			const element = event.target as HTMLElement;
@@ -129,24 +105,27 @@ export default function ShelfControls() {
 					current.endBookDrag(false);
 					return;
 				}
-				if (current.multiSelect) current.setMultiSelect(false);
-				else if (current.panel === "settings" || current.panel === "group")
+				if (current.panel === "settings" || current.panel === "group") {
 					current.setPanel(current.activeStackId ? "stack" : "arrange");
+					setTool(null);
+				} else if (tool) {
+					setTool(null);
+					current.endInteraction();
+				} else if (current.multiSelect) current.setMultiSelect(false);
 				else current.selectBooks([]);
 			}
 		};
 		window.addEventListener("keydown", keydown);
 		return () => window.removeEventListener("keydown", keydown);
-	}, [picker]);
+	}, [picker, tool]);
 	const rangeProps = {
 		onStart: state.beginInteraction,
 		onEnd: state.endInteraction,
 	};
-	const showStacks = () => {
-		if (stack) state.setPanel(panel === "stack" ? "arrange" : "stack");
-		else if (selectedIds.length > 1) state.createStack();
-		else if (shelf.stacks[0]) state.selectStack(shelf.stacks[0].id);
-		else state.setMultiSelect(true);
+	const toggleTool = (next: typeof tool) => {
+		state.endInteraction();
+		state.setPanel(stack ? "stack" : "arrange");
+		setTool(tool === next ? null : next);
 	};
 	const reorder = (targetId: string) => {
 		if (!draggedId || !stack || draggedId === targetId) return;
@@ -165,41 +144,16 @@ export default function ShelfControls() {
 			data-dragging={Boolean(state.drag)}
 		>
 			<header className="shelf-editor-header">
-				<button
-					type="button"
-					className="shelf-pill shelf-library-button"
-					disabled={Boolean(state.drag)}
-					onClick={() => setPicker("select")}
-					aria-haspopup="dialog"
-					aria-label={`Choose books: ${title}`}
-				>
-					<span>{title}</span>
-					{stack ? <ChevronRight size={18} /> : <ChevronDown size={18} />}
-				</button>
 				<ShelfButton
 					label="Close shelf editor"
-					onClick={close}
-					className="shelf-pill"
+					onClick={() => {
+						state.endInteraction();
+						state.setEditing(false);
+					}}
 				>
-					<X size={22} />
+					<X />
 				</ShelfButton>
 			</header>
-			<button
-				type="button"
-				className="shelf-pill shelf-zoom-button"
-				disabled={Boolean(state.drag)}
-				onClick={state.cycleZoom}
-				aria-label={`Zoom: ${zoomLabel}. Tap for ${nextZoomLabel}.`}
-				title={`Zoom: ${zoomLabel} → ${nextZoomLabel}`}
-			>
-				<Layers3 size={17} /> <span>{zoomLabel}</span>
-				<span className="shelf-zoom-steps" aria-hidden="true">
-					{["book", "shelf", "library"].map((mode) => (
-						<i key={mode} data-active={state.zoomMode === mode} />
-					))}
-				</span>
-			</button>
-
 			<div className="shelf-dock" inert={Boolean(state.drag)}>
 				{(multiSelect || selectedIds.length !== 1) && (
 					<div className="shelf-selection-caption">
@@ -222,471 +176,512 @@ export default function ShelfControls() {
 					</div>
 				)}
 
-				{panel === "stack" && stack ? (
-					<>
-						<ol
-							className="shelf-stack-list shelf-glass"
-							aria-label="Stack order, top to bottom"
-						>
-							{[...stack.bookIds].reverse().map((id, index) => (
-								<li
-									key={id}
-									draggable
-									onDragStart={(event) => {
-										setDraggedId(id);
-										event.dataTransfer.effectAllowed = "move";
-										event.dataTransfer.setData("text/plain", id);
-									}}
-									onDragEnd={() => setDraggedId(null)}
-									onDragOver={(event) => event.preventDefault()}
-									onDrop={(event) => {
+				{(tool || panel === "settings" || panel === "group") && (
+					<div className="shelf-tool-panel">
+						{panel === "stack" && stack && tool === "stack" ? (
+							<>
+								<ol
+									className="shelf-stack-list shelf-glass"
+									aria-label="Stack order, top to bottom"
+								>
+									{[...stack.bookIds].reverse().map((id, index) => (
+										<li
+											key={id}
+											draggable
+											onDragStart={(event) => {
+												setDraggedId(id);
+												event.dataTransfer.effectAllowed = "move";
+												event.dataTransfer.setData("text/plain", id);
+											}}
+											onDragEnd={() => setDraggedId(null)}
+											onDragOver={(event) => event.preventDefault()}
+											onDrop={(event) => {
+												event.preventDefault();
+												reorder(id);
+											}}
+											className={draggedId === id ? "is-dragging" : ""}
+										>
+											<GripVertical
+												size={16}
+												className="shelf-grip"
+												aria-hidden="true"
+											/>
+											<span className="shelf-stack-number">
+												{stack.bookIds.length - index}
+											</span>
+											<span className="shelf-stack-title" title={titleOf(id)}>
+												{titleOf(id)}
+											</span>
+											<ShelfButton
+												label={`Move ${titleOf(id)} up`}
+												disabled={index === 0}
+												onClick={() => state.moveInStack(id, "up")}
+											>
+												<ChevronUp size={21} />
+											</ShelfButton>
+											<ShelfButton
+												label={`Move ${titleOf(id)} down`}
+												disabled={index === stack.bookIds.length - 1}
+												onClick={() => state.moveInStack(id, "down")}
+											>
+												<ChevronDown size={21} />
+											</ShelfButton>
+										</li>
+									))}
+								</ol>
+								<div className="shelf-pill shelf-toggle-row">
+									<span id="alternate-spines-label">Alternate spines</span>
+									<button
+										type="button"
+										className="shelf-switch"
+										role="switch"
+										aria-checked={stack.alternateSpines}
+										aria-labelledby="alternate-spines-label"
+										onClick={state.toggleAlternateSpines}
+									>
+										<span />
+									</button>
+								</div>
+								<div className="shelf-action-row">
+									<button
+										type="button"
+										className="shelf-primary"
+										onClick={() => setPicker("add")}
+										disabled={shelf.order.every((id) =>
+											stack.bookIds.includes(id),
+										)}
+									>
+										<Plus size={20} /> Add on top
+									</button>
+									<button
+										type="button"
+										className="shelf-pill shelf-text-button"
+										onClick={state.unstack}
+									>
+										Unstack
+									</button>
+								</div>
+							</>
+						) : panel === "group" ? (
+							<div className="shelf-glass shelf-panel">
+								<div className="shelf-panel-title">
+									<h2>Bring books together</h2>
+									<ShelfButton
+										label="Close grouping"
+										onClick={() => state.setPanel(stack ? "stack" : "arrange")}
+									>
+										<X size={18} />
+									</ShelfButton>
+								</div>
+								<div className="shelf-menu-options">
+									<button
+										type="button"
+										onClick={() => state.groupBy("author", books)}
+									>
+										<UserRound size={18} />
+										<span>Group by author</span>
+										<ChevronRight size={17} />
+									</button>
+									<button
+										type="button"
+										onClick={() => state.groupBy("height", books)}
+									>
+										<ArrowDownUp size={18} />
+										<span>Sort by height</span>
+										<ChevronRight size={17} />
+									</button>
+									<button
+										type="button"
+										onClick={() => state.groupBy("none", books)}
+										disabled={!shelf.groups.length}
+									>
+										<Group size={18} />
+										<span>Clear groups</span>
+									</button>
+								</div>
+								<form
+									className="shelf-group-form"
+									onSubmit={(event) => {
 										event.preventDefault();
-										reorder(id);
+										state.groupSelection(groupName);
+										setGroupName("");
 									}}
-									className={draggedId === id ? "is-dragging" : ""}
 								>
-									<GripVertical
-										size={16}
-										className="shelf-grip"
-										aria-hidden="true"
+									<label htmlFor="shelf-group-name">
+										Name your selection · {selectedIds.length} books
+									</label>
+									<div>
+										<input
+											id="shelf-group-name"
+											value={groupName}
+											onChange={(event) => setGroupName(event.target.value)}
+											placeholder="e.g. Sunday reading"
+											maxLength={40}
+										/>
+										<button
+											type="submit"
+											disabled={selectedIds.length < 2 || !groupName.trim()}
+											aria-label="Create named group"
+										>
+											<Plus size={20} />
+										</button>
+									</div>
+								</form>
+								{selectedGroup && (
+									<button
+										type="button"
+										className="shelf-subtle-button"
+										onClick={state.ungroup}
+									>
+										Ungroup {selectedGroup.name}
+									</button>
+								)}
+							</div>
+						) : panel === "settings" ? (
+							<div className="shelf-glass shelf-panel">
+								<div className="shelf-panel-title">
+									<h2>A little fine-tuning</h2>
+									<ShelfButton
+										label="Close settings"
+										onClick={() => state.setPanel(stack ? "stack" : "arrange")}
+									>
+										<X size={18} />
+									</ShelfButton>
+								</div>
+								<div className="shelf-setting">
+									<span>View</span>
+									<div className="shelf-small-segment">
+										{(
+											[
+												["front", "Front"],
+												["threeQuarter", "3/4"],
+												["top", "Above"],
+											] as const
+										).map(([value, label]) => (
+											<button
+												key={value}
+												type="button"
+												aria-pressed={state.shelfView === value}
+												onClick={() => state.setShelfView(value)}
+											>
+												{label}
+											</button>
+										))}
+									</div>
+								</div>
+								<div className="shelf-setting">
+									<span>Facing</span>
+									<div className="shelf-small-segment">
+										{(["cover", "spine", "back"] as const).map((face) => (
+											<button
+												key={face}
+												type="button"
+												disabled={!canChangeFace}
+												aria-pressed={first?.face === face}
+												onClick={() => state.setFace(face)}
+											>
+												{face}
+											</button>
+										))}
+									</div>
+								</div>
+								<div className="shelf-setting">
+									<span>Align</span>
+									<div className="shelf-small-segment">
+										{(
+											[
+												{ value: "left", icon: AlignLeft },
+												{ value: "center", icon: AlignCenter },
+												{ value: "right", icon: AlignRight },
+											] as const
+										).map(({ value, icon: Icon }) => (
+											<ShelfButton
+												key={value}
+												label={`Align ${value}`}
+												active={shelf.alignment === value}
+												onClick={() => state.setAlignment(value)}
+											>
+												<Icon size={19} />
+											</ShelfButton>
+										))}
+									</div>
+								</div>
+								<label className="shelf-setting shelf-spacing">
+									<span>
+										Spacing <output>{Math.round(shelf.spacing * 100)}%</output>
+									</span>
+									<ShelfRange
+										label="Book spacing"
+										value={shelf.spacing}
+										min={0.03}
+										max={0.3}
+										step={0.01}
+										onChange={state.setSpacing}
+										{...rangeProps}
 									/>
-									<span className="shelf-stack-number">
-										{stack.bookIds.length - index}
-									</span>
-									<span className="shelf-stack-title" title={titleOf(id)}>
-										{titleOf(id)}
-									</span>
-									<ShelfButton
-										label={`Move ${titleOf(id)} up`}
-										disabled={index === 0}
-										onClick={() => state.moveInStack(id, "up")}
+								</label>
+								<div className="shelf-setting">
+									<label htmlFor="move-to-shelf">Move to shelf</label>
+									<select
+										id="move-to-shelf"
+										value={first?.shelf ?? 3}
+										disabled={!selectedIds.length}
+										onChange={(event) =>
+											state.moveToShelf(Number(event.target.value))
+										}
 									>
-										<ChevronUp size={21} />
-									</ShelfButton>
-									<ShelfButton
-										label={`Move ${titleOf(id)} down`}
-										disabled={index === stack.bookIds.length - 1}
-										onClick={() => state.moveInStack(id, "down")}
-									>
-										<ChevronDown size={21} />
-									</ShelfButton>
-								</li>
-							))}
-						</ol>
-						<div className="shelf-pill shelf-toggle-row">
-							<span id="alternate-spines-label">Alternate spines</span>
-							<button
-								type="button"
-								className="shelf-switch"
-								role="switch"
-								aria-checked={stack.alternateSpines}
-								aria-labelledby="alternate-spines-label"
-								onClick={state.toggleAlternateSpines}
-							>
-								<span />
-							</button>
-						</div>
-						<div className="shelf-action-row">
-							<button
-								type="button"
-								className="shelf-primary"
-								onClick={() => setPicker("add")}
-								disabled={shelf.order.every((id) => stack.bookIds.includes(id))}
-							>
-								<Plus size={20} /> Add on top
-							</button>
-							<button
-								type="button"
-								className="shelf-pill shelf-text-button"
-								onClick={state.unstack}
-							>
-								Unstack
-							</button>
-						</div>
-					</>
-				) : panel === "group" ? (
-					<div className="shelf-glass shelf-panel">
-						<div className="shelf-panel-title">
-							<h2>Bring books together</h2>
-							<ShelfButton
-								label="Close grouping"
-								onClick={() => state.setPanel(stack ? "stack" : "arrange")}
-							>
-								<X size={18} />
-							</ShelfButton>
-						</div>
-						<div className="shelf-menu-options">
-							<button
-								type="button"
-								onClick={() => state.groupBy("author", books)}
-							>
-								<UserRound size={18} />
-								<span>Group by author</span>
-								<ChevronRight size={17} />
-							</button>
-							<button
-								type="button"
-								onClick={() => state.groupBy("height", books)}
-							>
-								<ArrowDownUp size={18} />
-								<span>Sort by height</span>
-								<ChevronRight size={17} />
-							</button>
-							<button
-								type="button"
-								onClick={() => state.groupBy("none", books)}
-								disabled={!shelf.groups.length}
-							>
-								<Group size={18} />
-								<span>Clear groups</span>
-							</button>
-						</div>
-						<form
-							className="shelf-group-form"
-							onSubmit={(event) => {
-								event.preventDefault();
-								state.groupSelection(groupName);
-								setGroupName("");
-							}}
-						>
-							<label htmlFor="shelf-group-name">
-								Name your selection · {selectedIds.length} books
-							</label>
-							<div>
-								<input
-									id="shelf-group-name"
-									value={groupName}
-									onChange={(event) => setGroupName(event.target.value)}
-									placeholder="e.g. Sunday reading"
-									maxLength={40}
-								/>
+										{[3, 2, 1, 0].map((shelf) => (
+											<option key={shelf} value={shelf}>
+												{4 - shelf}
+												{shelf === 3
+													? " · Top"
+													: shelf === 0
+														? " · Bottom"
+														: ""}
+											</option>
+										))}
+									</select>
+								</div>
 								<button
-									type="submit"
-									disabled={selectedIds.length < 2 || !groupName.trim()}
-									aria-label="Create named group"
+									type="button"
+									className="shelf-subtle-button"
+									onClick={() => state.reset(books)}
 								>
-									<Plus size={20} />
+									<RotateCcw size={16} /> Restore original arrangement
 								</button>
 							</div>
-						</form>
-						{selectedGroup && (
-							<button
-								type="button"
-								className="shelf-subtle-button"
-								onClick={state.ungroup}
-							>
-								Ungroup {selectedGroup.name}
-							</button>
-						)}
-					</div>
-				) : panel === "settings" ? (
-					<div className="shelf-glass shelf-panel">
-						<div className="shelf-panel-title">
-							<h2>A little fine-tuning</h2>
-							<ShelfButton
-								label="Close settings"
-								onClick={() => state.setPanel(stack ? "stack" : "arrange")}
-							>
-								<X size={18} />
-							</ShelfButton>
-						</div>
-						<div className="shelf-setting">
-							<span>View</span>
-							<div className="shelf-small-segment">
-								{(
-									[
-										["front", "Front"],
-										["threeQuarter", "3/4"],
-										["top", "Above"],
-									] as const
-								).map(([value, label]) => (
-									<button
-										key={value}
-										type="button"
-										aria-pressed={state.shelfView === value}
-										onClick={() => state.setShelfView(value)}
-									>
-										{label}
-									</button>
-								))}
-							</div>
-						</div>
-						<div className="shelf-setting">
-							<span>Facing</span>
-							<div className="shelf-small-segment">
-								{(["cover", "spine", "back"] as const).map((face) => (
-									<button
-										key={face}
-										type="button"
-										disabled={!canChangeFace}
-										aria-pressed={first?.face === face}
-										onClick={() => state.setFace(face)}
-									>
-										{face}
-									</button>
-								))}
-							</div>
-						</div>
-						<div className="shelf-setting">
-							<span>Align</span>
-							<div className="shelf-small-segment">
-								{(
-									[
-										{ value: "left", icon: AlignLeft },
-										{ value: "center", icon: AlignCenter },
-										{ value: "right", icon: AlignRight },
-									] as const
-								).map(({ value, icon: Icon }) => (
-									<ShelfButton
-										key={value}
-										label={`Align ${value}`}
-										active={shelf.alignment === value}
-										onClick={() => state.setAlignment(value)}
-									>
-										<Icon size={19} />
-									</ShelfButton>
-								))}
-							</div>
-						</div>
-						<label className="shelf-setting shelf-spacing">
-							<span>
-								Spacing <output>{Math.round(shelf.spacing * 100)}%</output>
-							</span>
-							<ShelfRange
-								label="Book spacing"
-								value={shelf.spacing}
-								min={0.03}
-								max={0.3}
-								step={0.01}
-								onChange={state.setSpacing}
-								{...rangeProps}
-							/>
-						</label>
-						<div className="shelf-setting">
-							<label htmlFor="move-to-shelf">Move to shelf</label>
-							<select
-								id="move-to-shelf"
-								value={first?.shelf ?? 3}
-								disabled={!selectedIds.length}
-								onChange={(event) =>
-									state.moveToShelf(Number(event.target.value))
-								}
-							>
-								{[3, 2, 1, 0].map((shelf) => (
-									<option key={shelf} value={shelf}>
-										{4 - shelf}
-										{shelf === 3 ? " · Top" : shelf === 0 ? " · Bottom" : ""}
-									</option>
-								))}
-							</select>
-						</div>
-						<button
-							type="button"
-							className="shelf-subtle-button"
-							onClick={() => state.reset(books)}
-						>
-							<RotateCcw size={16} /> Restore original arrangement
-						</button>
-					</div>
-				) : (
-					<>
-						<div className="shelf-layout-row">
-							<span className="shelf-pill shelf-layout-label">Layout</span>
+						) : tool === "move" ? (
 							<div
-								className="shelf-pill shelf-layout-options"
+								className="shelf-direction-pad"
 								role="group"
-								aria-label="Book layout"
+								aria-label="Move selected books"
 							>
-								{layouts.map(({ value, label }) => (
+								<ShelfButton
+									label="Move left"
+									disabled={!selectedIds.length}
+									onClick={() => state.nudgeSelection("left")}
+								>
+									<ChevronLeft />
+								</ShelfButton>
+								<ShelfButton
+									label="Move down one shelf"
+									disabled={!first || first.shelf === 0}
+									onClick={() => state.nudgeSelection("down")}
+								>
+									<ChevronDown />
+								</ShelfButton>
+								<ShelfButton
+									label="Move up one shelf"
+									disabled={!first || first.shelf === 3}
+									onClick={() => state.nudgeSelection("up")}
+								>
+									<ChevronUp />
+								</ShelfButton>
+								<ShelfButton
+									label="Move right"
+									disabled={!selectedIds.length}
+									onClick={() => state.nudgeSelection("right")}
+								>
+									<ChevronRight />
+								</ShelfButton>
+							</div>
+						) : tool === "rotate" ? (
+							<div
+								className="shelf-rotation-row"
+								role="group"
+								aria-label="Book tilt"
+							>
+								<ShelfButton
+									label="Rotate left 5 degrees"
+									disabled={
+										!selectedIds.length || Boolean(stack) || angle <= -45
+									}
+									onClick={() => state.stepAngle(-5)}
+								>
+									<RotateCcw />
+								</ShelfButton>
+								<div className="shelf-pill shelf-angle-slider">
+									<ShelfRange
+										label="Book tilt"
+										disabled={!selectedIds.length || Boolean(stack)}
+										min={-45}
+										max={45}
+										value={angle}
+										onChange={state.setAngle}
+										{...rangeProps}
+									/>
+									<output>{angle}°</output>
+								</div>
+								<ShelfButton
+									label="Rotate right 5 degrees"
+									disabled={
+										!selectedIds.length || Boolean(stack) || angle >= 45
+									}
+									onClick={() => state.stepAngle(5)}
+								>
+									<RotateCw />
+								</ShelfButton>
+							</div>
+						) : tool === "more" ? (
+							<div className="shelf-more-tools">
+								<div
+									className="shelf-layout-options"
+									role="group"
+									aria-label="Book layout"
+								>
+									{layouts.map(({ value, label }) => (
+										<ShelfButton
+											key={value}
+											label={`${label} layout`}
+											active={!mixedLayout && layout === value}
+											disabled={
+												!selectedIds.length ||
+												((value === "stack" || value === "fan") &&
+													selectedIds.length < 2)
+											}
+											onClick={() => state.setLayout(value)}
+										>
+											<LayoutIcon layout={value} />
+										</ShelfButton>
+									))}
+								</div>
+								<div
+									className="shelf-toolbar"
+									role="group"
+									aria-label="More book tools"
+								>
 									<ShelfButton
-										key={value}
-										label={`${label} layout`}
-										active={!mixedLayout && layout === value}
-										disabled={
-											!selectedIds.length ||
-											((value === "stack" || value === "fan") &&
-												selectedIds.length < 2)
-										}
-										onClick={() => state.setLayout(value)}
+										label="Select multiple books"
+										active={multiSelect}
+										onClick={() => state.setMultiSelect(!multiSelect)}
 									>
-										<LayoutIcon layout={value} />
+										<CopyCheck />
 									</ShelfButton>
-								))}
+									<ShelfButton
+										label="Group books"
+										onClick={() => state.setPanel("group")}
+									>
+										<BookGroupIcon />
+									</ShelfButton>
+									{stack ? (
+										<ShelfButton
+											label="Edit stack order"
+											onClick={() => toggleTool("stack")}
+										>
+											<ListOrdered />
+										</ShelfButton>
+									) : (
+										<ShelfButton
+											label="Cycle cover, spine and back"
+											disabled={!canChangeFace}
+											onClick={() =>
+												state.setFace(
+													first?.face === "cover"
+														? "spine"
+														: first?.face === "spine"
+															? "back"
+															: "cover",
+												)
+											}
+										>
+											<BookFaceIcon face={first?.face ?? "cover"} />
+										</ShelfButton>
+									)}
+									<ShelfButton
+										label="Change shelf view"
+										active={state.shelfView !== "front"}
+										onClick={() =>
+											state.setShelfView(
+												state.shelfView === "front"
+													? "threeQuarter"
+													: state.shelfView === "threeQuarter"
+														? "top"
+														: "front",
+											)
+										}
+									>
+										<Cuboid />
+									</ShelfButton>
+									<ShelfButton
+										label={
+											stack
+												? "Remove stack from shelf"
+												: "Remove selected books from shelf"
+										}
+										disabled={!selectedIds.length}
+										onClick={state.removeSelection}
+									>
+										<Trash2 />
+									</ShelfButton>
+								</div>
+								{stack && (
+									<div
+										className="shelf-toolbar"
+										role="group"
+										aria-label="Stack tools"
+									>
+										<ShelfButton
+											label="Add book on top"
+											disabled={shelf.order.every((id) =>
+												stack.bookIds.includes(id),
+											)}
+											onClick={() => setPicker("add")}
+										>
+											<Plus />
+										</ShelfButton>
+										<ShelfButton
+											label="Reverse stack order"
+											onClick={state.reverseStack}
+										>
+											<ArrowDownUp />
+										</ShelfButton>
+										<ShelfButton
+											label="Alternate spines"
+											active={stack.alternateSpines}
+											onClick={state.toggleAlternateSpines}
+										>
+											<TurnBookIcon />
+										</ShelfButton>
+									</div>
+								)}
 							</div>
-						</div>
-						<div className="shelf-rotation-row">
-							<ShelfButton
-								label="Rotate left 5 degrees"
-								className="shelf-pill"
-								disabled={!selectedIds.length || Boolean(stack)}
-								onClick={() => state.stepAngle(-5)}
-							>
-								<RotateCcw size={21} />
-							</ShelfButton>
-							<div className="shelf-pill shelf-angle-slider">
-								<ShelfRange
-									label="Book tilt"
-									disabled={!selectedIds.length || Boolean(stack)}
-									min={-45}
-									max={45}
-									value={angle}
-									onChange={state.setAngle}
-									{...rangeProps}
-								/>
-								<output>{angle}°</output>
-							</div>
-							<ShelfButton
-								label="Rotate right 5 degrees"
-								className="shelf-pill"
-								disabled={!selectedIds.length || Boolean(stack)}
-								onClick={() => state.stepAngle(5)}
-							>
-								<RotateCw size={21} />
-							</ShelfButton>
-							<ShelfButton
-								label="Flip book facing"
-								className="shelf-pill"
-								disabled={!selectedIds.length}
-								onClick={() =>
-									stack
-										? state.flipStack()
-										: state.setFace(first?.face === "back" ? "cover" : "back")
-								}
-							>
-								<Rotate3D size={19} />
-							</ShelfButton>
-						</div>
-					</>
+						) : null}
+					</div>
 				)}
 
-				{panel === "stack" && stack ? (
-					<nav className="shelf-pill shelf-toolbar" aria-label="Stack tools">
-						<ShelfButton
-							label="Undo"
-							disabled={!past.length}
-							onClick={state.undo}
-						>
-							<Undo2 size={21} />
-						</ShelfButton>
-						<ShelfButton
-							label="Flip stack"
-							active={stack.flipped}
-							onClick={state.flipStack}
-						>
-							<Rotate3D size={19} />
-						</ShelfButton>
-						<ShelfButton label="Stand books upright" onClick={state.unstack}>
-							<LayoutIcon layout="upright" />
-						</ShelfButton>
-						<ShelfButton
-							label="Reverse stack order"
-							onClick={state.reverseStack}
-						>
-							<ArrowDownUp size={21} />
-						</ShelfButton>
-						<ShelfButton
-							label="Stack settings"
-							onClick={() => state.setPanel("settings")}
-						>
-							<SlidersHorizontal size={20} />
-						</ShelfButton>
-						<ShelfButton
-							label="Remove stack from shelf"
-							className="shelf-danger"
-							onClick={state.removeSelection}
-						>
-							<Trash2 size={20} />
-						</ShelfButton>
-					</nav>
-				) : (
-					<nav
-						className="shelf-pill shelf-toolbar"
-						aria-label="Arrangement tools"
+				<nav
+					className="shelf-toolbar shelf-main-tools"
+					aria-label="Arrangement tools"
+				>
+					<ShelfButton
+						label="Show front cover"
+						active={first?.face === "cover"}
+						disabled={!canChangeFace}
+						onClick={() => state.setFace("cover")}
 					>
-						<ShelfButton
-							label="Select multiple books"
-							active={multiSelect}
-							onClick={() => state.setMultiSelect(!multiSelect)}
-						>
-							<CopyCheck size={19} />
-						</ShelfButton>
-						<ShelfButton
-							label="Cycle cover, spine and back"
-							disabled={!canChangeFace}
-							active={first?.face === "spine"}
-							onClick={() =>
-								state.setFace(
-									first?.face === "cover"
-										? "spine"
-										: first?.face === "spine"
-											? "back"
-											: "cover",
-								)
-							}
-						>
-							<BookFaceIcon face={first?.face ?? "cover"} />
-						</ShelfButton>
-						<ShelfButton
-							label={
-								selectedIds.length > 1 && !stack
-									? "Stack selected books"
-									: "Edit a stack"
-							}
-							active={Boolean(stack)}
-							onClick={showStacks}
-						>
-							<LayoutIcon layout="stack" />
-						</ShelfButton>
-						<ShelfButton
-							label="Group books"
-							active={panel === "group"}
-							onClick={() =>
-								state.setPanel(panel === "group" ? "arrange" : "group")
-							}
-						>
-							<BookGroupIcon />
-						</ShelfButton>
-						<ShelfButton
-							label="Change shelf view"
-							active={state.shelfView !== "front"}
-							onClick={() =>
-								state.setShelfView(
-									state.shelfView === "front"
-										? "threeQuarter"
-										: state.shelfView === "threeQuarter"
-											? "top"
-											: "front",
-								)
-							}
-						>
-							<Cuboid size={19} />
-						</ShelfButton>
-						<ShelfButton
-							label="Shelf settings"
-							active={panel === "settings"}
-							onClick={() =>
-								state.setPanel(
-									panel === "settings"
-										? stack
-											? "stack"
-											: "arrange"
-										: "settings",
-								)
-							}
-						>
-							<SlidersHorizontal size={20} />
-						</ShelfButton>
-					</nav>
-				)}
+						<BookFaceIcon face="cover" />
+					</ShelfButton>
+					<ShelfButton
+						label="Show spine"
+						active={first?.face === "spine"}
+						disabled={!canChangeFace}
+						onClick={() => state.setFace("spine")}
+					>
+						<BookFaceIcon face="spine" />
+					</ShelfButton>
+					<ShelfButton
+						label="Lay book down"
+						active={layout === "flat"}
+						disabled={!selectedIds.length}
+						onClick={() => state.setLayout("flat")}
+					>
+						<LayoutIcon layout="flat" />
+					</ShelfButton>
+				</nav>
 				<div className="shelf-history-row">
 					<button type="button" disabled={!past.length} onClick={state.undo}>
 						<Undo2 size={14} /> Undo
 					</button>
-					<span>
-						{multiSelect
-							? `${selectedIds.length} selected`
-							: "Drag books to arrange"}
-					</span>
 					<button type="button" disabled={!future.length} onClick={state.redo}>
 						Redo <Redo2 size={14} />
 					</button>
@@ -771,6 +766,15 @@ function BookPicker({
 			</label>
 			{mode === "select" && !search && (
 				<div className="shelf-picker-collections">
+					{SHOW_PICTURE_FRAME && <button
+						type="button"
+						onClick={() => {
+							state.togglePictureFrame();
+							onClose();
+						}}
+					>
+						<ImagePlus size={17} /> Picture frame
+					</button>}
 					<button
 						type="button"
 						onClick={() => {

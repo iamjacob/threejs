@@ -40,6 +40,7 @@ type ShelfControlsState = Snapshot & {
 	future: Snapshot[];
 	interaction: Snapshot | null;
 	message: string;
+	pictureFrameVisible: boolean;
 	initialize: (books: ShelfBook[]) => void;
 	insertBook: (id: string) => void;
 	setEditing: (editing: boolean) => void;
@@ -58,6 +59,7 @@ type ShelfControlsState = Snapshot & {
 	setSpacing: (spacing: number) => void;
 	setAlignment: (alignment: ShelfDocument["alignment"]) => void;
 	moveToShelf: (shelf: number) => void;
+	nudgeSelection: (direction: "left" | "right" | "up" | "down") => void;
 	createStack: () => void;
 	moveInStack: (id: string, direction: "up" | "down") => void;
 	addToStack: (id: string) => void;
@@ -67,6 +69,7 @@ type ShelfControlsState = Snapshot & {
 	unstack: () => void;
 	groupSelection: (name: string) => void;
 	ungroup: () => void;
+	togglePictureFrame: () => void;
 	groupBy: (by: ShelfGroupBy, books: ShelfBook[]) => void;
 	removeSelection: () => void;
 	beginInteraction: () => void;
@@ -165,7 +168,7 @@ export const useShelfControlsStore = create<ShelfControlsState>((set, get) => {
 				selectedIds: ids, activeStackId: stack?.id ?? null,
 				panel: stack ? "stack" : "arrange",
 				viewRevision: state.viewRevision + 1,
-				message: "Drag to a position or another shelf. Escape cancels.",
+				message: "Drag onto a book to stack, or into a gap to move. Escape cancels.",
 			});
 		},
 		updateBookDrag: (offset, drop) => {
@@ -178,7 +181,11 @@ export const useShelfControlsStore = create<ShelfControlsState>((set, get) => {
 			if (!drag) return;
 			set({ drag: null });
 			const next = save && drag.moved ? moveShelfBooks(document, drag.ids, drag.drop) : document;
-			if (next !== document) commit(next, `Moved to shelf ${drag.drop.shelf + 1}.`);
+			if (next !== document) {
+				const stack = drag.drop.stackOnId ? next.stacks.find((entry) => entry.bookIds.includes(drag.drop.stackOnId!)) : null;
+				commit(next, stack ? "Added on top of the stack." : `Moved to shelf ${4 - drag.drop.shelf}.`, stack ? { selectedIds: [...stack.bookIds], activeStackId: stack.id } : {});
+				if (stack) set({ panel: "stack" });
+			}
 			else set({ message: save ? "Book placed." : "Move canceled." });
 		},
 		viewRevision: 0,
@@ -186,6 +193,9 @@ export const useShelfControlsStore = create<ShelfControlsState>((set, get) => {
 		future: [],
 		interaction: null,
 		message: "Select a book to make it your own.",
+		pictureFrameVisible: false,
+		togglePictureFrame: () =>
+			set((state) => ({ pictureFrameVisible: !state.pictureFrameVisible })),
 		initialize: (books) => {
 			if (get().initialized) return;
 			const document = createShelfDocument(books);
@@ -351,6 +361,37 @@ export const useShelfControlsStore = create<ShelfControlsState>((set, get) => {
 				{ shelf: Math.round(clamp(shelf, 0, 3)) },
 				`Moved to shelf ${4 - Math.round(clamp(shelf, 0, 3))}.`,
 			),
+		nudgeSelection: (direction) => {
+			const { document, selectedIds } = get();
+			const ids = expandShelfSelection(document, selectedIds);
+			if (!ids.length) return;
+			const shelf = document.items[ids[0]].shelf;
+			let drop: ShelfDrop;
+			if (direction === "up" || direction === "down") {
+				const target = shelf + (direction === "up" ? 1 : -1);
+				if (target < 0 || target > 3) return;
+				drop = { shelf: target, beforeId: null };
+			} else {
+				if (ids.some((id) => document.items[id].shelf !== shelf)) return;
+				const seen = new Set<string>();
+				const units: string[][] = [];
+				for (const id of document.order) {
+					if (seen.has(id) || document.items[id].shelf !== shelf) continue;
+					const unit = document.stacks.find((stack) => stack.bookIds.includes(id))?.bookIds ?? [id];
+					unit.forEach((bookId) => seen.add(bookId));
+					units.push(unit);
+				}
+				const selected = units.flatMap((unit, index) => unit.some((id) => ids.includes(id)) ? [index] : []);
+				const edge = direction === "left" ? selected[0] : selected[selected.length - 1];
+				if (direction === "left" ? edge === 0 : edge === units.length - 1) return;
+				drop = { shelf, beforeId: direction === "left" ? units[edge - 1][0] : units[edge + 2]?.[0] ?? null };
+			}
+			const next = moveShelfBooks(document, ids, drop);
+			if (next !== document) {
+				commit(next, `Moved ${direction}.`);
+				set({ viewRevision: get().viewRevision + 1 });
+			}
+		},
 		createStack: () => {
 			const { document, selectedIds } = get();
 			if (selectedIds.length < 2) return;

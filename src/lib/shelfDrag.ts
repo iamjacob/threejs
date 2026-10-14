@@ -1,6 +1,11 @@
 import type { ShelfDocument } from "./shelfModel";
 
-export type ShelfDrop = { shelf: number; beforeId: string | null };
+export type ShelfDrop = {
+	shelf: number;
+	beforeId: string | null;
+	/** Drop onto this book (or its complete stack), rather than beside it. */
+	stackOnId?: string;
+};
 export type ShelfDrag = {
 	id: string;
 	ids: string[];
@@ -26,6 +31,7 @@ export function moveShelfBooks(
 	if (!Number.isFinite(drop.shelf)) return document;
 	const moving = expandShelfSelection(document, ids);
 	if (!moving.length) return document;
+	if (drop.stackOnId) return stackShelfBooks(document, moving, drop.stackOnId);
 	const shelf = Math.max(0, Math.min(3, Math.round(drop.shelf)));
 	const rest = document.order.filter((id) => !moving.includes(id));
 	const targetStack = document.stacks.find((stack) =>
@@ -60,6 +66,61 @@ export function moveShelfBooks(
 	const items = { ...document.items };
 	for (const id of moving) items[id] = { ...items[id], shelf };
 	return { ...document, items, order };
+}
+
+/** Keep the receiver at the bottom and append moving stacks in physical order. */
+function stackShelfBooks(
+	document: ShelfDocument,
+	moving: string[],
+	targetId: string,
+): ShelfDocument {
+	if (!document.items[targetId] || moving.includes(targetId)) return document;
+	const target = document.stacks.find((stack) =>
+		stack.bookIds.includes(targetId),
+	);
+	const baseIds = target?.bookIds ?? [targetId];
+	if (baseIds.some((id) => moving.includes(id))) return document;
+	const movedIds: string[] = [];
+	const seen = new Set<string>();
+	for (const id of moving) {
+		if (seen.has(id)) continue;
+		const unit = document.stacks.find((stack) => stack.bookIds.includes(id))
+			?.bookIds ?? [id];
+		for (const bookId of unit) {
+			seen.add(bookId);
+			movedIds.push(bookId);
+		}
+	}
+	const bookIds = [...baseIds, ...movedIds];
+	const shelf = document.items[targetId].shelf;
+	const items = { ...document.items };
+	for (const id of bookIds)
+		items[id] = { ...items[id], shelf, layout: "flat", angle: 0 };
+	const stack = target
+		? { ...target, bookIds }
+		: {
+				id: `drop-stack-${targetId}`,
+				bookIds,
+				alternateSpines: false,
+				flipped: document.items[targetId].face === "back",
+			};
+	const rest = document.order.filter((id) => !moving.includes(id));
+	const targetIndex = rest.findIndex((id) => baseIds.includes(id));
+	const order = rest.filter((id) => !baseIds.includes(id));
+	order.splice(targetIndex, 0, ...bookIds);
+	return {
+		...document,
+		items,
+		order,
+		stacks: [
+			...document.stacks.filter(
+				(entry) =>
+					entry.id !== target?.id &&
+					!entry.bookIds.some((id) => moving.includes(id)),
+			),
+			stack,
+		],
+	};
 }
 
 type DragPointer = { pointerId: number; clientX: number; clientY: number };

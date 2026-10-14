@@ -33,9 +33,9 @@ export function LayoutIcon({ layout }: { layout: ShelfLayout }) {
 	const paths: Record<ShelfLayout, ReactNode> = {
 		upright: (
 			<>
-				<rect x="4" y="4" width="3" height="16" rx=".7" />
-				<rect x="10" y="5" width="3" height="15" rx=".7" />
-				<path d="m16 5 3-.5L22 19l-3 .5Z" />
+				<rect x="5" y="3" width="6" height="16" rx="1.5" />
+				<rect x="15" y="10" width="5" height="9" rx="1.5" />
+				<path d="M3 22h19" />
 			</>
 		),
 		lean: (
@@ -52,9 +52,9 @@ export function LayoutIcon({ layout }: { layout: ShelfLayout }) {
 		),
 		stack: (
 			<>
-				<rect x="5" y="3" width="14" height="4" rx=".7" />
-				<rect x="3" y="10" width="17" height="4" rx=".7" />
-				<rect x="4" y="17" width="16" height="4" rx=".7" />
+				<rect x="7" y="3" width="10" height="6" rx="1.5" />
+				<rect x="5" y="13" width="14" height="6" rx="1.5" />
+				<path d="M3 22h19" />
 			</>
 		),
 		fan: (
@@ -92,6 +92,25 @@ export function LayoutIcon({ layout }: { layout: ShelfLayout }) {
 			aria-hidden="true"
 		>
 			{paths[layout]}
+		</svg>
+	);
+}
+
+export function TurnBookIcon() {
+	return (
+		<svg
+			width="24"
+			height="24"
+			viewBox="0 0 24 24"
+			fill="none"
+			stroke="currentColor"
+			strokeWidth="1.8"
+			strokeLinecap="round"
+			strokeLinejoin="round"
+			aria-hidden="true"
+		>
+			<path d="M8 16c-3-.6-5-2-5-4 0-2.8 4-5 9-5s9 2.2 9 5c0 1.8-1.8 3.4-4.5 4.2" />
+			<path d="m7 12 4 4-4 4" />
 		</svg>
 	);
 }

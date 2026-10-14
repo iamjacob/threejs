@@ -18,7 +18,7 @@ import { useShelfControlsStore as store } from "../stores/useShelfControlsStore.
 const books = getShelfBooks(
 	JSON.parse(
 		readFileSync(
-			new URL("../public/blockchain/data.json", import.meta.url),
+			new URL("../public/books.json", import.meta.url),
 			"utf8",
 		),
 	),
@@ -151,6 +151,30 @@ test("flat books and spine-facing tilted books stay grounded", () => {
 	}
 });
 
+test("flat books rest cover-up with spines facing out, including flipped and alternating stacks", () => {
+	const verify = (placement, facingOut) => {
+		const rotation = new Quaternion().setFromEuler(new Euler(...placement.rotation));
+		const cover = new Vector3(0, 0, 1).applyQuaternion(rotation);
+		closeTo(cover.y, 1, "Front cover points upward");
+		const spine = new Vector3(-1, 0, 0).applyQuaternion(rotation);
+		const outward = new Vector3(...placement.position).setY(0).normalize().negate();
+		closeTo(spine.dot(outward), facingOut ? 1 : -1, "Spine faces the expected side");
+	};
+	state().selectStack("business-stack");
+	for (const flipped of [false, true]) {
+		for (const alternate of [false, true]) {
+			stack().bookIds.forEach((id, index) => {
+				verify(placements().find((item) => item.book.id === id), !(flipped !== (alternate && index % 2 === 1)));
+			});
+			state().toggleAlternateSpines();
+		}
+		state().flipStack();
+	}
+	state().selectBook(idOf("Shaolin spirit"));
+	state().setLayout("flat");
+	verify(placements().find((item) => item.book.id === idOf("Shaolin spirit")), true);
+});
+
 test("stack arrows reorder the actual 3D heights, enforce endpoints, and undo", () => {
 	state().selectStack("business-stack");
 	const empowered = idOf("Empowered");
@@ -235,6 +259,35 @@ test("a continuous slider gesture is a single undo step", () => {
 	assert.equal(state().document.items[state().selectedIds[0]].angle, 40);
 });
 
+test("direction buttons move whole stacks, respect shelf boundaries, and support undo and redo", () => {
+	state().selectStack("business-stack");
+	const original = state().document;
+	const originalOrder = [...stack().bookIds];
+	const row = () => state().document.order.filter((id) => state().document.items[id].shelf === 1);
+	state().nudgeSelection("left");
+	assert.equal(state().past.length, 0, "Leftmost stack stays in place");
+	state().nudgeSelection("right");
+	assert.equal(row()[0], idOf("Four Thousand Weeks"));
+	assert.deepEqual(stack().bookIds, originalOrder);
+	assert.equal(state().past.length, 1);
+	const moved = state().document;
+	state().undo();
+	assert.deepEqual(state().document, original);
+	state().redo();
+	assert.deepEqual(state().document, moved);
+	state().nudgeSelection("left");
+	assert.ok(originalOrder.includes(row()[0]));
+	state().nudgeSelection("up");
+	for (const id of originalOrder) assert.equal(state().document.items[id].shelf, 2);
+	state().nudgeSelection("up");
+	const history = state().past.length;
+	state().nudgeSelection("up");
+	assert.equal(state().past.length, history, "Top shelf is a no-op");
+	state().nudgeSelection("down");
+	for (const id of originalOrder) assert.equal(state().document.items[id].shelf, 2);
+	validateDocument();
+});
+
 test("grouping keeps books addressable, sorting handles multiple authors, and ungrouping retains books", () => {
 	state().selectBooks([
 		idOf("Discipline is Destiny"),
@@ -301,14 +354,18 @@ test("world poses match the parent shelf transform used by the reading transitio
 	}
 });
 
-test("a full-library stack fits below the next shelf, with every member still grounded in the pile", () => {
+test("even a tall stack keeps every book at its original size and thickness", () => {
 	state().selectBooks(state().document.order);
 	state().createStack();
 	validateDocument();
 	const result = placements();
 	const totalBounds = new Box3();
 	for (const item of result) totalBounds.union(bounds(item));
-	assert.ok(totalBounds.max.y - totalBounds.min.y <= 0.84 + 1e-7);
+	for (const item of result) {
+		assert.equal(item.scale, 1);
+		closeTo(bounds(item).max.y - bounds(item).min.y, item.book.dimensions[2], "Original thickness");
+	}
+	closeTo(totalBounds.max.y - totalBounds.min.y, books.reduce((sum, book) => sum + book.dimensions[2], 0) + (books.length - 1) * 0.012, "Full-size stack height");
 	const bottom = result.find((entry) => entry.book.id === stack().bookIds[0]);
 	closeTo(
 		totalBounds.min.y,
@@ -317,15 +374,27 @@ test("a full-library stack fits below the next shelf, with every member still gr
 	);
 });
 
-test("fanning a large selection keeps angles inside the controls' range and books below the shelf above", () => {
+test("fanning a crowded shelf preserves physical size and keeps angles in range", () => {
 	state().selectBooks(state().document.order);
 	state().setLayout("fan");
 	for (const item of placements()) {
 		assert.ok(Math.abs(state().document.items[item.book.id].angle) <= 30);
-		const box = bounds(item);
-		assert.ok(box.max.y - box.min.y <= 0.9 + 1e-7);
+		assert.equal(item.scale, 1);
 	}
 	validateDocument();
+});
+
+test("layout, spacing, facing, and shelf changes never shrink any book", () => {
+	state().selectBooks(state().document.order);
+	state().moveToShelf(0);
+	for (const layout of ["upright", "flat", "lean", "fan", "stack", "upright"]) {
+		state().setLayout(layout);
+		state().setSpacing(0.3);
+		for (const face of ["cover", "spine", "back"]) {
+			state().setFace(face);
+			for (const placement of placements()) assert.equal(placement.scale, 1, `${layout}/${face}: ${placement.book.title}`);
+		}
+	}
 });
 
 test("opening a book editor clears multi-selection and requests a fresh camera focus", () => {

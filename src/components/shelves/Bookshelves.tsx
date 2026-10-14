@@ -1,11 +1,11 @@
-import { RotateCcw } from "lucide-react";
-import { Edges, Html, Line } from "@react-three/drei";
+import { Html, Line } from "@react-three/drei";
 import {
 	type ThreeEvent,
 	useFrame,
 	useLoader,
 	useThree,
 } from "@react-three/fiber";
+import { Unlink } from "lucide-react";
 import {
 	Suspense,
 	startTransition,
@@ -15,46 +15,47 @@ import {
 	useState,
 } from "react";
 import {
+	Euler,
+	type Group,
 	LoadingManager,
 	type Mesh,
-	type Group,
-	Euler,
 	Quaternion,
 	SRGBColorSpace,
 	TextureLoader,
 	Vector3,
 } from "three";
 import { useShelfControlsStore } from "../../../stores/useShelfControlsStore";
-import { createBookLongPress, vibrateBookEdit } from "../../lib/bookLongPress";
-import { useBookStore } from "../../stores/useBookStore";
-import { useTourStore } from "../../stores/useTourStore";
-import { moveShelfBooks } from "../../lib/shelfDrag";
-import { useShelfBookDrag } from "./useShelfBookDrag";
-
 import {
 	type BookImageLevel,
 	bookImageHeight,
 	bookImagePath,
 } from "../../lib/bookImages";
+import { createBookLongPress, vibrateBookEdit } from "../../lib/bookLongPress";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
+import { SHOW_PICTURE_FRAME } from "../../lib/featureFlags";
+import { moveShelfBooks } from "../../lib/shelfDrag";
+import { useBookStore } from "../../stores/useBookStore";
+import { useTourStore } from "../../stores/useTourStore";
 import { BOOK_MATERIAL } from "../book/bookAppearance";
 import { getBookTextureUrls } from "../book/bookTextures";
 import type { BookPose } from "../tour/tourStages";
 import CollectionBlur from "./CollectionBlur";
-import {
-	arrangeShelfBooks,
-	arrangedBookPose,
-	arrangedBooksBounds,
-	type ArrangedBook,
-} from "./shelfArrangement";
+import PictureFrame from "./PictureFrame";
 import { progressionConfig } from "./progressionConfig";
 import ShelfBookDissolve from "./ShelfBookDissolve";
 import Shelves from "./Shelves";
+import {
+	type ArrangedBook,
+	arrangedBookPose,
+	arrangedBooksBounds,
+	arrangeShelfBooks,
+} from "./shelfArrangement";
 import {
 	BOOKS_SHELF_LEVEL,
 	layoutShelfBooks,
 	type ShelfBook,
 } from "./shelfBooks";
+import { useShelfBookDrag } from "./useShelfBookDrag";
 
 // Initial covers participate in the loader; later LOD upgrades stay in the background.
 const shelfTextureLoader = new TextureLoader();
@@ -88,7 +89,7 @@ function CollectionBook({
 }: {
 	book: ShelfBook;
 	onSelect?: (id: string, pose: BookPose) => void;
-	onEdit?: (id: string) => void;
+	onEdit?: (id: string, position: { x: number; y: number }) => void;
 	dragControls?: ReturnType<typeof useShelfBookDrag>;
 	blurred: boolean;
 	deleteStartedAt?: number;
@@ -101,9 +102,12 @@ function CollectionBook({
 	editCallback.current = onEdit;
 	const longPress = useMemo(
 		() =>
-			createBookLongPress(() => {
+			createBookLongPress((pointer) => {
 				if (!editCallback.current) return;
-				editCallback.current(book.id);
+				editCallback.current(book.id, {
+					x: pointer.clientX,
+					y: pointer.clientY,
+				});
 				vibrateBookEdit();
 			}),
 		[book.id],
@@ -299,6 +303,7 @@ function CollectionBook({
 
 export default function Bookshelves({
 	onBookSelect,
+	onBookEdit,
 	hiddenBookId,
 	returningBookId,
 	blurredBookIds = [],
@@ -307,6 +312,7 @@ export default function Bookshelves({
 	onDeleteComplete,
 }: {
 	onBookSelect?: (id: string, pose: BookPose) => void;
+	onBookEdit?: (id: string, position: { x: number; y: number }) => void;
 	hiddenBookId?: string;
 	returningBookId?: string | null;
 	blurredBookIds?: string[];
@@ -320,8 +326,9 @@ export default function Bookshelves({
 	const document = useShelfControlsStore((state) => state.document);
 	const initialized = useShelfControlsStore((state) => state.initialized);
 	const editing = useShelfControlsStore((state) => state.editing);
-	const selectedIds = useShelfControlsStore((state) => state.selectedIds);
-	const activeStackId = useShelfControlsStore((state) => state.activeStackId);
+	const pictureFrameVisible = useShelfControlsStore(
+		(state) => state.pictureFrameVisible,
+	);
 	const selectBook = useShelfControlsStore((state) => state.selectBook);
 	const placements = useMemo(
 		() =>
@@ -345,24 +352,41 @@ export default function Bookshelves({
 				: placements,
 		[document, shelfBooks, drag?.ids, drag?.drop, drag?.moved, placements],
 	);
-	const preview = drag
-		? dropPlacements.map((entry) =>
-				drag.ids.includes(entry.book.id)
-					? (placements.find(
-							(original) => original.book.id === entry.book.id,
-						) ?? entry)
-					: entry,
-			)
-		: placements;
-	const visible = preview.filter(
+	// Keep receivers still while dragging so the drop target does not move away.
+	const visible = placements.filter(
 		({ book }) =>
 			book.id !== hiddenBookId &&
 			book.id !== returningBookId &&
 			!hiddenBookIds.includes(book.id),
 	);
+	const stackTarget = drag?.drop.stackOnId
+		? placements.find((entry) => entry.book.id === drag.drop.stackOnId)
+		: undefined;
+	const targetPreview = stackTarget
+		? dropPlacements.find((entry) => entry.book.id === stackTarget.book.id)
+		: undefined;
+	const dropPreview = drag
+		? dropPlacements
+				.filter((entry) => drag.ids.includes(entry.book.id))
+				.map((entry) =>
+					stackTarget && targetPreview
+						? {
+								...entry,
+								position: entry.position.map(
+									(value, axis) =>
+										value +
+										stackTarget.position[axis] -
+										targetPreview.position[axis],
+								) as [number, number, number],
+							}
+						: entry,
+				)
+		: [];
+
 	return (
 		<>
 			<Shelves fixedLevel={BOOKS_SHELF_LEVEL}>
+				{SHOW_PICTURE_FRAME && pictureFrameVisible && <PictureFrame />}
 				{blurredBookIds.length > 0 && (
 					<CollectionBlur
 						placements={visible.filter(({ book }) =>
@@ -376,14 +400,20 @@ export default function Bookshelves({
 							<CollectionBook
 								book={placement.book}
 								dragControls={editing && canEdit ? dragControls : undefined}
-								onSelect={editing ? (id) => selectBook(id) : onBookSelect}
+								onSelect={
+									editing
+										? (id) => {
+												selectBook(id);
+												useBookStore.getState().selectBook(id);
+											}
+										: onBookSelect
+								}
 								onEdit={
 									canEdit
-										? (id) => {
-												useBookStore.getState().selectBook(id);
-												useTourStore.setState({ paused: true });
-												useShelfControlsStore.getState().openBookEditor(id);
-											}
+										? (id, position) =>
+												onBookEdit?.(id, position) ??
+												(useTourStore.getState().previewBook(id),
+												useShelfControlsStore.getState().openBookEditor(id))
 										: undefined
 								}
 								blurred={blurredBookIds.includes(placement.book.id)}
@@ -391,36 +421,15 @@ export default function Bookshelves({
 								onDeleteComplete={onDeleteComplete}
 							/>
 						</Suspense>
-						{editing &&
-							selectedIds.includes(placement.book.id) &&
-							(!activeStackId || drag) && (
-								<mesh raycast={() => null}>
-									<boxGeometry
-										args={
-											placement.book.dimensions.map(
-												(value) => value + 0.035,
-											) as [number, number, number]
-										}
-									/>
-									<meshBasicMaterial visible={false} />
-									<Edges
-										color="#ff2636"
-										lineWidth={2}
-										threshold={15}
-										raycast={() => null}
-									/>
-								</mesh>
-							)}
 					</AnimatedPlacement>
 				))}
 			</Shelves>
 			{editing && !drag && <ShelfAnnotations placements={visible} />}
 			{drag?.moved && (
 				<ShelfDropPreview
-					placements={dropPlacements.filter((entry) =>
-						drag.ids.includes(entry.book.id),
-					)}
+					placements={dropPreview}
 					shelf={drag.drop.shelf}
+					stacking={Boolean(stackTarget)}
 				/>
 			)}
 		</>
@@ -440,7 +449,6 @@ function AnimatedPlacement({
 		() => ({
 			position: new Vector3(...placement.position),
 			rotation: new Quaternion().setFromEuler(new Euler(...placement.rotation)),
-			scale: new Vector3().setScalar(placement.scale),
 		}),
 		[placement],
 	);
@@ -465,14 +473,12 @@ function AnimatedPlacement({
 			: 1 - Math.exp(-Math.min(delta, 0.1) * (moving ? 24 : 12));
 		ref.current.position.lerp(dragPosition, speed);
 		ref.current.quaternion.slerp(target.rotation, speed);
-		ref.current.scale.lerp(target.scale, speed);
 	});
 	return (
 		<group
 			ref={ref}
 			position={initial.position}
 			rotation={initial.rotation}
-			scale={initial.scale}
 			userData={{
 				shelfIndex: placement.shelfIndex,
 				bookId: placement.book.id,
@@ -487,9 +493,11 @@ function AnimatedPlacement({
 function ShelfDropPreview({
 	placements,
 	shelf,
+	stacking,
 }: {
 	placements: ArrangedBook[];
 	shelf: number;
+	stacking: boolean;
 }) {
 	const box = arrangedBooksBounds(placements).expandByScalar(0.025);
 	if (box.isEmpty()) return null;
@@ -518,7 +526,9 @@ function ShelfDropPreview({
 				zIndexRange={[100, 0]}
 			>
 				<span className="shelf-drop-label">
-					Shelf {shelf + 1} · Release to place
+					{stacking
+						? "Release to stack on top"
+						: `Shelf ${4 - shelf} · Release to place`}
 				</span>
 			</Html>
 		</group>
@@ -526,12 +536,11 @@ function ShelfDropPreview({
 }
 
 function ShelfAnnotations({ placements }: { placements: ArrangedBook[] }) {
-	const { document, selectedIds, activeStackId, selectGroup, setAngle } =
+	const { document, selectedIds, activeStackId, selectGroup } =
 		useShelfControlsStore();
 	const selected = placements.filter(({ book }) =>
 		selectedIds.includes(book.id),
 	);
-	const single = selected.length === 1 && !activeStackId ? selected[0] : null;
 	const groups = document.groups.flatMap((group) =>
 		[0, 1, 2, 3]
 			.map((shelf) => ({
@@ -557,20 +566,40 @@ function ShelfAnnotations({ placements }: { placements: ArrangedBook[] }) {
 			{groups.map((group) => {
 				const box = arrangedBooksBounds(group.placements).expandByScalar(0.06);
 				const z = box.max.z + 0.025;
-				const points: [number, number, number][] = [
-					[box.min.x, box.min.y, z],
-					[box.min.x, box.max.y, z],
-					[box.max.x, box.max.y, z],
-					[box.max.x, box.min.y, z],
-					[box.min.x, box.min.y, z],
+				const radius = Math.min(
+					0.12,
+					(box.max.x - box.min.x) / 2,
+					(box.max.y - box.min.y) / 2,
+				);
+				const corners = [
+					{ x: box.min.x + radius, y: box.min.y + radius, start: Math.PI },
+					{
+						x: box.max.x - radius,
+						y: box.min.y + radius,
+						start: Math.PI * 1.5,
+					},
+					{ x: box.max.x - radius, y: box.max.y - radius, start: 0 },
+					{ x: box.min.x + radius, y: box.max.y - radius, start: Math.PI / 2 },
 				];
+				const points: [number, number, number][] = corners.flatMap(
+					({ x, y, start }) =>
+						Array.from({ length: 5 }, (_, index) => {
+							const angle = start + (Math.PI / 2) * (index / 4);
+							return [
+								x + Math.cos(angle) * radius,
+								y + Math.sin(angle) * radius,
+								z,
+							] as [number, number, number];
+						}),
+				);
+				points.push(points[0]);
 				const stack = group.id === activeStackId;
 				return (
 					<group key={group.key}>
 						<Line
 							points={points}
-							color={stack ? "#ff2636" : "#b7bac9"}
-							lineWidth={stack ? 2.5 : 1}
+							color={stack ? "#f5d6a0" : "#b7bac9"}
+							lineWidth={stack ? 1.5 : 1}
 							dashed={!stack}
 							dashSize={0.025}
 							gapSize={0.016}
@@ -581,46 +610,33 @@ function ShelfAnnotations({ placements }: { placements: ArrangedBook[] }) {
 								position={[box.min.x + 0.08, box.max.y, z]}
 								zIndexRange={[100, 0]}
 							>
-								<button
-									type="button"
-									className="shelf-group-label"
-									onClick={() => selectGroup(group.id)}
-								>
-									{group.name} · {group.bookIds.length}
-								</button>
+								<div className="shelf-group-label">
+									<button
+										type="button"
+										className="shelf-group-select"
+										onClick={() => selectGroup(group.id)}
+									>
+										{group.name} · {group.bookIds.length}
+									</button>
+									<button
+										type="button"
+										className="shelf-group-detach"
+										aria-label={`Detach ${group.name}`}
+										title="Detach books"
+										onClick={(event) => {
+											event.stopPropagation();
+											selectGroup(group.id);
+											useShelfControlsStore.getState().ungroup();
+										}}
+									>
+										<Unlink size={12} aria-hidden="true" />
+									</button>
+								</div>
 							</Html>
 						)}
 					</group>
 				);
 			})}
-			{single &&
-				(() => {
-					const box = arrangedBooksBounds([single]);
-					const angle = document.items[single.book.id]?.angle ?? 0;
-					return (
-						<Html
-							position={[
-								(box.min.x + box.max.x) / 2,
-								box.max.y + 0.08,
-								box.max.z,
-							]}
-							center
-							zIndexRange={[110, 0]}
-						>
-							<div className="shelf-angle-handle">
-								<span>{angle}°</span>
-								<button
-									type="button"
-									aria-label="Reset selected book angle"
-									title="Reset angle"
-									onClick={() => setAngle(0)}
-								>
-									<RotateCcw size={15} strokeWidth={1.7} />
-								</button>
-							</div>
-						</Html>
-					);
-				})()}
 		</>
 	);
 }

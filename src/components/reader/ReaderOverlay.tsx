@@ -39,8 +39,8 @@ export default function ReaderOverlay() {
 				const focusTarget =
 					previousFocus?.isConnected && previousFocus !== document.body
 						? previousFocus
-						: document.querySelector<HTMLButtonElement>(
-								'nav[aria-label="Demo timeline"] [aria-current="step"]',
+						: document.querySelector<HTMLElement>(
+								'[data-book-read], #library-book-picker, nav[aria-label="Demo timeline"] [aria-current="step"]',
 							);
 				focusTarget?.focus({ preventScroll: true });
 			});

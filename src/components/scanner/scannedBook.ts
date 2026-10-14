@@ -54,6 +54,7 @@ export async function scannedBook(scan: BookScan): Promise<LibraryBook> {
 		title,
 		author: "",
 		pages: 180,
+		readDate: new Date().toISOString().slice(0, 10),
 		demoPages: 120,
 		cover,
 		textureUrls: getBookTextureUrls(cover),

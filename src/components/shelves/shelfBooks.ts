@@ -13,6 +13,7 @@ export type ShelfBook = {
 	pages: number;
 	epub?: string;
 	pdf?: string;
+	readDate?: string;
 	cover: { front: string; back: string; spine: string };
 	dimensions: [number, number, number];
 };
@@ -20,7 +21,7 @@ export type ShelfBook = {
 export function getShelfBooks(entries: unknown[]): ShelfBook[] {
 	return entries.flatMap((entry) => {
 		if (!entry || typeof entry !== "object") return [];
-		const { title, isbn, author, pages, epub, pdf, coverImage, size } =
+		const { title, isbn, author, pages, epub, pdf, readDate, coverImage, size } =
 			entry as {
 				title?: string;
 				isbn?: string;
@@ -28,6 +29,7 @@ export function getShelfBooks(entries: unknown[]): ShelfBook[] {
 				pages?: number;
 				epub?: string;
 				pdf?: string;
+				readDate?: string;
 				coverImage?: ShelfBook["cover"][];
 				size?: { width: number; height: number; thickness: number };
 			};
@@ -52,6 +54,7 @@ export function getShelfBooks(entries: unknown[]): ShelfBook[] {
 				pages: typeof pages === "number" && pages > 0 ? Math.trunc(pages) : 120,
 				epub,
 				pdf,
+				readDate,
 				cover,
 				dimensions: [
 					size.width / CENTIMETERS_PER_WORLD_UNIT,

@@ -1,8 +1,7 @@
-import { useShelfControlsStore } from "../../../stores/useShelfControlsStore";
 import { useProgress } from "@react-three/drei";
 import {
-	ArrowUpRight,
 	ArrowLeft,
+	ArrowUpRight,
 	BookOpen,
 	ChevronRight,
 	Eye,
@@ -17,14 +16,15 @@ import {
 } from "lucide-react";
 import { type ReactNode, useEffect, useRef } from "react";
 import { useParticleStore } from "../../../stores/useParticleStore";
+import { useShelfControlsStore } from "../../../stores/useShelfControlsStore";
 
 import { useLibraryBooks, useSelectedBook } from "../../stores/useBookStore";
 import { useTourStore } from "../../stores/useTourStore";
 import MarkLoader from "../layout/MarkLoader";
 import BookPageSwiper from "../openbook/BookPageSwiper";
-import ReaderOverlay from "../reader/ReaderOverlay";
 
 const SHOW_TOUR_TEXT = false;
+
 import { requestReaderFullscreen } from "../reader/readerFullscreen";
 import ShakeToRead from "../reader/ShakeToRead";
 import ControlHint from "./ControlHint";
@@ -243,7 +243,9 @@ export default function TourOverlay() {
 							requestReaderFullscreen();
 							openReader();
 						}}
-						disabled={loading || reader !== "closed"}
+						disabled={
+							loading || reader !== "closed" || (!book.epub && !book.pdf)
+						}
 						hint={
 							usedHints.includes("drag") && showHint("reader")
 								? "Press here"
@@ -372,7 +374,6 @@ export default function TourOverlay() {
 			</aside>
 			<MarkLoader />
 			<Timeline />
-			{reader === "open" && <ReaderOverlay />}
 		</>
 	);
 }

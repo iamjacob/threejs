@@ -1,4 +1,3 @@
-import { useShelfControlsStore } from "../../../stores/useShelfControlsStore";
 import { OrbitControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
@@ -9,20 +8,21 @@ import {
 	useRef,
 } from "react";
 import { MathUtils, Vector3 } from "three";
+import { useShelfControlsStore } from "../../../stores/useShelfControlsStore";
+import { SHOW_DEMO_UI } from "../../lib/featureFlags";
 import { useLibraryBooks, useSelectedBook } from "../../stores/useBookStore";
 import { useLevelStore } from "../../stores/useLevelStore";
 import { usePresentationStore } from "../../stores/usePresentationStore";
 import { useTourStore } from "../../stores/useTourStore";
 import { shelfFraming } from "../layout/DemoCamera";
+import { shelfBookPose } from "../shelves/Bookshelves";
 import {
 	arrangeShelfBooks,
-	frameShelfSelection,
 	frameShelfEditor,
+	frameShelfSelection,
 } from "../shelves/shelfArrangement";
-import { shelfBookPose } from "../shelves/Bookshelves";
 import { focusBookPosition } from "./tourBookPose";
 import { tourStages } from "./tourStages";
-import { SHOW_DEMO_UI } from "../../lib/featureFlags";
 
 export default function TourCamera() {
 	const { camera, size } = useThree();
@@ -32,6 +32,8 @@ export default function TourCamera() {
 		...shelfBooks.map((entry) => entry.dimensions[1]),
 	);
 	const stage = useTourStore((state) => state.stage);
+	const reader = useTourStore((state) => state.reader);
+	const focusRevision = useTourStore((state) => state.focusRevision);
 	const userAddition = useTourStore((state) => state.userAddition);
 	const arrivalFrame = useMemo(
 		() =>
@@ -58,6 +60,20 @@ export default function TourCamera() {
 		() => arrangeShelfBooks(shelfBooks, shelfDocument),
 		[shelfBooks, shelfDocument],
 	);
+	const previewFrame = useMemo(
+		() =>
+			frameShelfSelection(
+				editPlacements.filter((entry) => entry.book.id === book.id),
+				Math.max(240, size.width - 72),
+				size.height,
+			),
+		[editPlacements, book.id, size.width, size.height],
+	);
+	const browsingFocus = useRef(false);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: Each explicit selection or return requests one smooth focus; orbit gestures can then take over.
+	useLayoutEffect(() => {
+		browsingFocus.current = true;
+	}, [focusRevision, editing, book.id, size.width, size.height]);
 	const selectionFrame = useMemo(
 		() =>
 			editing
@@ -164,9 +180,9 @@ export default function TourCamera() {
 			return;
 		}
 		if (editing && (stage === "library" || stage === "pick")) {
-			if (editorGesture.current && !drag) return;
+			// Hold the view still while aiming at another book or a gap.
+			if (drag || editorGesture.current) return;
 			target.copy(selectionFrame?.target ?? framing.target);
-			if (drag && zoomMode === "book") target.add(new Vector3(...drag.offset));
 			const angle = shelfView === "threeQuarter" ? 0.35 : 0;
 			const elevation =
 				shelfView === "top" ? 0.62 : shelfView === "threeQuarter" ? 0.2 : 0.055;
@@ -194,6 +210,45 @@ export default function TourCamera() {
 			camera.position.lerp(position, smoothing);
 			orbit.target.lerp(target, smoothing);
 			orbit.update();
+			return;
+		}
+		if (
+			(tour.bookPanel === "preview" && stage === "pick") ||
+			(tour.bookPanel === "open" && stage === "read") ||
+			(stage === "library" && tour.paused && tour.focusRevision > 0)
+		) {
+			if (!browsingFocus.current) return;
+			if (stage === "library") {
+				target.copy(framing.target);
+				position
+					.copy(target)
+					.add(
+						new Vector3(0, framing.distance * 0.12, framing.distance * 0.993),
+					);
+			} else {
+				const distance =
+					stage === "read"
+						? 2.6 * Math.max(1, (size.height / size.width) * 0.9) * bookScale
+						: (previewFrame?.distance ?? 3.2);
+				if (stage === "read") target.set(...focusBookPosition(book.id));
+				else target.copy(previewFrame?.target ?? framing.target);
+				// Balance the top details and bottom helix, leaving room for right-side actions.
+				target.y -=
+					distance * Math.tan(Math.PI / 8) * Math.min(0.16, 70 / size.height);
+				target.x += distance * Math.tan(Math.PI / 8) * (56 / size.height);
+				position.copy(target).add(new Vector3(0, distance * 0.06, distance));
+			}
+			const smoothing = reducedMotion
+				? 1
+				: 1 - Math.exp(-Math.min(delta, 0.1) * 5);
+			camera.position.lerp(position, smoothing);
+			orbit.target.lerp(target, smoothing);
+			orbit.update();
+			if (
+				camera.position.distanceTo(position) < 0.01 &&
+				orbit.target.distanceTo(target) < 0.01
+			)
+				browsingFocus.current = false;
 			return;
 		}
 		if (tour.paused) return;
@@ -270,10 +325,15 @@ export default function TourCamera() {
 			// Arrive at the same framing that starts the reading orbit.
 			const portrait = Math.max(1, (size.height / size.width) * 0.9);
 			const radius = 2.6 * portrait * bookScale;
+			if (tour.bookPanel === "open") {
+				target.y -=
+					radius * Math.tan(Math.PI / 8) * Math.min(0.16, 70 / size.height);
+				target.x += radius * Math.tan(Math.PI / 8) * (56 / size.height);
+			}
 			const angle = stage === "read" ? Math.sin(tour.elapsed * 0.24) * 0.4 : 0;
 			position.set(
 				Math.sin(angle) * radius,
-				radius * 0.18,
+				radius * (tour.bookPanel === "open" ? 0.06 : 0.18),
 				Math.cos(angle) * radius,
 			);
 			position.add(target);
@@ -301,7 +361,13 @@ export default function TourCamera() {
 		<OrbitControls
 			ref={controls}
 			makeDefault
-			enabled={!userAddition}
+			enabled={
+				!userAddition &&
+				!drag &&
+				reader === "closed" &&
+				stage !== "pull" &&
+				stage !== "return"
+			}
 			enableRotate={!editing}
 			enablePan={!editing}
 			enableZoom={!drag}
@@ -311,6 +377,7 @@ export default function TourCamera() {
 			minDistance={shelves ? 2 : bookScale * 0.6}
 			maxDistance={shelves ? 150 : 15}
 			onStart={() => {
+				browsingFocus.current = false;
 				if (editing) editorGesture.current = true;
 				useTourStore.setState({ paused: true });
 			}}
