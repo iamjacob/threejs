@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { BLURRED_BOOKS_KEY, readBookIds, saveBookIds } from "../lib/bookPreferences";
 import { useDissolveStore } from "../../stores/useDissolveStore";
 import { useParticleStore } from "../../stores/useParticleStore";
 import { useReadingStore } from "../../stores/useReadingStore";
@@ -276,7 +277,7 @@ export const useTourStore = create<TourState>((set, get) => ({
 			action: "done",
 		}));
 	},
-	blurredBookIds: [],
+	blurredBookIds: readBookIds(BLURRED_BOOKS_KEY),
 	toggleBookBlur: (id) =>
 		set((state) => ({
 			usedHints: [...new Set([...state.usedHints, "censor"])],
@@ -314,7 +315,6 @@ export const useTourStore = create<TourState>((set, get) => ({
 		if (["library", "pick", "delete", "add", "end"].includes(stage))
 			useLevelStore.getState().startDemo(4, false);
 		if (stage === "grow") useLevelStore.getState().startDemo(1, false);
-		if (stage === "privacy") set({ blurredBookIds: [] });
 		if (stage === "read")
 			useReadingStore.setState({ selectedPage: 0, currentPage: 0 });
 		if (stage === "delete") {
@@ -441,3 +441,8 @@ export const useTourStore = create<TourState>((set, get) => ({
 			paused: state.reader === "closed" ? !state.paused : true,
 		})),
 }));
+
+useTourStore.subscribe((state, previous) => {
+	if (state.blurredBookIds !== previous.blurredBookIds)
+		saveBookIds(BLURRED_BOOKS_KEY, state.blurredBookIds);
+});

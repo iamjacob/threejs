@@ -22,10 +22,15 @@ works for the current visit and the UI explains that it was not saved.
 The crop and photographs are never uploaded. Shelf arrangement history remains
 session-only, as in the existing editor.
 
-`VITE_SHOW_DEMO_UI` defaults to false. Set it to `true` in the Vite environment to
-restore the header, scene bar, bottom tour controls, desktop devtools and automatic
-demo progression. Restart the dev server or rebuild after changing it. The scan
-actions and long-press book editor remain available with the demo UI hidden.
+The top-right menu → Settings → Features controls the demo UI, DNA navigation,
+and tour captions immediately. Gold plates and picture frames are always available
+under Menu → Shop. Choices are saved in this browser.
+Restore defaults clears those choices back to the build's defaults:
+`VITE_SHOW_DEMO_UI` and `VITE_SHOW_HELIX_NAV` default to
+false, and tour captions start hidden. Restart or rebuild after changing the
+environment defaults. Scanning and long-press editing remain available with the
+demo UI hidden. Sign in is currently a placeholder; the language selector changes
+the navigation labels and remembers its choice.
 
 Validation: `npm run test:scanner`, `npm run test:shelf`, `npm run test:paths`,
 `npx tsc --noEmit`, and `npm run build`. Device QA should cover permission denied,

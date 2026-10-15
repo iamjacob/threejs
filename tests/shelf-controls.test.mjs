@@ -80,6 +80,8 @@ function validateDocument() {
 beforeEach(() => {
 	store.setState({
 		initialized: false,
+		deletingIds: [],
+		deleteCompletedIds: [],
 		past: [],
 		future: [],
 		interaction: null,
@@ -89,6 +91,53 @@ beforeEach(() => {
 		panel: "arrange",
 	});
 	state().initialize(books);
+});
+
+test("deletion survives initialization and undo/redo updates browser storage", (t) => {
+	const values = new Map();
+	const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+	t.after(() => {
+		if (original) Object.defineProperty(globalThis, "localStorage", original);
+		else delete globalThis.localStorage;
+	});
+	Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
+		getItem: (key) => values.get(key) ?? null,
+		setItem: (key, value) => values.set(key, value),
+	} });
+	const id = idOf("Shaolin spirit");
+	const key = "boooks-removed-books-v1";
+	state().selectBook(id);
+	state().removeSelection();
+	assert.deepEqual(JSON.parse(values.get(key)), [id]);
+	state().undo();
+	assert.deepEqual(JSON.parse(values.get(key)), []);
+	state().redo();
+	assert.deepEqual(JSON.parse(values.get(key)), [id]);
+	store.setState({ initialized: false });
+	state().initialize(books);
+	assert.equal(state().document.items[id], undefined);
+	validateDocument();
+});
+
+test("editor delete waits for every dissolve, then removes the stack in one undo step", () => {
+	state().selectStack("business-stack");
+	const ids = [...state().selectedIds];
+	const previous = structuredClone(state().document);
+	state().startDeleteSelection();
+	assert.deepEqual(new Set(state().deletingIds), new Set(ids));
+	assert.deepEqual(state().document, previous);
+	for (const id of ids.slice(0, -1)) state().finishDeleteBook(id);
+	assert.deepEqual(state().document, previous);
+	state().finishDeleteBook(ids.at(-1));
+	for (const id of ids) assert.equal(state().document.items[id], undefined);
+	assert.equal(state().past.length, 1);
+	state().undo();
+	assert.deepEqual(state().document, previous);
+	state().startDeleteSelection();
+	state().undo();
+	for (const id of ids) state().finishDeleteBook(id);
+	assert.deepEqual(state().document, previous, "Canceled animations cannot delete restored books");
+	assert.deepEqual(state().deletingIds, []);
 });
 
 test("initial arrangement contains each catalog book exactly once and a real three-book stack", () => {

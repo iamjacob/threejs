@@ -29,7 +29,6 @@ export function useShelfBookDrag(enabled: boolean, placements: ArrangedBook[]) {
 		anchor: Vector3;
 		bottomY: number;
 		project: ReturnType<typeof createShelfDragProjector>;
-		stackTarget: ReturnType<typeof createShelfStackTargeter>;
 		placements: ArrangedBook[];
 		minX: number;
 		maxX: number;
@@ -61,7 +60,12 @@ export function useShelfBookDrag(enabled: boolean, placements: ArrangedBook[]) {
 						shelfFloorY(3) + 1.5,
 					);
 					const drop =
-						context.stackTarget(pointer) ??
+						createShelfStackTargeter(
+							camera,
+							gl.domElement.getBoundingClientRect(),
+							context.placements,
+							state.drag.ids,
+						)(pointer) ??
 						shelfDropForPoint(context.placements, state.drag.ids, x, bottomY);
 					// Pull the book toward the viewer while it travels across the arc.
 					// The extra depth is eased and bounded by the shelf's usable radius,
@@ -80,7 +84,7 @@ export function useShelfBookDrag(enabled: boolean, placements: ArrangedBook[]) {
 					useShelfControlsStore.getState().endBookDrag(commit);
 				},
 			}),
-		[gl],
+		[camera, gl],
 	);
 	useEffect(() => {
 		if (!enabled) return;
@@ -99,6 +103,7 @@ export function useShelfBookDrag(enabled: boolean, placements: ArrangedBook[]) {
 		};
 		const end = (event: PointerEvent) => {
 			if (active.current?.pointerId !== event.pointerId) return;
+			if (useShelfControlsStore.getState().drag) gesture.move(event);
 			gesture.end(event);
 			release();
 		};
@@ -183,12 +188,6 @@ export function useShelfBookDrag(enabled: boolean, placements: ArrangedBook[]) {
 				placements: currentPlacements.current,
 				minX: Math.min(-1.95, libraryBounds.min.x - 0.5),
 				maxX: Math.max(1.95, libraryBounds.max.x + 0.5),
-				stackTarget: createShelfStackTargeter(
-					camera,
-					rect,
-					currentPlacements.current,
-					ids,
-				),
 				project: createShelfDragProjector(
 					camera,
 					rect,

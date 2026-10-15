@@ -37,6 +37,26 @@ beforeEach(() => {
 	tour.setState({ paused: true });
 });
 
+test("book blur is saved locally and stays selected when returning to the library", (t) => {
+	const values = new Map();
+	const original = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+	t.after(() => {
+		if (original) Object.defineProperty(globalThis, "localStorage", original);
+		else delete globalThis.localStorage;
+	});
+	Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
+		getItem: (key) => values.get(key) ?? null,
+		setItem: (key, value) => values.set(key, value),
+	} });
+	tour.setState({ blurredBookIds: [] });
+	tour.getState().toggleBookBlur(book.id);
+	assert.deepEqual(JSON.parse(values.get("boooks-blurred-books-v1")), [book.id]);
+	tour.getState().start();
+	assert.deepEqual(tour.getState().blurredBookIds, [book.id]);
+	tour.getState().toggleBookBlur(book.id);
+	assert.deepEqual(JSON.parse(values.get("boooks-blurred-books-v1")), []);
+});
+
 function openBook() {
 	tour.getState().previewBook(book.id);
 	tour.getState().openPreview();

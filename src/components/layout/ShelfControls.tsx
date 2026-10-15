@@ -10,6 +10,8 @@ import {
 	ChevronUp,
 	CopyCheck,
 	Cuboid,
+	Eye,
+	EyeOff,
 	GripVertical,
 	Group,
 	ImagePlus,
@@ -33,8 +35,8 @@ import {
 } from "../../../stores/useShelfControlsStore";
 import { bookImagePath } from "../../lib/bookImages";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
-import { SHOW_PICTURE_FRAME } from "../../lib/featureFlags";
 import { useBookStore, useLibraryBooks } from "../../stores/useBookStore";
+import { useTourStore } from "../../stores/useTourStore";
 import {
 	BookFaceIcon,
 	BookGroupIcon,
@@ -58,6 +60,8 @@ const titleOf = (id: string) =>
 export default function ShelfControls() {
 	const books = useLibraryBooks();
 	const state = useShelfControlsStore();
+	const blurredBookIds = useTourStore((state) => state.blurredBookIds);
+	const toggleBookBlur = useTourStore((state) => state.toggleBookBlur);
 	const {
 		document: shelf,
 		selectedIds,
@@ -76,6 +80,9 @@ export default function ShelfControls() {
 	const stack = shelf.stacks.find((entry) => entry.id === activeStackId);
 	const first = shelf.items[selectedIds[0]];
 	const canChangeFace = selectedIds.length > 0 && !stack;
+	const selectionBlurred =
+		selectedIds.length > 0 &&
+		selectedIds.every((id) => blurredBookIds.includes(id));
 	const selectedGroup = shelf.groups.find(
 		(group) =>
 			group.bookIds.length === selectedIds.length &&
@@ -434,7 +441,9 @@ export default function ShelfControls() {
 									<select
 										id="move-to-shelf"
 										value={first?.shelf ?? 3}
-										disabled={!selectedIds.length}
+										disabled={
+											!selectedIds.length || state.deletingIds.length > 0
+										}
 										onChange={(event) =>
 											state.moveToShelf(Number(event.target.value))
 										}
@@ -467,7 +476,7 @@ export default function ShelfControls() {
 							>
 								<ShelfButton
 									label="Move left"
-									disabled={!selectedIds.length}
+									disabled={!selectedIds.length || state.deletingIds.length > 0}
 									onClick={() => state.nudgeSelection("left")}
 								>
 									<ChevronLeft />
@@ -488,7 +497,7 @@ export default function ShelfControls() {
 								</ShelfButton>
 								<ShelfButton
 									label="Move right"
-									disabled={!selectedIds.length}
+									disabled={!selectedIds.length || state.deletingIds.length > 0}
 									onClick={() => state.nudgeSelection("right")}
 								>
 									<ChevronRight />
@@ -617,8 +626,10 @@ export default function ShelfControls() {
 												? "Remove stack from shelf"
 												: "Remove selected books from shelf"
 										}
-										disabled={!selectedIds.length}
-										onClick={state.removeSelection}
+										disabled={
+											!selectedIds.length || state.deletingIds.length > 0
+										}
+										onClick={state.startDeleteSelection}
 									>
 										<Trash2 />
 									</ShelfButton>
@@ -665,7 +676,7 @@ export default function ShelfControls() {
 					<ShelfButton
 						label="Show front cover"
 						active={orientationActive("cover")}
-						disabled={!selectedIds.length}
+						disabled={!selectedIds.length || state.deletingIds.length > 0}
 						onClick={() => state.setBookOrientation("cover")}
 					>
 						<BookFaceIcon face="cover" />
@@ -673,7 +684,7 @@ export default function ShelfControls() {
 					<ShelfButton
 						label="Show spine"
 						active={orientationActive("spine")}
-						disabled={!selectedIds.length}
+						disabled={!selectedIds.length || state.deletingIds.length > 0}
 						onClick={() => state.setBookOrientation("spine")}
 					>
 						<BookFaceIcon face="spine" />
@@ -681,14 +692,40 @@ export default function ShelfControls() {
 					<ShelfButton
 						label="Lay book down"
 						active={orientationActive("flat")}
-						disabled={!selectedIds.length}
+						disabled={!selectedIds.length || state.deletingIds.length > 0}
 						onClick={() => state.setBookOrientation("flat")}
 					>
 						<LayoutIcon layout="flat" />
 					</ShelfButton>
+					<ShelfButton
+						label={selectionBlurred ? "Remove book blur" : "Blur book"}
+						active={selectionBlurred}
+						disabled={!selectedIds.length || state.deletingIds.length > 0}
+						onClick={() => {
+							for (const id of selectedIds) {
+								if (blurredBookIds.includes(id) === selectionBlurred)
+									toggleBookBlur(id);
+							}
+						}}
+					>
+						{selectionBlurred ? <EyeOff /> : <Eye />}
+					</ShelfButton>
+					<ShelfButton
+						label={
+							selectedIds.length > 1 ? "Delete selected books" : "Delete book"
+						}
+						disabled={!selectedIds.length || state.deletingIds.length > 0}
+						onClick={state.startDeleteSelection}
+					>
+						<Trash2 />
+					</ShelfButton>
 				</nav>
 				<div className="shelf-history-row">
-					<button type="button" disabled={!past.length} onClick={state.undo}>
+					<button
+						type="button"
+						disabled={!past.length && !state.deletingIds.length}
+						onClick={state.undo}
+					>
 						<Undo2 size={14} /> Undo
 					</button>
 					<button type="button" disabled={!future.length} onClick={state.redo}>
@@ -775,7 +812,7 @@ function BookPicker({
 			</label>
 			{mode === "select" && !search && (
 				<div className="shelf-picker-collections">
-					{SHOW_PICTURE_FRAME && (
+					{
 						<button
 							type="button"
 							onClick={() => {
@@ -785,7 +822,7 @@ function BookPicker({
 						>
 							<ImagePlus size={17} /> Picture frame
 						</button>
-					)}
+					}
 					<button
 						type="button"
 						onClick={() => {

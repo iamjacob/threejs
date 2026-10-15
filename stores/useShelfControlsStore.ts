@@ -1,4 +1,5 @@
 import { create } from "zustand";
+import { readBookIds, REMOVED_BOOKS_KEY, saveBookIds } from "../src/lib/bookPreferences.ts";
 import { expandShelfSelection, moveShelfBooks, type ShelfDrag, type ShelfDrop } from "../src/lib/shelfDrag.ts";
 import type { ShelfBook } from "../src/components/shelves/shelfBooks";
 import {
@@ -73,6 +74,10 @@ type ShelfControlsState = Snapshot & {
 	togglePictureFrame: () => void;
 	groupBy: (by: ShelfGroupBy, books: ShelfBook[]) => void;
 	removeSelection: () => void;
+	deletingIds: string[];
+	deleteCompletedIds: string[];
+	startDeleteSelection: () => void;
+	finishDeleteBook: (id: string) => void;
 	beginInteraction: () => void;
 	endInteraction: () => void;
 	undo: () => void;
@@ -95,7 +100,7 @@ export const useShelfControlsStore = create<ShelfControlsState>((set, get) => {
 		selection: Partial<Snapshot> = {},
 	) => {
 		const state = get();
-		if (state.drag) return;
+		if (state.drag || state.deletingIds.length) return;
 		set({
 			document,
 			...selection,
@@ -160,7 +165,7 @@ export const useShelfControlsStore = create<ShelfControlsState>((set, get) => {
 		},
 		beginBookDrag: (id) => {
 			const state = get();
-			if (!state.editing || state.drag || !state.document.items[id]) return;
+			if (!state.editing || state.drag || state.deletingIds.length || !state.document.items[id]) return;
 			state.endInteraction();
 			const ids = expandShelfSelection(state.document, state.selectedIds.includes(id) ? state.selectedIds : [id]);
 			const stack = state.document.stacks.find(entry => entry.bookIds.length === ids.length && entry.bookIds.every(bookId => ids.includes(bookId)));
@@ -199,6 +204,8 @@ export const useShelfControlsStore = create<ShelfControlsState>((set, get) => {
 			set((state) => ({ pictureFrameVisible: !state.pictureFrameVisible })),
 		initialize: (books) => {
 			if (get().initialized) return;
+			const removed = readBookIds(REMOVED_BOOKS_KEY);
+			books = books.filter((book) => !removed.includes(book.id));
 			const document = createShelfDocument(books);
 			const selected =
 				books.find((book) => book.title === "Stilness is the Key") ?? books[0];
@@ -606,6 +613,24 @@ export const useShelfControlsStore = create<ShelfControlsState>((set, get) => {
 			);
 			set({ panel: "arrange" });
 		},
+		deletingIds: [],
+		deleteCompletedIds: [],
+		startDeleteSelection: () => {
+			const state = get();
+			if (state.drag || state.deletingIds.length || !state.selectedIds.length) return;
+			set({ deletingIds: expandShelfSelection(state.document, state.selectedIds), deleteCompletedIds: [], message: "Deleting books…" });
+		},
+		finishDeleteBook: (id) => {
+			const { deletingIds, deleteCompletedIds } = get();
+			if (!deletingIds.includes(id) || deleteCompletedIds.includes(id)) return;
+			const completed = [...deleteCompletedIds, id];
+			if (completed.length < deletingIds.length) {
+				set({ deleteCompletedIds: completed });
+				return;
+			}
+			set({ selectedIds: deletingIds, deletingIds: [], deleteCompletedIds: [] });
+			get().removeSelection();
+		},
 		removeSelection: () => {
 			const { document, selectedIds } = get();
 			if (!selectedIds.length) return;
@@ -638,6 +663,10 @@ export const useShelfControlsStore = create<ShelfControlsState>((set, get) => {
 			});
 		},
 		undo: () => {
+			if (get().deletingIds.length) {
+				set({ deletingIds: [], deleteCompletedIds: [], message: "Delete canceled." });
+				return;
+			}
 			if (get().drag) { get().endBookDrag(false); return; }
 			get().endInteraction();
 			const state = get();
@@ -652,6 +681,7 @@ export const useShelfControlsStore = create<ShelfControlsState>((set, get) => {
 				});
 		},
 		redo: () => {
+			if (get().deletingIds.length) return;
 			if (get().drag) { get().endBookDrag(false); return; }
 			const state = get();
 			const next = state.future[0];
@@ -677,4 +707,14 @@ export const useShelfControlsStore = create<ShelfControlsState>((set, get) => {
 			});
 		},
 	};
+});
+
+useShelfControlsStore.subscribe((state, previous) => {
+	if (!state.initialized || state.document === previous.document) return;
+	const removed = new Set(readBookIds(REMOVED_BOOKS_KEY));
+	for (const id of previous.document.order) {
+		if (!state.document.items[id]) removed.add(id);
+	}
+	for (const id of state.document.order) removed.delete(id);
+	saveBookIds(REMOVED_BOOKS_KEY, [...removed]);
 });

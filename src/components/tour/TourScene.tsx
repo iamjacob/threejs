@@ -1,6 +1,7 @@
 import { useFrame } from "@react-three/fiber";
 import { type ReactNode, useEffect, useMemo, useRef } from "react";
 import { type Group, MathUtils, type Mesh, Quaternion, Vector3 } from "three";
+import { useShelfControlsStore } from "../../../stores/useShelfControlsStore";
 
 import { useLibraryBooks, useSelectedBook } from "../../stores/useBookStore";
 import { useTourStore } from "../../stores/useTourStore";
@@ -145,6 +146,12 @@ export default function TourScene({
 	const toggleBookBlur = useTourStore((state) => state.toggleBookBlur);
 	const returningBookId = useTourStore((state) => state.returningBookId);
 	const deletingBooks = useTourStore((state) => state.deletingBooks);
+	const deletingIds = useShelfControlsStore((state) => state.deletingIds);
+	const finishEditorDelete = useShelfControlsStore((state) => state.finishDeleteBook);
+	const editorDeletingBooks = useMemo(
+		() => Object.fromEntries(deletingIds.map((id) => [id, 0])),
+		[deletingIds],
+	);
 	const deletedBookIds = useTourStore((state) => state.deletedBookIds);
 	const deleteBook = useTourStore((state) => state.deleteBook);
 	const finishDelete = useTourStore((state) => state.finishDelete);
@@ -170,6 +177,9 @@ export default function TourScene({
 								: undefined
 						}
 						returningBookId={returningBookId}
+						blurredBookIds={blurredBookIds}
+						deletingBooks={editorDeletingBooks}
+						onDeleteComplete={finishEditorDelete}
 						onBookEdit={onBookEdit}
 					/>
 				</ShelfBackdrop>

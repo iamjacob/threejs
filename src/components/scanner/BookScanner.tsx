@@ -1,6 +1,5 @@
 import {
 	ArrowRight,
-	BookOpen,
 	Camera,
 	Check,
 	Crop,
@@ -11,7 +10,6 @@ import {
 	RotateCcw,
 	RotateCw,
 	ScanLine,
-	ShieldCheck,
 	X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -339,19 +337,7 @@ export default function BookScanner({
 					<X size={19} />
 				</button>
 			</header>
-			<nav className="scan-steps" aria-label="Adding a book">
-				{["Scan", "Crop", "Add"].map((label, index) => (
-					<span
-						key={label}
-						aria-current={stepIndex === index ? "step" : undefined}
-						className={stepIndex >= index ? "is-current" : ""}
-					>
-						<i>{stepIndex > index ? <Check size={10} /> : `0${index + 1}`}</i>
-						{label}
-						{index < 2 && <b />}
-					</span>
-				))}
-			</nav>
+			
 			{(step === "welcome" || step === "consent" || step === "requesting") && (
 				<div className="scan-intro">
 					
@@ -415,18 +401,19 @@ export default function BookScanner({
 						)}
 						{upload}
 					</div>
-					<p className="scan-privacy">
-						<ShieldCheck size={14} /> Photos stay on this device. Camera stops
-						after capture.
-					</p>
-					<button
-						type="button"
-						className="scan-text-button"
-						disabled={busy}
-						onClick={close}
+					<nav className="scan-steps" aria-label="Adding a book">
+				{["Scan", "Crop", "Add"].map((label, index) => (
+					<span
+						key={label}
+						aria-current={stepIndex === index ? "step" : undefined}
+						className={stepIndex >= index ? "is-current" : ""}
 					>
-						Explore the shelf first
-					</button>
+						<i>{stepIndex > index ? <Check size={10} /> : `0${index + 1}`}</i>
+						{label}
+						{index < 2 && <b />}
+					</span>
+				))}
+			</nav>
 				</div>
 			)}
 			{step === "camera" && (

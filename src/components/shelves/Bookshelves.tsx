@@ -32,7 +32,6 @@ import {
 } from "../../lib/bookImages";
 import { createBookLongPress, vibrateBookEdit } from "../../lib/bookLongPress";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
-import { SHOW_PICTURE_FRAME } from "../../lib/featureFlags";
 import { moveShelfBooks } from "../../lib/shelfDrag";
 import { useBookStore } from "../../stores/useBookStore";
 import { useTourStore } from "../../stores/useTourStore";
@@ -43,6 +42,7 @@ import CollectionBlur from "./CollectionBlur";
 import PictureFrame from "./PictureFrame";
 import { progressionConfig } from "./progressionConfig";
 import ShelfBookDissolve from "./ShelfBookDissolve";
+import ShelfPlates from "./ShelfPlates";
 import Shelves from "./Shelves";
 import {
 	type ArrangedBook,
@@ -326,6 +326,7 @@ export default function Bookshelves({
 	const document = useShelfControlsStore((state) => state.document);
 	const initialized = useShelfControlsStore((state) => state.initialized);
 	const editing = useShelfControlsStore((state) => state.editing);
+	const selectedIds = useShelfControlsStore((state) => state.selectedIds);
 	const pictureFrameVisible = useShelfControlsStore(
 		(state) => state.pictureFrameVisible,
 	);
@@ -386,16 +387,44 @@ export default function Bookshelves({
 	return (
 		<>
 			<Shelves fixedLevel={BOOKS_SHELF_LEVEL}>
-				{SHOW_PICTURE_FRAME && pictureFrameVisible && <PictureFrame />}
+				<ShelfPlates />
+				{pictureFrameVisible && <PictureFrame />}
 				{blurredBookIds.length > 0 && (
 					<CollectionBlur
-						placements={visible.filter(({ book }) =>
-							blurredBookIds.includes(book.id),
+						placements={visible.filter(
+							({ book }) =>
+								blurredBookIds.includes(book.id) &&
+								deletingBooks[book.id] === undefined,
 						)}
 					/>
 				)}
 				{visible.map((placement) => (
 					<AnimatedPlacement key={placement.book.id} placement={placement}>
+						{editing &&
+							selectedIds.includes(placement.book.id) &&
+							deletingBooks[placement.book.id] === undefined && (
+								<mesh
+									name={`selection-${placement.book.id}`}
+									raycast={() => null}
+									
+								>
+									<boxGeometry
+										args={[
+											placement.book.dimensions[0] + 0.06,
+											placement.book.dimensions[1] + 0.06,
+											placement.book.dimensions[2] + 0.06,
+										]}
+									/>
+									<meshBasicMaterial
+										color="#ff0000"
+										transparent
+										opacity={0.5}
+										depthWrite={false}
+										toneMapped={false}
+										wireframe
+									/>
+								</mesh>
+							)}
 						<Suspense fallback={null}>
 							<CollectionBook
 								book={placement.book}

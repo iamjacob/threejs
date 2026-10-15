@@ -209,6 +209,25 @@ test("camera movement cannot feed back into the drag projection", () => {
 	assert.ok(before.x > 0 && before.y > 0);
 	assert.equal(before.z, 0);
 });
+test("drag movement adapts to zoom-out without drifting when the pointer stops", () => {
+	for (const [width, height] of [[390, 844], [1440, 900]]) {
+		const camera = new PerspectiveCamera(45, width / height, .01, 100);
+		camera.position.set(0, 0, 7);
+		camera.lookAt(0, 0, 0);
+		camera.updateMatrixWorld();
+		const start = pointer(width / 2, height / 2);
+		const project = createShelfDragProjector(camera, { left: 0, top: 0, width, height }, new Vector3(), start);
+		const first = project(pointer(start.clientX + 20, start.clientY));
+		camera.position.set(2, 1, 14);
+		camera.lookAt(2, 1, 0);
+		camera.updateMatrixWorld();
+		assert.deepEqual(project(pointer(start.clientX + 20, start.clientY)), first);
+		const second = project(pointer(start.clientX + 40, start.clientY));
+		assert.ok(Math.abs((second.x - first.x) / first.x - 2) < 1e-7);
+		assert.equal(second.y, 0);
+	}
+});
+
 test("one-tap zoom cycles Book, Shelf, All and each mode frames the appropriate real bounds", () => {
 	const id = idOf("BEHAVE"); state().selectBook(id);
 	const all = placements();

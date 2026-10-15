@@ -9,7 +9,7 @@ import {
 } from "react";
 import { MathUtils, Vector3 } from "three";
 import { useShelfControlsStore } from "../../../stores/useShelfControlsStore";
-import { SHOW_DEMO_UI } from "../../lib/featureFlags";
+import { useFeatureFlags } from "../../lib/featureFlags";
 import { useLibraryBooks, useSelectedBook } from "../../stores/useBookStore";
 import { useLevelStore } from "../../stores/useLevelStore";
 import { usePresentationStore } from "../../stores/usePresentationStore";
@@ -25,6 +25,7 @@ import { focusBookPosition } from "./tourBookPose";
 import { tourStages } from "./tourStages";
 
 export default function TourCamera() {
+	const { SHOW_DEMO_UI } = useFeatureFlags();
 	const { camera, size } = useThree();
 	const book = useSelectedBook();
 	const shelfBooks = useLibraryBooks();
@@ -100,6 +101,7 @@ export default function TourCamera() {
 	const viewRevision = useShelfControlsStore((state) => state.viewRevision);
 	const editorGesture = useRef(false);
 	const editorZoomScale = useRef(1);
+	const dragView = useRef<{ target: Vector3; offset: Vector3 } | null>(null);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: Refocus only when the chosen book, view, or viewport changes.
 	useEffect(() => {
 		editorGesture.current = false;
@@ -163,6 +165,7 @@ export default function TourCamera() {
 	useFrame((_, delta) => {
 		const orbit = controls.current;
 		const tour = useTourStore.getState();
+		if (!drag) dragView.current = null;
 		if (!orbit || !tour.ready || tour.reader === "open") return;
 		if (tour.reader === "zooming") {
 			const focus = focusBookPosition(book.id);
@@ -181,8 +184,30 @@ export default function TourCamera() {
 			return;
 		}
 		if (editing && (stage === "library" || stage === "pick")) {
-			// Hold the view still while aiming at another book or a gap.
-			if (drag || editorGesture.current) return;
+			if (drag) {
+				if (!dragView.current) {
+					dragView.current = {
+						target: orbit.target.clone(),
+						offset: camera.position
+							.clone()
+							.sub(orbit.target)
+							.multiplyScalar(1.65),
+					};
+				}
+				// Follow most of the book's travel while keeping nearby shelves visible.
+				target
+					.copy(dragView.current.target)
+					.addScaledVector(position.set(...drag.offset), 0.8);
+				position.copy(target).add(dragView.current.offset);
+				const smoothing = reducedMotion
+					? 1
+					: 1 - Math.exp(-Math.min(delta, 0.1) * 7);
+				camera.position.lerp(position, smoothing);
+				orbit.target.lerp(target, smoothing);
+				orbit.update();
+				return;
+			}
+			if (editorGesture.current) return;
 			target.copy(selectionFrame?.target ?? framing.target);
 			const angle = shelfView === "threeQuarter" ? 0.35 : 0;
 			const elevation =

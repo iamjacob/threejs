@@ -23,7 +23,7 @@ import { useTourStore } from "../../stores/useTourStore";
 import MarkLoader from "../layout/MarkLoader";
 import BookPageSwiper from "../openbook/BookPageSwiper";
 
-const SHOW_TOUR_TEXT = false;
+import { useFeatureFlags } from "../../lib/featureFlags";
 
 import { requestReaderFullscreen } from "../reader/readerFullscreen";
 import ShakeToRead from "../reader/ShakeToRead";
@@ -140,6 +140,7 @@ function IconButton({
 }
 
 export default function TourOverlay() {
+	const { SHOW_TOUR_TEXT } = useFeatureFlags();
 	const books = useLibraryBooks();
 	const editing = useShelfControlsStore((state) => state.editing);
 	const stage = useTourStore((state) => state.stage);

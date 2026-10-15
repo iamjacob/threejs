@@ -14,6 +14,7 @@ export default function ShelfBookDissolve({
 	onComplete: () => void;
 }) {
 	const completed = useRef(false);
+	const editorElapsed = useRef(0);
 	const uniforms = useMemo(
 		() => ({
 			uDissolveProgress: { value: 0 },
@@ -27,6 +28,7 @@ export default function ShelfBookDissolve({
 	);
 	useEffect(() => {
 		completed.current = false;
+		editorElapsed.current = 0;
 		uniforms.uDissolveProgress.value = 0;
 		uniforms.uDissolveTime.value = startedAt ?? 0;
 	}, [startedAt, uniforms]);
@@ -36,13 +38,14 @@ export default function ShelfBookDissolve({
 		},
 		[materials],
 	);
-	useFrame(() => {
+	useFrame((_, delta) => {
 		if (startedAt === undefined || completed.current) return;
 		const tour = useTourStore.getState();
-		if (tour.stage !== "delete") return;
-		const progress = MathUtils.clamp((tour.elapsed - startedAt) / 2.4, 0, 1);
+		editorElapsed.current += Math.min(delta, 0.1);
+		const elapsed = tour.stage === "delete" ? tour.elapsed - startedAt : editorElapsed.current;
+		const progress = MathUtils.clamp(elapsed / 2.4, 0, 1);
 		uniforms.uDissolveProgress.value = progress;
-		uniforms.uDissolveTime.value = tour.elapsed;
+		uniforms.uDissolveTime.value = elapsed;
 		if (progress === 1) {
 			completed.current = true;
 			onComplete();

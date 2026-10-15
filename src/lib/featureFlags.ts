@@ -1,9 +1,48 @@
-// Enable the original demo header, scene bar, footer and automatic tour together.
-// The scanner and the long-press book editor remain available in either mode.
-export const SHOW_DEMO_UI = import.meta.env.VITE_SHOW_DEMO_UI === "true";
+import { create } from "zustand";
 
-// Opt in to the DNA helix navigation in the footer.
-export const SHOW_HELIX_NAV = import.meta.env.VITE_SHOW_HELIX_NAV === "true";
-
-// Opt in to the user picture-frame merch feature.
-export const SHOW_PICTURE_FRAME = import.meta.env.VITE_SHOW_PICTURE_FRAME === "true";
+export const featureDefaults = {
+	SHOW_DEMO_UI: import.meta.env?.VITE_SHOW_DEMO_UI === "true",
+	SHOW_HELIX_NAV: import.meta.env?.VITE_SHOW_HELIX_NAV === "true",
+	SHOW_TOUR_TEXT: false,
+};
+export type FeatureFlag = keyof typeof featureDefaults;
+const key = "boooks-feature-flags-v1";
+function loadFlags() {
+	const flags = { ...featureDefaults };
+	try {
+		const saved = JSON.parse(localStorage.getItem(key) ?? "{}");
+		for (const flag of Object.keys(flags) as FeatureFlag[]) {
+			if (typeof saved?.[flag] === "boolean") flags[flag] = saved[flag];
+		}
+	} catch {
+		/* Use environment defaults when storage is unavailable. */
+	}
+	return flags;
+}
+export const useFeatureFlags = create<
+	typeof featureDefaults & {
+		setFlag: (flag: FeatureFlag, enabled: boolean) => void;
+		reset: () => void;
+	}
+>((set) => ({
+	...loadFlags(),
+	setFlag: (flag, enabled) => set({ [flag]: enabled }),
+	reset: () => set(featureDefaults),
+}));
+useFeatureFlags.subscribe((state) => {
+	try {
+		localStorage.setItem(
+			key,
+			JSON.stringify(
+				Object.fromEntries(
+					(Object.keys(featureDefaults) as FeatureFlag[]).map((flag) => [
+						flag,
+						state[flag],
+					]),
+				),
+			),
+		);
+	} catch {
+		/* Changes still work for this visit. */
+	}
+});

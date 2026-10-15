@@ -109,15 +109,15 @@ export function createShelfStackTargeter(
 		)?.drop ?? null;
 }
 
-/** Freeze the projection at pickup so camera follow cannot feed back into dragging. */
+/** Project pointer movement through the current view, without camera motion moving the book. */
 export function createShelfDragProjector(
 	camera: Camera,
 	rect: { left: number; top: number; width: number; height: number },
 	anchor: Vector3,
 	pointer: { clientX: number; clientY: number },
 ) {
-	const dragCamera = camera.clone();
-	dragCamera.updateMatrixWorld();
+	let previous = { clientX: pointer.clientX, clientY: pointer.clientY };
+	const offset = new Vector3();
 	const plane = new Plane(new Vector3(0, 0, 1), -anchor.z);
 	const raycaster = new Raycaster();
 	const cursor = new Vector2();
@@ -132,12 +132,14 @@ export function createShelfDragProjector(
 			((clientX - rect.left) / Math.max(1, rect.width)) * 2 - 1,
 			-((clientY - rect.top) / Math.max(1, rect.height)) * 2 + 1,
 		);
-		raycaster.setFromCamera(cursor, dragCamera);
+		raycaster.setFromCamera(cursor, camera);
 		return raycaster.ray.intersectPlane(plane, new Vector3());
 	};
-	const origin = project(pointer);
 	return (next: { clientX: number; clientY: number }) => {
+		camera.updateMatrixWorld();
+		const origin = project(previous);
 		const point = project(next);
-		return point && origin ? point.sub(origin) : null;
+		previous = { clientX: next.clientX, clientY: next.clientY };
+		return point && origin ? offset.add(point.sub(origin)).clone() : null;
 	};
 }

@@ -2,7 +2,7 @@ import { TanStackDevtools } from "@tanstack/react-devtools";
 import { createRootRoute, Outlet } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
 import { useSyncExternalStore } from "react";
-import { SHOW_DEMO_UI } from "../lib/featureFlags";
+import { useFeatureFlags } from "../lib/featureFlags";
 
 import "../styles.css";
 
@@ -19,6 +19,7 @@ function subscribeToViewport(onChange: () => void) {
 }
 
 function RootComponent() {
+	const { SHOW_DEMO_UI } = useFeatureFlags();
 	// The floating devtools trigger otherwise covers the mobile Next button.
 	const isDesktop = useSyncExternalStore(
 		subscribeToViewport,

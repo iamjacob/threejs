@@ -1,9 +1,12 @@
 import { Stats } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { createFileRoute } from "@tanstack/react-router";
-import { ImagePlus, Plus, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
+import ShelfPlateEditor from "../components/layout/ShelfPlateEditor";
+import { useShelfPlatesStore } from "../stores/useShelfPlatesStore";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useShelfControlsStore } from "../../stores/useShelfControlsStore";
+import { readBookIds, REMOVED_BOOKS_KEY } from "../lib/bookPreferences";
 import Header from "../components/layout/header/header";
 import SceneEnvironment from "../components/layout/SceneEnvironment";
 import SceneToolbar from "../components/layout/SceneToolbar";
@@ -23,17 +26,16 @@ import TourCamera from "../components/tour/TourCamera";
 import TourDirector from "../components/tour/TourDirector";
 import TourOverlay from "../components/tour/TourOverlay";
 import TourScene from "../components/tour/TourScene";
-import {
-	SHOW_DEMO_UI,
-	SHOW_HELIX_NAV,
-	SHOW_PICTURE_FRAME,
-} from "../lib/featureFlags";
+import { useFeatureFlags } from "../lib/featureFlags";
+import LibraryMenus from "../components/layout/LibraryMenus";
 import { useBookStore, useSelectedBook } from "../stores/useBookStore";
 import { useTourStore } from "../stores/useTourStore";
 
 export const Route = createFileRoute("/")({ component: Home });
 
 function Home() {
+	const { SHOW_DEMO_UI, SHOW_HELIX_NAV } = useFeatureFlags();
+	const platesOpen = useShelfPlatesStore((state) => state.editorOpen);
 	const showStats =
 		typeof window !== "undefined" &&
 		new URLSearchParams(window.location.search).has("controls");
@@ -46,9 +48,7 @@ function Home() {
 	const wasAdding = useRef(false);
 	const book = useSelectedBook();
 	const editing = useShelfControlsStore((state) => state.editing);
-	const pictureFrameVisible = useShelfControlsStore(
-		(state) => state.pictureFrameVisible,
-	);
+
 	const editableStage = stage === "library" || stage === "pick";
 	const showShelfControls = !scanning && editing && editableStage;
 	const wasEditing = useRef(editing);
@@ -94,7 +94,10 @@ function Home() {
 					],
 				}));
 				const selection = useShelfControlsStore.getState().selectedIds;
-				for (const entry of saved) shelf.insertBook(entry.id);
+				const removed = readBookIds(REMOVED_BOOKS_KEY);
+				for (const entry of saved) {
+					if (!removed.includes(entry.id)) shelf.insertBook(entry.id);
+				}
 				useShelfControlsStore.setState({
 					selectedIds: selection,
 					past: [],
@@ -186,55 +189,30 @@ function Home() {
 				!scanning &&
 				!showShelfControls &&
 				bookPanel === "closed" && (
-					<Header showBrand={false}>
-						<SceneToolbar
-							showBlur={false}
-							showBook={false}
-							showLighting={false}
-						/>
-					</Header>
+					<div className="library-demo-header">
+						<Header showBrand={false}>
+							<SceneToolbar
+								showBlur={false}
+								showBook={false}
+								showLighting={false}
+							/>
+						</Header>
+					</div>
 				)}
 			{scanning && <BookScanner onClose={closeScanner} onAdd={addBook} />}
 			{showShelfControls && <ShelfControls />}
-			{!scanning && !editing && editableStage && (
-				<div
-					className="library-actions library-actions-minimal"
-					style={SHOW_DEMO_UI ? { top: 76 } : undefined}
-				>
-					<button
-						type="button"
-						aria-label="Scan a book"
-						title="Scan a book"
-						onClick={() => {
-							useTourStore.setState({ paused: true });
-							setNotice("");
-							setScanning(true);
-						}}
-					>
-						<Plus size={20} aria-hidden="true" />
-					</button>
-					{SHOW_PICTURE_FRAME && (
-						<button
-							type="button"
-							aria-label={
-								pictureFrameVisible
-									? "Remove picture frame"
-									: "Add picture frame"
-							}
-							title={
-								pictureFrameVisible
-									? "Remove picture frame"
-									: "Add picture frame"
-							}
-							aria-pressed={pictureFrameVisible}
-							onClick={() =>
-								useShelfControlsStore.getState().togglePictureFrame()
-							}
-						>
-							<ImagePlus size={20} aria-hidden="true" />
-						</button>
-					)}
-				</div>
+			{platesOpen && !scanning && <ShelfPlateEditor />}
+			{reader === "closed" && (
+				<LibraryMenus
+					scanning={scanning}
+					showActions={!scanning && editableStage}
+					onAddBook={() => {
+						useShelfControlsStore.getState().setEditing(false);
+						useTourStore.setState({ paused: true });
+						setNotice("");
+						setScanning(true);
+					}}
+				/>
 			)}
 			{!scanning && !editing && bookPanel !== "closed" && <BookInfoCard />}
 			{SHOW_HELIX_NAV &&
