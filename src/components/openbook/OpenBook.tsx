@@ -1,7 +1,7 @@
 "use client";
 
 import { useTexture } from "@react-three/drei";
-import type { ThreeEvent } from "@react-three/fiber";
+import { useThree, type ThreeEvent } from "@react-three/fiber";
 import { gsap } from "gsap";
 import { useCallback, useEffect, useRef, useState } from "react";
 import * as THREE from "three";
@@ -13,6 +13,9 @@ import { useSelectedBook } from "../../stores/useBookStore";
 import { BOOK_MATERIAL } from "../book/bookAppearance";
 import { BOOK_ROTATION } from "../tour/tourBookPose";
 import usePDFToImage from "./usePDFToImage";
+import { useReaderPreferences } from "../../stores/useReaderPreferences";
+import { CurlPage } from "./CurlPage";
+import { curlPagePoint, releasedPageTurn } from "./pageCurl";
 
 type BookDimensions = readonly [
 	width: number,
@@ -61,11 +64,15 @@ const OpenBook = ({
 	onToggle = () => undefined,
 	pdfUrl,
 }: OpenBookProps) => {
+	const { camera, size, controls } = useThree();
+	const cancelDragRef = useRef<(() => void) | null>(null);
 	const selectedBook = useSelectedBook();
 	const book = providedBook ?? selectedBook;
 	const [currentPage, setCurrentPage] = useState<number>(0);
 	const [bookRead, setBookRead] = useState<boolean>(false);
 	const [pagesToFlip] = useState<number>(1);
+	const currentPageRef = useRef(currentPage);
+	currentPageRef.current = currentPage;
 
 	const lastTap = useRef<number>(0);
 	const leftPageRef = useRef<THREE.Group>(null);
@@ -89,8 +96,11 @@ const OpenBook = ({
 		].flatMap((page) => (page ? [page.rotation] : []));
 		const materials = pageMaterialsRef.current;
 		return () => {
+			cancelDragRef.current?.();
 			flipTimelineRef.current?.kill();
 			gsap.killTweensOf(rotations);
+			for (const page of pageRefs.current)
+				if (page) gsap.killTweensOf(page.userData);
 			for (const material of materials.values()) {
 				material.map?.dispose();
 				material.dispose();
@@ -152,13 +162,13 @@ const OpenBook = ({
 
 			if (page) {
 				gsap.to(page.rotation, {
-					y: index >= currentPage ? openDegrees : -openDegrees,
+					y: index >= currentPageRef.current ? openDegrees : -openDegrees,
 					duration: duration + 0.1 - 0.001 * index,
 					ease: "power2.inOut",
 				});
 			}
 		}
-	}, [currentPage, pages, presentation]);
+	}, [pages, presentation]);
 
 	const flippin = useCallback(
 		(foldTo: number, onComplete: () => void): void => {
@@ -240,6 +250,8 @@ const OpenBook = ({
 
 				const readingStore = useReadingStore.getState();
 				readingStore.setCurrentPage?.(safeTargetPage);
+				if (!flipQueueRef.current.length)
+					readingStore.setSelectedPage(safeTargetPage);
 
 				isAnimatingRef.current = false;
 				const nextPage = flipQueueRef.current.shift();
@@ -278,23 +290,225 @@ const OpenBook = ({
 		lastTap.current = now;
 	};
 
-	const handlePageClick = (
+	const handlePagePointerDown = (
 		index: number,
-		event: ThreeEvent<MouseEvent>,
+		event: ThreeEvent<PointerEvent>,
 	): void => {
 		event.stopPropagation();
-		if (closing) return;
-
-		if (index >= currentPage) {
-			flipTo(Math.min(index + pagesToFlip - 1, pages - 1));
-		} else {
-			flipTo(Math.max(index - pagesToFlip + 1, 0));
-		}
+		if (
+			closing ||
+			isAnimatingRef.current ||
+			cancelDragRef.current ||
+			event.button !== 0 ||
+			!event.isPrimary
+		)
+			return;
+		const forward = index >= currentPage;
+		const target = currentPage + (forward ? 1 : -1);
+		if (target < 0 || target >= pages) return;
+		const page = pageRefs.current[forward ? currentPage : currentPage - 1];
+		if (!page?.parent) return;
+		const startAngle = forward ? openDegrees : -openDegrees;
+		const endAngle = -startAngle;
+		const projectEdge = (angle: number) => {
+			const point = new THREE.Vector3(
+				width * Math.cos(angle),
+				0,
+				-width * Math.sin(angle),
+			).add(page.position);
+			page.parent!.localToWorld(point);
+			point.project(camera);
+			return new THREE.Vector2(
+				(point.x * size.width) / 2,
+				(-point.y * size.height) / 2,
+			);
+		};
+		const axis = projectEdge(endAngle).sub(projectEdge(startAngle));
+		if (axis.lengthSq() < 100) return;
+		const local = page.worldToLocal(event.point.clone());
+		page.userData.curlCorner = THREE.MathUtils.clamp(
+			local.y / (height / 2),
+			-1,
+			1,
+		);
+		const corner = page.userData.curlCorner;
+		const grabX = THREE.MathUtils.clamp(local.x, width * 0.08, width);
+		const grabY = THREE.MathUtils.clamp(local.y, -height / 2, height / 2);
+		const projectGrab = (angle: number, bend: number) => {
+			const p = curlPagePoint(grabX, grabY, width, height, bend, corner);
+			const point = new THREE.Vector3(p.x, p.y, p.z)
+				.applyAxisAngle(new THREE.Vector3(0, 1, 0), angle)
+				.add(page.position);
+			page.parent!.localToWorld(point);
+			point.project(camera);
+			return new THREE.Vector2(
+				(point.x * size.width) / 2,
+				(-point.y * size.height) / 2,
+			);
+		};
+		const grabStart = projectGrab(startAngle, 0);
+		let dragAngle = startAngle,
+			dragBend = 0;
+		gsap.killTweensOf(page.userData);
+		page.userData.curlDragWeight = 1;
+		page.userData.curlDragBend = 0;
+		gsap.killTweensOf(page.rotation);
+		const orbitControls = controls as unknown as { enabled: boolean } | null;
+		const wasEnabled = orbitControls?.enabled;
+		if (orbitControls) orbitControls.enabled = false;
+		isAnimatingRef.current = true;
+		const pointerId = event.pointerId;
+		const element = event.nativeEvent.target as HTMLElement;
+		element.setPointerCapture?.(pointerId);
+		const startX = event.clientX,
+			startY = event.clientY;
+		let progress = 0,
+			maximumProgress = 0,
+			velocity = 0,
+			moved = 0,
+			lastTime = performance.now();
+		const move = (pointer: PointerEvent) => {
+			if (pointer.pointerId !== pointerId) return;
+			pointer.preventDefault();
+			const dx = pointer.clientX - startX,
+				dy = pointer.clientY - startY;
+			moved = Math.max(moved, Math.hypot(dx, dy));
+			const curlEnabled = useReaderPreferences.getState().pageCurl;
+			if (curlEnabled) {
+				// Fit the grabbed surface point to the pointer, including vertical
+				// pulls. Damped finite-difference solve, as in the reference.
+				const targetPoint = grabStart.clone().add(new THREE.Vector2(dx, dy));
+				for (let iteration = 0; iteration < 8; iteration++) {
+					const point = projectGrab(dragAngle, dragBend);
+					const error = targetPoint.clone().sub(point);
+					const da = projectGrab(dragAngle + 0.001, dragBend)
+						.sub(point)
+						.multiplyScalar(1000);
+					const db = projectGrab(dragAngle, dragBend + 0.001)
+						.sub(point)
+						.multiplyScalar(1000);
+					const aa = da.dot(da) + 2,
+						ab = da.dot(db),
+						bb = db.dot(db) + 2;
+					const ea = da.dot(error),
+						eb = db.dot(error),
+						determinant = aa * bb - ab * ab;
+					dragAngle = THREE.MathUtils.clamp(
+						dragAngle +
+							THREE.MathUtils.clamp(
+								(bb * ea - ab * eb) / determinant,
+								-0.15,
+								0.15,
+							),
+						-openDegrees,
+						openDegrees,
+					);
+					dragBend = THREE.MathUtils.clamp(
+						dragBend +
+							THREE.MathUtils.clamp(
+								(aa * eb - ab * ea) / determinant,
+								-0.3,
+								0.3,
+							),
+						-3.2,
+						3.2,
+					);
+				}
+			} else {
+				dragAngle =
+					startAngle +
+					(endAngle - startAngle) *
+						THREE.MathUtils.clamp(
+							(dx * axis.x + dy * axis.y) / axis.lengthSq(),
+							0,
+							1,
+						);
+			}
+			const next = THREE.MathUtils.clamp(
+				(dragAngle - startAngle) / (endAngle - startAngle),
+				0,
+				1,
+			);
+			gsap.to(page.userData, {
+				curlDragBend: dragBend,
+				duration: 0.06,
+				overwrite: true,
+				ease: "power1.out",
+			});
+			const now = performance.now();
+			velocity =
+				velocity * 0.35 +
+				((next - progress) / Math.max(0.008, (now - lastTime) / 1000)) * 0.65;
+			progress = next;
+			maximumProgress = Math.max(maximumProgress, progress);
+			lastTime = now;
+			gsap.to(page.rotation, {
+				y: startAngle + (endAngle - startAngle) * progress,
+				duration: 0.09,
+				overwrite: true,
+				ease: "power1.out",
+			});
+		};
+		const finish = (cancelled: boolean) => {
+			window.removeEventListener("pointermove", move);
+			window.removeEventListener("pointerup", up);
+			window.removeEventListener("pointercancel", cancel);
+			window.removeEventListener("blur", abort);
+			element.removeEventListener("lostpointercapture", cancel);
+			cancelDragRef.current = null;
+			if (element.hasPointerCapture?.(pointerId))
+				element.releasePointerCapture(pointerId);
+			if (orbitControls && wasEnabled !== undefined)
+				orbitControls.enabled = wasEnabled;
+			isAnimatingRef.current = false;
+			if (performance.now() - lastTime > 120) velocity = 0;
+			gsap.killTweensOf(page.rotation);
+			gsap.to(page.userData, {
+				curlDragWeight: 0,
+				duration: 0.35,
+				overwrite: true,
+				ease: "power2.out",
+			});
+			if (releasedPageTurn(maximumProgress, velocity, cancelled, moved < 6)) {
+				flipTo(target);
+			} else {
+				gsap.to(page.rotation, {
+					y: startAngle,
+					duration: 0.35,
+					overwrite: true,
+					ease: "power2.out",
+				});
+			}
+		};
+		const up = (pointer: PointerEvent) => {
+			if (pointer.pointerId === pointerId) finish(false);
+		};
+		const cancel = (pointer: PointerEvent) => {
+			if (pointer.pointerId === pointerId) finish(true);
+		};
+		const abort = () => finish(true);
+		cancelDragRef.current = abort;
+		window.addEventListener("pointermove", move, { passive: false });
+		window.addEventListener("pointerup", up);
+		window.addEventListener("pointercancel", cancel);
+		window.addEventListener("blur", abort);
+		element.addEventListener("lostpointercapture", cancel);
 	};
 
 	useEffect(() => {
 		const handleKeyPress = (event: KeyboardEvent): void => {
-			if (closing || document.querySelector("dialog[open]")) return;
+			if (
+				closing ||
+				cancelDragRef.current ||
+				document.querySelector("dialog[open]")
+			)
+				return;
+			if (
+				event.target instanceof HTMLElement &&
+				(event.target.isContentEditable ||
+					/^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName))
+			)
+				return;
 			if (event.key === "ArrowRight") {
 				flipForward();
 			} else if (event.key === "ArrowLeft") {
@@ -311,6 +525,7 @@ const OpenBook = ({
 			open();
 			return;
 		}
+		cancelDragRef.current?.();
 		flipTimelineRef.current?.kill();
 		flipQueueRef.current = [];
 		isAnimatingRef.current = false;
@@ -333,11 +548,20 @@ const OpenBook = ({
 	useEffect(() => {
 		let isActive = true;
 
-		const fetchAndUpdatePageImage = async (): Promise<void> => {
+		const fetchAndUpdatePageImage = async (
+			pageIndex: number,
+		): Promise<void> => {
 			try {
-				const imageUrl = await getPageImage(currentPage);
+				const imageUrl = await getPageImage(pageIndex);
 				if (!isActive || !imageUrl) return;
 
+				const existing = pageRefs.current[pageIndex]?.children[0];
+				if (
+					existing instanceof THREE.Mesh &&
+					pageMaterialsRef.current.get(existing)?.map?.userData.pageImage ===
+						imageUrl
+				)
+					return;
 				const loader = new THREE.TextureLoader();
 				loader.load(
 					imageUrl,
@@ -347,7 +571,7 @@ const OpenBook = ({
 							return;
 						}
 
-						const page = pageRefs.current[currentPage];
+						const page = pageRefs.current[pageIndex];
 						const pageMesh = page?.children[0];
 
 						if (pageMesh instanceof THREE.Mesh) {
@@ -355,12 +579,15 @@ const OpenBook = ({
 							previous?.map?.dispose();
 							previous?.dispose();
 							texture.colorSpace = THREE.SRGBColorSpace;
+							texture.userData.pageImage = imageUrl;
 							pageMesh.material = new THREE.MeshStandardMaterial({
 								...BOOK_MATERIAL,
 								roughness: 0.9,
 								map: texture,
 							});
 							pageMaterialsRef.current.set(pageMesh, pageMesh.material);
+						} else {
+							texture.dispose();
 						}
 					},
 					undefined,
@@ -373,12 +600,19 @@ const OpenBook = ({
 			}
 		};
 
-		void fetchAndUpdatePageImage();
+		// Prepare textures as well as PDF images so the next turns are already ready.
+		for (
+			let pageIndex = currentPage;
+			pageIndex <= Math.min(currentPage + 2, pages - 1);
+			pageIndex++
+		) {
+			void fetchAndUpdatePageImage(pageIndex);
+		}
 
 		return () => {
 			isActive = false;
 		};
-	}, [currentPage, getPageImage]);
+	}, [currentPage, getPageImage, pages]);
 
 	const selectedPage = useReadingStore((state) => state.selectedPage);
 
@@ -421,19 +655,13 @@ const OpenBook = ({
 							]}
 							rotation={[0, 0, 0]}
 						>
-							{/* biome-ignore lint/a11y/noStaticElementInteractions: Three.js mesh; page controls are also available outside the canvas. */}
-							<mesh
-								castShadow
-								receiveShadow
-								onClick={(event) => handlePageClick(index, event)}
-								position={[width / 2, 0, 0]}
-							>
-								<boxGeometry args={[width, height, pageThickness]} />
-								<meshStandardMaterial
-									roughness={0.9}
-									color={index % 2 === 0 ? "white" : "lightgray"}
-								/>
-							</mesh>
+							<CurlPage
+								width={width}
+								height={height}
+								thickness={pageThickness}
+								index={index}
+								onPointerDown={(event) => handlePagePointerDown(index, event)}
+							/>
 						</group>
 					))}
 				</group>

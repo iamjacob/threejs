@@ -4,6 +4,8 @@ import {
 	BookOpenText,
 	Check,
 	LoaderCircle,
+	PanelTopOpen,
+	PanelTopClose,
 	SquarePen,
 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
@@ -12,17 +14,21 @@ import { publicAssetUrl } from "../../lib/publicAssetUrl";
 import { useSelectedBook } from "../../stores/useBookStore";
 import { useTourStore } from "../../stores/useTourStore";
 import { requestReaderFullscreen } from "../reader/readerFullscreen";
+import BookPageSwiper from "../openbook/BookPageSwiper";
 import "./book-info.css";
 
 export default function BookInfoCard() {
 	const book = useSelectedBook();
 	const stage = useTourStore((state) => state.stage);
+	const reader = useTourStore((state) => state.reader);
 	const open = useTourStore((state) => state.openPreview);
 	const read = useTourStore((state) => state.openReader);
 	const back = useTourStore((state) => state.dismissPreview);
 	const edit = useTourStore((state) => state.editPreview);
 	const [more, setMore] = useState(false);
-	const dragStartY = useRef<number | null>(null);
+	const dragStart = useRef<{ y: number; pointerId: number } | null>(null);
+	const suppressHandleClick = useRef(false);
+	const [pullOffset, setPullOffset] = useState(0);
 	const card = useRef<HTMLElement>(null);
 	const detailsButton = useRef<HTMLButtonElement>(null);
 	const details = useRef<HTMLDivElement>(null);
@@ -40,7 +46,7 @@ export default function BookInfoCard() {
 	useEffect(() => {
 		setMore(false);
 		if (!document.activeElement?.closest("[data-book-navigation]"))
-			card.current?.focus({ preventScroll: true });
+			detailsButton.current?.focus({ preventScroll: true });
 	}, [book.id]);
 	useEffect(() => {
 		const keydown = (event: KeyboardEvent) => {
@@ -59,7 +65,7 @@ export default function BookInfoCard() {
 		const outside = (event: PointerEvent) => {
 			if (
 				event.target instanceof Node &&
-				!details.current?.contains(event.target) &&
+				!card.current?.contains(event.target) &&
 				!detailsButton.current?.contains(event.target)
 			)
 				setMore(false);
@@ -76,84 +82,134 @@ export default function BookInfoCard() {
 		<>
 			<section
 				ref={card}
-				className="book-info"
+				className={`book-info${more ? "" : " book-info-collapsed"}`}
 				tabIndex={-1}
-				aria-labelledby={`${id}-title`}
+				aria-label="Book information"
 			>
-				<div className="book-info-drag-handle" aria-hidden="true" />
-				{more && (
-					<div ref={details} id={`${id}-details`} className="book-info-details">
-						<div className="book-info-metadata">
-							<span>
-								{book.id.startsWith("scan-")
-									? "Scanned cover"
-									: `${book.pages.toLocaleString()} pages`}
-							</span>
-							<span>
-								{book.epub
-									? "EPUB available"
-									: book.pdf
-										? "PDF available"
-										: "No reading file"}
-							</span>
+				<div id={`${id}-details`} ref={details} hidden={!more}>
+					<div className="book-info-summary">
+						<img
+							className="book-info-cover"
+							src={publicAssetUrl(bookImagePath(book.cover.front, "low"))}
+							alt=""
+						/>
+						<div className="book-info-heading">
+							<h2 id={`${id}-title`}>{book.title}</h2>
+							<p>{author}</p>
 						</div>
 						<button
 							type="button"
-							onClick={() => {
-								setMore(false);
-								edit();
-							}}
-							disabled={opening}
+							className="book-info-more"
+							aria-label={opened ? "Book is open" : "Open book in 3D"}
+							disabled={opening || opened}
+							onClick={open}
 						>
-							<SquarePen size={17} aria-hidden="true" />
-							<span>
-								Edit on shelf<small>Arrange, drag, or stack this book</small>
-							</span>
+							{opening ? (
+								<LoaderCircle
+									size={16}
+									className="book-info-spinner"
+									aria-hidden="true"
+								/>
+							) : opened ? (
+								<Check size={16} aria-hidden="true" />
+							) : (
+								<BookOpen size={16} aria-hidden="true" />
+							)}
+							{opening ? "Opening" : opened ? "Opened" : "Open"}
 						</button>
 					</div>
-				)}
-				<div
-					className="book-info-summary"
+					{more && (
+						<div className="book-info-details">
+							<div className="book-info-metadata">
+								<span>
+									{book.id.startsWith("scan-")
+										? "Scanned cover"
+										: `${book.pages.toLocaleString()} pages`}
+								</span>
+								<span>
+									{book.epub
+										? "EPUB available"
+										: book.pdf
+											? "PDF available"
+											: "No reading file"}
+								</span>
+							</div>
+							<button
+								type="button"
+								onClick={() => {
+									setMore(false);
+									edit();
+								}}
+								disabled={opening}
+							>
+								<SquarePen size={17} aria-hidden="true" />
+								<span>
+									Edit on shelf<small>Arrange, drag, or stack this book</small>
+								</span>
+							</button>
+						</div>
+					)}
+				</div>
+				<button
+					ref={detailsButton}
+					type="button"
+					className="book-info-drag-handle"
+					aria-label={
+						more
+							? "Hide book details; drag up to close"
+							: "More book information; drag down to expand"
+					}
+					aria-expanded={more}
+					aria-controls={`${id}-details`}
+					style={{ transform: `translateY(${pullOffset}px)` }}
 					onPointerDown={(event) => {
-						if (
-							!(event.target instanceof Element) ||
-							event.target.closest("button")
-						)
-							return;
-						dragStartY.current = event.clientY;
+						if (!event.isPrimary || event.button !== 0) return;
+						dragStart.current = {
+							y: event.clientY,
+							pointerId: event.pointerId,
+						};
+						suppressHandleClick.current = false;
+						event.currentTarget.setPointerCapture(event.pointerId);
+					}}
+					onPointerMove={(event) => {
+						if (dragStart.current?.pointerId !== event.pointerId) return;
+						const distance = event.clientY - dragStart.current.y;
+						if (Math.abs(distance) > 8) suppressHandleClick.current = true;
+						setPullOffset(Math.max(-12, Math.min(18, distance * 0.25)));
 					}}
 					onPointerUp={(event) => {
-						if (dragStartY.current === null) return;
-						const distance = event.clientY - dragStartY.current;
-						dragStartY.current = null;
-						if (distance < -35) setMore(true);
-						if (distance > 35) setMore(false);
+						if (dragStart.current?.pointerId !== event.pointerId) return;
+						const distance = event.clientY - dragStart.current.y;
+						if (distance > 30) setMore(true);
+						else if (distance < -30) setMore(false);
+						if (Math.abs(distance) > 8) suppressHandleClick.current = true;
+						dragStart.current = null;
+						setPullOffset(0);
+						event.currentTarget.releasePointerCapture(event.pointerId);
 					}}
 					onPointerCancel={() => {
-						dragStartY.current = null;
+						dragStart.current = null;
+						setPullOffset(0);
+						suppressHandleClick.current = true;
+					}}
+					onLostPointerCapture={() => {
+						dragStart.current = null;
+						setPullOffset(0);
+					}}
+					onClick={(event) => {
+						if (event.detail !== 0 && suppressHandleClick.current) {
+							suppressHandleClick.current = false;
+							return;
+						}
+						setMore((value) => !value);
 					}}
 				>
-					<img
-						className="book-info-cover"
-						src={publicAssetUrl(bookImagePath(book.cover.front, "low"))}
-						alt=""
-					/>
-					<div className="book-info-heading">
-						<h2 id={`${id}-title`}>{book.title}</h2>
-						<p>{author}</p>
-					</div>
-					<button
-						ref={detailsButton}
-						type="button"
-						className="book-info-more"
-						aria-label="Open book details and options"
-						aria-expanded={more}
-						aria-controls={`${id}-details`}
-						onClick={() => setMore(!more)}
-					>
-						Open
-					</button>
-				</div>
+					{more ? (
+						<PanelTopClose size={20} aria-hidden="true" />
+					) : (
+						<PanelTopOpen size={20} aria-hidden="true" />
+					)}
+				</button>
 				{!readable && (
 					<p id={`${id}-file-note`} className="sr-only">
 						No EPUB or PDF attached to this book yet.
@@ -203,6 +259,13 @@ export default function BookInfoCard() {
 				>
 					<BookOpenText size={17} aria-hidden="true" />
 				</button>
+				{opened && reader === "closed" && (
+					<BookPageSwiper
+						key={book.id}
+						embedded
+						onInteract={() => useTourStore.setState({ paused: true })}
+					/>
+				)}
 				<button
 					type="button"
 					onClick={back}

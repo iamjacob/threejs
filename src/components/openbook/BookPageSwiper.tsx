@@ -37,7 +37,7 @@ export default function BookPageSwiper({
 	const menuHeight = embedded ? 128 : 144;
 	const centerOffset = (menuHeight - ITEM_HEIGHT) / 2;
 	const book = useSelectedBook();
-	const total = book.demoPages;
+	const total = Math.max(1, Math.min(120, book.pages));
 	const pageNumbers = useMemo(
 		() => Array.from({ length: total }, (_, index) => index),
 		[total],

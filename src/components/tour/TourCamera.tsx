@@ -23,6 +23,10 @@ import {
 } from "../shelves/shelfArrangement";
 import { focusBookPosition } from "./tourBookPose";
 import { tourStages } from "./tourStages";
+import {
+	LIBRARY_ENTRANCE_SECONDS,
+	libraryEntrancePose,
+} from "./libraryEntrance";
 
 export default function TourCamera() {
 	const { SHOW_DEMO_UI } = useFeatureFlags();
@@ -113,6 +117,21 @@ export default function TourCamera() {
 		() => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
 		[],
 	);
+	const entrance = useRef({ elapsed: 0, done: reducedMotion });
+	useEffect(() => {
+		// Any interaction hands camera control to the reader immediately.
+		const cancel = () => {
+			entrance.current.done = true;
+		};
+		window.addEventListener("pointerdown", cancel, true);
+		window.addEventListener("wheel", cancel, { passive: true, capture: true });
+		window.addEventListener("keydown", cancel, true);
+		return () => {
+			window.removeEventListener("pointerdown", cancel, true);
+			window.removeEventListener("wheel", cancel, true);
+			window.removeEventListener("keydown", cancel, true);
+		};
+	}, []);
 	const startPosition = useMemo(() => new Vector3(), []);
 	const startTarget = useMemo(() => new Vector3(), []);
 	const target = useMemo(() => new Vector3(), []);
@@ -154,6 +173,12 @@ export default function TourCamera() {
 			camera.position
 				.copy(framing.target)
 				.add(new Vector3(0, framing.distance * 0.12, framing.distance * 0.993));
+			if (!entrance.current.done && stage === "library") {
+				const pose = libraryEntrancePose(framing.target, framing.distance, 0);
+				camera.position.copy(pose.position);
+				orbit.target.copy(pose.target);
+			}
+			orbit.update();
 			initialized.current = true;
 		}
 		if (stage === "pull" || stage === "return") {
@@ -167,6 +192,30 @@ export default function TourCamera() {
 		const tour = useTourStore.getState();
 		if (!drag) dragView.current = null;
 		if (!orbit || !tour.ready || tour.reader === "open") return;
+		if (!entrance.current.done) {
+			if (
+				stage !== "library" ||
+				editing ||
+				tour.reader !== "closed" ||
+				tour.bookPanel !== "closed"
+			) {
+				entrance.current.done = true;
+			} else {
+				if (document.hidden) return;
+				entrance.current.elapsed += Math.min(delta, 0.1);
+				const pose = libraryEntrancePose(
+					framing.target,
+					framing.distance,
+					entrance.current.elapsed,
+				);
+				camera.position.copy(pose.position);
+				orbit.target.copy(pose.target);
+				orbit.update();
+				entrance.current.done =
+					entrance.current.elapsed >= LIBRARY_ENTRANCE_SECONDS;
+				return;
+			}
+		}
 		if (tour.reader === "zooming") {
 			const focus = focusBookPosition(book.id);
 			target.set(...focus);

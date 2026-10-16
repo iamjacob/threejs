@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 const PDF_JS_URL =
 	"https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
@@ -100,13 +100,17 @@ const usePDFToImage = (
 	const [isLoading, setIsLoading] = useState<boolean>(true);
 	const [progress, setProgress] = useState<number>(0);
 	const [pdfjsLib, setPdfjsLib] = useState<PDFJSStatic | null>(null);
-	const cacheRef = useRef(new LRUCache<string, string>(12));
+	const renderCache = useMemo(
+		() => ({
+			images: new LRUCache<string, string>(12),
+			pending: new Map<string, Promise<string | null>>(),
+		}),
+		[pdfDoc, pdfUrl],
+	);
 
 	useEffect(() => {
 		if (!pdfUrl) return;
 		let isCancelled = false;
-		const cache = cacheRef.current;
-		cache.clear();
 
 		const configurePDFJS = (): void => {
 			if (isCancelled || !window.pdfjsLib) return;
@@ -120,7 +124,6 @@ const usePDFToImage = (
 
 			return () => {
 				isCancelled = true;
-				cache.clear();
 			};
 		}
 
@@ -149,7 +152,6 @@ const usePDFToImage = (
 
 		return () => {
 			isCancelled = true;
-			cache.clear();
 			script?.removeEventListener("load", handleLoad);
 			script?.removeEventListener("error", handleError);
 		};
@@ -158,9 +160,7 @@ const usePDFToImage = (
 	useEffect(() => {
 		let isCancelled = false;
 		let loadingTask: PDFLoadingTask | null = null;
-		const cache = cacheRef.current;
 
-		cache.clear();
 		setPdfDoc(null);
 
 		const loadPDF = async (): Promise<void> => {
@@ -201,7 +201,6 @@ const usePDFToImage = (
 
 		return () => {
 			isCancelled = true;
-			cache.clear();
 			void loadingTask?.destroy?.();
 		};
 	}, [pdfUrl, pdfjsLib]);
@@ -219,38 +218,45 @@ const usePDFToImage = (
 			if (!Number.isFinite(scale) || scale <= 0) return null;
 
 			const cacheKey = `${pageNum}@${scale}`;
-			const cachedImage = cacheRef.current.get(cacheKey);
+			const cachedImage = renderCache.images.get(cacheKey);
 			if (cachedImage !== undefined) return cachedImage;
 
-			try {
-				// PDF.js page numbers are one-based; the app uses zero-based indexes.
-				const page = await pdfDoc.getPage(pageNum + 1);
-				const viewport = page.getViewport({ scale });
-				const canvas = document.createElement("canvas");
-				const context = canvas.getContext("2d", {
-					willReadFrequently: true,
-				});
+			const pending = renderCache.pending.get(cacheKey);
+			if (pending) return pending;
+			const render = async (): Promise<string | null> => {
+				try {
+					// PDF.js page numbers are one-based; the app uses zero-based indexes.
+					const page = await pdfDoc.getPage(pageNum + 1);
+					const viewport = page.getViewport({ scale });
+					const canvas = document.createElement("canvas");
+					const context = canvas.getContext("2d", {
+						willReadFrequently: true,
+					});
 
-				if (!context) return null;
+					if (!context) return null;
 
-				canvas.width = Math.ceil(viewport.width);
-				canvas.height = Math.ceil(viewport.height);
+					canvas.width = Math.ceil(viewport.width);
+					canvas.height = Math.ceil(viewport.height);
 
-				await page.render({
-					canvasContext: context,
-					viewport,
-				}).promise;
+					await page.render({
+						canvasContext: context,
+						viewport,
+					}).promise;
 
-				const dataUrl = canvas.toDataURL("image/webp");
-				cacheRef.current.set(cacheKey, dataUrl);
+					const dataUrl = canvas.toDataURL("image/webp");
+					renderCache.images.set(cacheKey, dataUrl);
 
-				return dataUrl;
-			} catch (error: unknown) {
-				console.error(`Failed to render PDF page ${pageNum}:`, error);
-				return null;
-			}
+					return dataUrl;
+				} catch (error: unknown) {
+					console.error(`Failed to render PDF page ${pageNum}:`, error);
+					return null;
+				}
+			};
+			const task = render().finally(() => renderCache.pending.delete(cacheKey));
+			renderCache.pending.set(cacheKey, task);
+			return task;
 		},
-		[isLoading, pdfDoc, pdfjsLib],
+		[isLoading, pdfDoc, pdfjsLib, renderCache],
 	);
 
 	return { getPageImage, isLoading, progress };

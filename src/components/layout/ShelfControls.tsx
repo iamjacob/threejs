@@ -27,6 +27,7 @@ import {
 	Undo2,
 	UserRound,
 	X,
+	ZoomIn,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -128,7 +129,10 @@ export default function ShelfControls() {
 					setTool(null);
 					current.endInteraction();
 				} else if (current.multiSelect) current.setMultiSelect(false);
-				else current.selectBooks([]);
+				else {
+					current.endInteraction();
+					current.setEditing(false);
+				}
 			}
 		};
 		window.addEventListener("keydown", keydown);
@@ -160,6 +164,17 @@ export default function ShelfControls() {
 			data-dragging={Boolean(state.drag)}
 		>
 			<header className="shelf-editor-header">
+				<ShelfButton
+					label={`Zoom: ${state.zoomMode}. Switch to ${state.zoomMode === "book" ? "shelf" : state.zoomMode === "shelf" ? "library" : "book"} view`}
+					className="shelf-zoom-button"
+					disabled={Boolean(state.drag)}
+					onClick={state.cycleZoom}
+				>
+					<ZoomIn />
+					<span className="shelf-zoom-level" aria-hidden="true">
+						{state.zoomMode === "book" ? 1 : state.zoomMode === "shelf" ? 2 : 3}
+					</span>
+				</ShelfButton>
 				<ShelfButton
 					label="Close shelf editor"
 					onClick={() => {

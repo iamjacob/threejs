@@ -5,7 +5,6 @@ import { MathUtils, Vector3 } from "three";
 import { useLibraryBooks, useSelectedBook } from "../../stores/useBookStore";
 import { useLevelStore } from "../../stores/useLevelStore";
 import { progressionConfig } from "../shelves/progressionConfig";
-import { BOOKS_SHELF_LEVEL } from "../shelves/shelfBooks";
 import type { CameraView } from "./demoScenes";
 
 export function shelfFraming(
@@ -71,6 +70,7 @@ export default function DemoCamera({ view }: { view: CameraView }) {
 	const { camera, size } = useThree();
 	const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
 	const levelIndex = useLevelStore((state) => state.levelIndex);
+	const libraryLevel = useLevelStore((state) => state.libraryLevel);
 	const isPlaying = useLevelStore((state) => state.isPlaying);
 	const pausePlayback = useLevelStore((state) => state.pausePlayback);
 	const moving = useRef(true);
@@ -83,13 +83,14 @@ export default function DemoCamera({ view }: { view: CameraView }) {
 	const framing = useMemo(
 		() =>
 			shelfFraming(
-				isCollection ? BOOKS_SHELF_LEVEL : levelIndex,
+				isCollection ? libraryLevel : levelIndex,
 				size.width / size.height,
 				isCollection ? tallestShelfBook : book.dimensions[1],
 				isCollection,
 				size.width < 768,
 			),
 		[
+			libraryLevel,
 			levelIndex,
 			size.width,
 			size.height,

@@ -135,6 +135,14 @@
 	font-size: 14px;
 	font-weight: 700;
 }
+.nav-language-flag {
+	width: 27px;
+	height: 18px;
+	flex-shrink: 0;
+	overflow: hidden;
+	border-radius: 3px;
+	box-shadow: 0 0 0 1px #ffffff20;
+}
 .nav-check {
 	margin-left: auto;
 	color: #e23b2e;
@@ -334,4 +342,52 @@
 	.library-navigation * {
 		transition: none !important;
 	}
+}
+
+.nav-stepper-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	flex-wrap: wrap;
+	gap: 12px;
+	padding: 12px;
+}
+.nav-stepper {
+	display: flex;
+	align-items: center;
+	border: 1px solid rgb(255 255 255 / 14%);
+	border-radius: 14px;
+	background: rgb(255 255 255 / 6%);
+	overflow: hidden;
+}
+.nav-stepper button {
+	display: grid;
+	place-items: center;
+	width: 44px;
+	height: 44px;
+	color: inherit;
+	border: 0;
+	background: transparent;
+	cursor: pointer;
+	touch-action: manipulation;
+}
+.nav-stepper button:hover:not(:disabled) {
+	background: rgb(255 255 255 / 10%);
+}
+.nav-stepper button:disabled {
+	opacity: 0.3;
+	cursor: default;
+}
+.nav-stepper button:focus-visible {
+	outline: 2px solid white;
+	outline-offset: -3px;
+}
+.nav-stepper output {
+	min-width: 52px;
+	text-align: center;
+	font-variant-numeric: tabular-nums;
+}
+.nav-stepper output span {
+	opacity: 0.5;
+	font-size: 12px;
 }

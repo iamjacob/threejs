@@ -1,7 +1,7 @@
 .book-info {
 	position: fixed;
 	z-index: 50;
-	bottom: max(16px, env(safe-area-inset-bottom));
+	top: calc(76px + env(safe-area-inset-top));
 	left: 50%;
 	transform: translateX(-50%);
 	width: min(350px, calc(100vw - 94px));
@@ -23,10 +23,21 @@
 	gap: 11px;
 	touch-action: pan-y;
 }
-.book-info-drag-handle {
-	width: 34px;
+.book-info .book-info-drag-handle {
+	display: flex;
+	width: 100%;
+	min-height: 44px;
+	margin: 4px 0 -6px;
+	padding: 0;
+	background: transparent;
+	touch-action: none;
+	user-select: none;
+	cursor: ns-resize;
+	border-radius: 10px;
+}
+.book-info-drag-handle span {
+	width: 36px;
 	height: 4px;
-	margin: 0 auto 7px;
 	border-radius: 999px;
 	background: rgb(255 255 255 / 35%);
 }
@@ -166,10 +177,7 @@
 	}
 }
 .book-info-details {
-	position: absolute;
-	bottom: calc(100% + 9px);
-	left: 0;
-	right: 0;
+	margin-top: 12px;
 	padding: 13px;
 	max-height: min(280px, calc(100dvh - 270px));
 	overflow-y: auto;
@@ -177,6 +185,7 @@
 	border-radius: 18px;
 	background: rgb(24 27 42 / 94%);
 	box-shadow: 0 10px 36px #0004;
+	animation: book-info-in 180ms ease-out both;
 }
 .book-info-metadata {
 	display: flex;
@@ -222,7 +231,7 @@
 @keyframes book-info-in {
 	from {
 		opacity: 0;
-		translate: 0 5px;
+		translate: 0 -5px;
 	}
 	to {
 		opacity: 1;
@@ -254,6 +263,7 @@
 }
 @media (prefers-reduced-motion: reduce) {
 	.book-info,
+	.book-info-details,
 	.book-info-spinner {
 		animation: none;
 	}
@@ -261,4 +271,16 @@
 	.book-info-actions button {
 		transition: none;
 	}
+}
+
+.book-info.book-info-collapsed {
+	width: 44px;
+	padding: 0;
+	border-radius: 14px;
+}
+.book-info.book-info-collapsed .book-info-drag-handle {
+	width: 44px;
+	height: 44px;
+	margin: 0;
+	border-radius: 14px;
 }

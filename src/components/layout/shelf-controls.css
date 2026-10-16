@@ -50,11 +50,12 @@
 }
 .shelf-editor-header {
 	position: absolute;
-	top: calc(12.8px + env(safe-area-inset-top));
+	top: calc(68px + env(safe-area-inset-top));
 	right: 12.8px;
 	display: flex;
 	align-items: center;
-	justify-content: space-between;
+	justify-content: flex-end;
+	gap: 10px;
 	pointer-events: none;
 }
 .shelf-editor-header > button,
@@ -713,7 +714,7 @@
 	white-space: nowrap;
 	padding: 3px 4px 3px 8px;
 	box-shadow: 0 4px 12px #0003;
-	}
+}
 .shelf-group-select,
 .shelf-group-detach {
 	border: 0;
@@ -742,8 +743,7 @@
 }
 @media (min-width: 700px) {
 	.shelf-editor-header {
-		top: calc(24px + env(safe-area-inset-top));
-		left: 24px;
+		top: calc(68px + env(safe-area-inset-top));
 		right: 24px;
 	}
 	.shelf-editor-context {
@@ -812,4 +812,23 @@
 	.shelf-dock {
 		animation: none;
 	}
+}
+
+.shelf-zoom-button {
+	position: relative;
+}
+.shelf-zoom-level {
+	position: absolute;
+	right: -3px;
+	bottom: -3px;
+	display: grid;
+	place-items: center;
+	width: 20px;
+	height: 20px;
+	border-radius: 50%;
+	background: #f4f1ea;
+	color: #202738;
+	font-size: 11px;
+	font-weight: 700;
+	pointer-events: none;
 }

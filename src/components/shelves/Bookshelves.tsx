@@ -1,3 +1,4 @@
+import { useLevelStore } from "../../stores/useLevelStore";
 import { Html, Line } from "@react-three/drei";
 import {
 	type ThreeEvent,
@@ -321,6 +322,7 @@ export default function Bookshelves({
 	onDeleteComplete?: (id: string) => void;
 } = {}) {
 	const shelfBooks = useBookStore((state) => state.books);
+	const libraryLevel = useLevelStore((state) => state.libraryLevel);
 	const stage = useTourStore((state) => state.stage);
 	const canEdit = stage === "library" || stage === "pick";
 	const document = useShelfControlsStore((state) => state.document);
@@ -386,7 +388,7 @@ export default function Bookshelves({
 
 	return (
 		<>
-			<Shelves fixedLevel={BOOKS_SHELF_LEVEL}>
+			<Shelves fixedLevel={libraryLevel}>
 				<ShelfPlates />
 				{pictureFrameVisible && <PictureFrame />}
 				{blurredBookIds.length > 0 && (
@@ -406,7 +408,6 @@ export default function Bookshelves({
 								<mesh
 									name={`selection-${placement.book.id}`}
 									raycast={() => null}
-									
 								>
 									<boxGeometry
 										args={[
