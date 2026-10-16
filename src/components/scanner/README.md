@@ -1,11 +1,28 @@
 # Book scanning
 
-The app opens with `BookScanner`. “Scan a book” opens the app consent screen;
-“Yes, allow camera” is the only action that calls `getUserMedia`. The browser then
-requests its own permission if it has not already been granted. Nothing requests
-camera access on mount. Microphone access is never requested. Cancel, capture,
-unmount, or hiding the page stops all tracks, including a late permission grant.
-Camera capture requires HTTPS or localhost; choosing a photo works without it.
+Pressing the front-page camera button, logo, or Menu → Add a book mounts
+`BookScanner` and immediately starts the camera request. The browser asks for
+permission when needed; there is no additional welcome or app consent screen.
+Permission errors keep the portal open with Retry and Choose a photo options.
+Microphone access is never requested. Cancel, capture, unmount, or hiding the
+page stops all tracks, including a late permission grant. Retake and capturing
+an additional cover face restart the camera directly. Camera capture requires
+HTTPS or localhost; choosing a photo works without it.
+
+Camera, cropper, and review are transparent overlays above the paused shelf,
+without a full-screen dimmer or backdrop blur. Crop shading is limited to the
+photo itself. The flashlight button controls the existing track's `torch`
+capability when available; unsupported cameras show a disabled button. Closing,
+capturing, hiding the tab, or changing cameras releases the light along with the
+camera session, including an in-flight flashlight request.
+
+The camera preview uses a red ribbon portal adapted
+from [BOOOKS Portal Scanner](https://boooks-portal-scanner.insidyou.chatgpt.site).
+Its gradient matches the logo (#7C1414 → #E22424). The preview reuses the scanner's video stream; original camera images still feed
+the cropper. The portal renderer limits resolution and frame rate, stops while
+hidden, and releases its resources on exit. A rounded CSS/video portal is used
+when WebGL is unavailable or loses its context. Reduced motion freezes the
+ribbons while keeping the live camera preview running.
 
 The four-corner homography is adapted from the supplied offline perspective
 cropper. It corrects perspective on the GPU, limits cover textures to 2048 pixels,

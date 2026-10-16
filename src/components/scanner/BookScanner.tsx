@@ -5,16 +5,19 @@ import {
 	Crop,
 	Download,
 	ImagePlus,
+	Flashlight,
+	FlashlightOff,
 	LoaderCircle,
 	Plus,
 	RotateCcw,
 	RotateCw,
-	ScanLine,
 	X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { cameraError, createCameraSession } from "./cameraSession";
+import { createCameraTorch } from "./cameraTorch";
 import CropCanvas, { cornerNames } from "./CropCanvas";
+import ScannerPortal from "./ScannerPortal";
 import {
 	cropPerspective,
 	decodePhoto,
@@ -25,7 +28,7 @@ import type { Point } from "./perspective";
 import type { BookScan, CroppedFace } from "./scannedBook";
 import "./scanner.css";
 
-type Step = "welcome" | "consent" | "requesting" | "camera" | "crop" | "review";
+type Step = "requesting" | "camera" | "unavailable" | "crop" | "review";
 type Face = "front" | "spine" | "back";
 const faceLabel = { front: "Front cover", spine: "Spine", back: "Back cover" };
 
@@ -36,7 +39,7 @@ export default function BookScanner({
 	onClose: () => void;
 	onAdd: (scan: BookScan) => Promise<void>;
 }) {
-	const [step, setStep] = useState<Step>("welcome");
+	const [step, setStep] = useState<Step>("requesting");
 	const [source, setSource] = useState<HTMLCanvasElement | null>(null);
 	const [points, setPoints] = useState<Point[]>([]);
 	const [faces, setFaces] = useState<Partial<Record<Face, CroppedFace>>>({});
@@ -45,7 +48,12 @@ export default function BookScanner({
 	const [error, setError] = useState("");
 	const [busy, setBusy] = useState(false);
 	const [cameraReady, setCameraReady] = useState(false);
+	const [portalFallback, setPortalFallback] = useState(false);
 	const [stream, setStream] = useState<MediaStream | null>(null);
+	const torch = useRef<ReturnType<typeof createCameraTorch> | null>(null);
+	const [torchSupported, setTorchSupported] = useState(false);
+	const [torchEnabled, setTorchEnabled] = useState(false);
+	const [torchPending, setTorchPending] = useState(false);
 	const video = useRef<HTMLVideoElement>(null);
 	const fileInput = useRef<HTMLInputElement>(null);
 	const heading = useRef<HTMLHeadingElement>(null);
@@ -79,7 +87,9 @@ export default function BookScanner({
 			setStream(null);
 			setCameraReady(false);
 			setStep((current) =>
-				current === "camera" || current === "requesting" ? "consent" : current,
+				current === "camera" || current === "requesting"
+					? "unavailable"
+					: current,
 			);
 		};
 		document.addEventListener("visibilitychange", hide);
@@ -102,14 +112,14 @@ export default function BookScanner({
 			if (!mounted.current || element.srcObject !== stream) return;
 			session.stop();
 			setStream(null);
-			setStep("consent");
+			setStep("unavailable");
 			setError("The preview couldn’t play. Try again or choose a photo.");
 		});
 		const ended = () => {
 			if (mounted.current) {
 				session.stop();
 				setStream(null);
-				setStep("consent");
+				setStep("unavailable");
 				setError("The camera stopped. Allow access again to continue.");
 			}
 		};
@@ -123,6 +133,30 @@ export default function BookScanner({
 			});
 		};
 	}, [stream, step, session]);
+	useEffect(() => {
+		const control = createCameraTorch(stream?.getVideoTracks()[0] ?? null);
+		torch.current = control;
+		setTorchSupported(control.supported);
+		setTorchEnabled(control.enabled);
+		setTorchPending(false);
+		return () => {
+			control.dispose();
+			if (torch.current === control) torch.current = null;
+		};
+	}, [stream]);
+	const toggleTorch = async () => {
+		const control = torch.current;
+		if (!control?.supported || torchPending) return;
+		setTorchPending(true);
+		const applied = await control.setEnabled(!control.enabled);
+		if (!mounted.current || torch.current !== control) return;
+		setTorchEnabled(control.enabled);
+		setTorchPending(false);
+		if (!applied)
+			setError(
+				"The flashlight couldn’t switch. Try again or continue without it.",
+			);
+	};
 	const stopCamera = () => {
 		session.stop();
 		setStream(null);
@@ -139,7 +173,7 @@ export default function BookScanner({
 		setError("");
 		stopCamera();
 		if (step === "review") setStep("crop");
-		else if ((step === "crop" || step === "welcome") && faces.front) {
+		else if (step === "crop" && faces.front) {
 			setFace("front");
 			const saved = crops.current.front;
 			if (saved) {
@@ -147,11 +181,10 @@ export default function BookScanner({
 				setPoints(saved.points);
 			}
 			setStep("review");
-		} else if (step === "welcome") close();
-		else setStep("welcome");
+		} else if (step === "crop") void startCamera();
+		else close();
 	};
-	const allowCamera = async () => {
-		if (step !== "consent") return;
+	const startCamera = useCallback(async () => {
 		setError("");
 		setStep("requesting");
 		setCameraReady(false);
@@ -163,10 +196,15 @@ export default function BookScanner({
 		} catch (cause) {
 			if (mounted.current) {
 				setError(cameraError(cause));
-				setStep("consent");
+				setStep("unavailable");
 			}
 		}
-	};
+	}, [session]);
+	// BookScanner only mounts after the user presses Scan or Add a book.
+	// getUserMedia itself asks for permission when the browser needs it.
+	useEffect(() => {
+		void startCamera();
+	}, [startCamera]);
 	const openPhoto = async (file: File) => {
 		if (!file.type.startsWith("image/")) {
 			setError("Choose an image of your book.");
@@ -275,15 +313,11 @@ export default function BookScanner({
 			<ImagePlus size={17} /> Choose a photo
 		</button>
 	);
-	const stepIndex = ["welcome", "consent", "requesting", "camera"].includes(
-		step,
-	)
-		? 0
-		: step === "crop"
-			? 1
-			: 2;
+
 	return (
 		<section
+			id="book-scanner"
+			data-step={step}
 			className="book-scanner"
 			aria-label="Add a book"
 			onKeyDown={(event) => {
@@ -310,26 +344,10 @@ export default function BookScanner({
 				}}
 			/>
 			<header className="scan-header">
-				{/* <button
-					type="button"
-					className="scan-icon"
-					aria-label={step === "welcome" ? "Explore shelf" : "Back"}
-					disabled={busy}
-					onClick={back}
-				>
-					{step === "welcome" ? (
-						<BookOpen size={19} />
-					) : (
-						<ArrowLeft size={19} />
-					)}
-				</button> */}
-				{/* <span className="scan-wordmark">
-					boooks<span className="scan-wordmark-dot">.</span>
-				</span> */}
 				<button
 					type="button"
 					className="scan-icon"
-					style={{ marginLeft: "auto" }}	
+					style={{ marginLeft: "auto" }}
 					aria-label="Close scanner and explore shelf"
 					disabled={busy}
 					onClick={close}
@@ -337,94 +355,31 @@ export default function BookScanner({
 					<X size={19} />
 				</button>
 			</header>
-			
-			{(step === "welcome" || step === "consent" || step === "requesting") && (
-				<div className="scan-intro">
-					
-					<div className="scan-intro-copy">
-						{/* <p className="scan-eyebrow">A little more you</p> */}
-						<h1 ref={heading} tabIndex={-1}>
-							{step === "welcome" ? (
-								<>
-									Scan a book.
-									{/* <br />
-									Make it part of your world. */}
-								</>
-							) : step === "requesting" ? (
-								"One more yes."
-							) : (
-								"Let’s use your camera."
-							)}
-						</h1>
-						<p>
-							{step === "welcome"
-								? "Find a book you love. Scan its cover!"
-								: step === "requesting"
-									? "Choose Allow in your browser’s camera request. Your book is up next."
-									: "With your permission, we’ll open the camera so you can photograph your book’s cover."}
-						</p>
-					</div>
-					<div className="scan-intro-actions">
-						{step === "welcome" ? (
-							<button
-								className="scan-button scan-primary"
-								type="button"
-								disabled={busy}
-								onClick={() => {
-									setError("");
-									setStep("consent");
-								}}
-							>
-								<ScanLine size={19} /> Scan a book <ArrowRight size={17} />
-							</button>
-						) : step === "consent" ? (
-							<button
-								className="scan-button scan-primary"
-								type="button"
-								disabled={busy}
-								onClick={allowCamera}
-							>
-								<Camera size={19} /> Yes, allow camera <ArrowRight size={17} />
-							</button>
-						) : (
-							<button
-								type="button"
-								className="scan-button scan-primary"
-								onClick={() => {
-									stopCamera();
-									setStep("consent");
-								}}
-							>
-								<LoaderCircle className="scan-spin" size={18} /> Waiting for
-								permission · Cancel
-							</button>
-						)}
-						{upload}
-					</div>
-					<nav className="scan-steps" aria-label="Adding a book">
-				{["Scan", "Crop", "Add"].map((label, index) => (
-					<span
-						key={label}
-						aria-current={stepIndex === index ? "step" : undefined}
-						className={stepIndex >= index ? "is-current" : ""}
-					>
-						<i>{stepIndex > index ? <Check size={10} /> : `0${index + 1}`}</i>
-						{label}
-						{index < 2 && <b />}
-					</span>
-				))}
-			</nav>
-				</div>
-			)}
-			{step === "camera" && (
+
+			{(step === "camera" ||
+				step === "requesting" ||
+				step === "unavailable") && (
 				<div className="scan-camera-screen">
 					<div className="scan-section-title">
 						<h1 ref={heading} tabIndex={-1}>
-							Find your cover.
+							{step === "requesting"
+								? "Opening camera…"
+								: step === "unavailable"
+									? "Let’s get your camera ready."
+									: "Place your cover inside the portal."}
 						</h1>
-						<p>Fill the frame. Keep all four corners in view.</p>
+						<p>
+							{step === "requesting"
+								? "Allow camera access in your browser if asked."
+								: step === "unavailable"
+									? "Try the camera again or choose a photo below."
+									: "Keep all four corners inside the light. Hold steady and capture."}
+						</p>
 					</div>
-					<div className="scan-viewfinder">
+					<div
+						className="scan-viewfinder scan-portal-viewfinder"
+						data-fallback={portalFallback}
+					>
 						<video
 							ref={video}
 							autoPlay
@@ -432,35 +387,78 @@ export default function BookScanner({
 							playsInline
 							onLoadedData={() => setCameraReady(true)}
 						/>
-						<div className="scan-viewfinder-frame">
-							<span />
-							<span />
-							<span />
-							<span />
-						</div>
+						<ScannerPortal
+							video={video}
+							live={cameraReady}
+							onFallbackChange={setPortalFallback}
+						/>
 						<span className="scan-live">
-							<i /> Camera on
+							<i />{" "}
+							{step === "camera"
+								? "Camera on"
+								: step === "requesting"
+									? "Waiting for camera"
+									: "Camera off"}
 						</span>
-						{!cameraReady && (
+						{step !== "unavailable" && !cameraReady && (
 							<LoaderCircle className="scan-camera-loading scan-spin" />
 						)}
 					</div>
 					<div className="scan-camera-actions">
 						{upload}
-						<button
-							className="scan-shutter"
-							type="button"
-							aria-label="Capture book cover"
-							disabled={!cameraReady}
-							onClick={capture}
-						>
-							<span />
-						</button>
-						<span className="scan-capture-label">
-							Capture
-							<br />
-							cover
-						</span>
+						{step === "unavailable" ? (
+							<button
+								type="button"
+								className="scan-button scan-primary"
+								onClick={() => void startCamera()}
+							>
+								<Camera size={18} /> Try camera again
+							</button>
+						) : (
+							<button
+								className="scan-shutter"
+								type="button"
+								aria-label="Capture book cover"
+								disabled={!cameraReady}
+								onClick={capture}
+							>
+								<span />
+							</button>
+						)}
+						<div className="scan-torch">
+							<button
+								type="button"
+								className="scan-icon"
+								aria-label={
+									torchSupported
+										? torchEnabled
+											? "Turn flashlight off"
+											: "Turn flashlight on"
+										: "Flashlight unavailable for this camera"
+								}
+								title={
+									torchSupported
+										? torchEnabled
+											? "Turn flashlight off"
+											: "Turn flashlight on"
+										: "Flashlight unavailable for this camera"
+								}
+								aria-pressed={torchEnabled}
+								disabled={
+									!cameraReady || !torchSupported || torchPending || busy
+								}
+								onClick={() => void toggleTorch()}
+							>
+								{torchPending ? (
+									<LoaderCircle size={20} className="scan-spin" />
+								) : torchEnabled ? (
+									<Flashlight size={20} />
+								) : (
+									<FlashlightOff size={20} />
+								)}
+							</button>
+							<span>{torchSupported ? "Flashlight" : "No flashlight"}</span>
+						</div>
 					</div>
 				</div>
 			)}
@@ -531,8 +529,7 @@ export default function BookScanner({
 							className="scan-button scan-secondary"
 							disabled={busy}
 							onClick={() => {
-								setStep("welcome");
-								setError("");
+								void startCamera();
 							}}
 						>
 							Retake
@@ -598,7 +595,7 @@ export default function BookScanner({
 											setPoints(saved.points);
 										} else {
 											setPoints([]);
-											setStep("welcome");
+											void startCamera();
 										}
 									}}
 								>

@@ -1,5 +1,5 @@
-import { X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { LoaderCircle, X } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 import { bookImagePath } from "../../lib/bookImages";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
 import { useSelectedBook } from "../../stores/useBookStore";
@@ -11,6 +11,10 @@ export default function ReaderOverlay() {
 	const close = useTourStore((state) => state.closeReader);
 	const dialog = useRef<HTMLDialogElement>(null);
 	const frame = useRef<HTMLIFrameElement>(null);
+	const [attempt, setAttempt] = useState(0);
+	const [status, setStatus] = useState<"loading" | "slow" | "error" | "ready">(
+		"loading",
+	);
 	const readingFile = book.epub ?? book.pdf;
 	const query = new URLSearchParams({
 		book: book.id,
@@ -21,17 +25,8 @@ export default function ReaderOverlay() {
 	useEffect(() => {
 		const previousFocus = document.activeElement as HTMLElement | null;
 		dialog.current?.showModal();
-		const receive = (event: MessageEvent) => {
-			if (
-				event.source === frame.current?.contentWindow &&
-				event.origin === window.location.origin &&
-				event.data?.type === "close-reader"
-			)
-				close();
-		};
-		window.addEventListener("message", receive);
+
 		return () => {
-			window.removeEventListener("message", receive);
 			exitReaderFullscreen();
 			// Wait until React removes the modal and mounts the next chapter.
 			queueMicrotask(() => {
@@ -46,6 +41,33 @@ export default function ReaderOverlay() {
 			});
 		};
 	}, [close]);
+	useEffect(() => {
+		setStatus("loading");
+		const timer = window.setTimeout(
+			() => setStatus((current) => (current === "loading" ? "slow" : current)),
+			15000,
+		);
+		const receive = (event: MessageEvent) => {
+			if (
+				event.source !== frame.current?.contentWindow ||
+				event.origin !== window.location.origin
+			)
+				return;
+			if (event.data?.type === "close-reader") close();
+			if (
+				event.data?.type === "reader-ready" ||
+				event.data?.type === "reader-error"
+			) {
+				window.clearTimeout(timer);
+				setStatus(event.data.type === "reader-ready" ? "ready" : "error");
+			}
+		};
+		window.addEventListener("message", receive);
+		return () => {
+			window.clearTimeout(timer);
+			window.removeEventListener("message", receive);
+		};
+	}, [attempt, book.id, close]);
 	return (
 		<dialog
 			ref={dialog}
@@ -66,8 +88,40 @@ export default function ReaderOverlay() {
 				<X size={22} strokeWidth={2.5} aria-hidden="true" />
 				<span>Close reader</span>
 			</button>
+			{status !== "ready" && (
+				<div
+					role="status"
+					className="absolute bottom-6 left-1/2 z-10 flex max-w-[calc(100%-2rem)] -translate-x-1/2 items-center gap-3 rounded-2xl border border-stone-300 bg-white px-4 py-3 text-sm shadow-lg"
+				>
+					{status === "loading" && (
+						<LoaderCircle
+							size={18}
+							className="shrink-0 animate-spin motion-reduce:animate-none"
+							aria-hidden="true"
+						/>
+					)}
+					<span>
+						{status === "error"
+							? "The book could not be opened."
+							: status === "slow"
+								? "This book is taking longer to load."
+								: "Opening book…"}
+					</span>
+					{(status === "slow" || status === "error") && (
+						<button
+							type="button"
+							className="min-h-11 shrink-0 rounded-lg px-3 font-semibold underline"
+							onClick={() => setAttempt((value) => value + 1)}
+						>
+							Retry
+						</button>
+					)}
+				</div>
+			)}
 			<iframe
+				key={`${book.id}-${attempt}`}
 				ref={frame}
+				onError={() => setStatus("error")}
 				allowFullScreen
 				title={`Read ${book.title}`}
 				src={`${publicAssetUrl("/reader/index.html")}?${query}`}

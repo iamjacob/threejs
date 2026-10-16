@@ -7,14 +7,16 @@ pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsPath('pdf.worker.mjs')
 const fetchText = async url => await (await fetch(url)).text()
 
 // https://raw.githubusercontent.com/mozilla/pdf.js/refs/tags/v5.5.207/web/text_layer_builder.css
-const textLayerBuilderCSS = await fetchText(pdfjsPath('text_layer_builder.css'))
+const styles = Promise.all([fetchText(pdfjsPath('text_layer_builder.css')), fetchText(pdfjsPath('annotation_layer_builder.css'))])
+const [textLayerBuilderCSS, annotationLayerBuilderCSS] = await styles
 
 // https://raw.githubusercontent.com/mozilla/pdf.js/refs/tags/v5.5.207/web/annotation_layer_builder.css
-const annotationLayerBuilderCSS = await fetchText(pdfjsPath('annotation_layer_builder.css'))
+
 
 const render = async (page, doc, zoom) => {
-    const scale = zoom * devicePixelRatio
-    doc.documentElement.style.transform = `scale(${1 / devicePixelRatio})`
+    const pixelRatio = Math.min(devicePixelRatio || 1, 2)
+    const scale = zoom * pixelRatio
+    doc.documentElement.style.transform = `scale(${1 / pixelRatio})`
     doc.documentElement.style.transformOrigin = 'top left'
     doc.documentElement.style.setProperty('--scale-factor', scale)
     const viewport = page.getViewport({ scale })
@@ -134,7 +136,11 @@ export const makePDF = async file => {
 
     const book = { rendition: { layout: 'pre-paginated' } }
 
-    const { metadata, info } = await pdf.getMetadata() ?? {}
+    book.metadata = {}
+    book.toc = []
+    // Optional navigation metadata must not block the first readable page.
+    void pdf.getMetadata().then(result => {
+    const { metadata, info } = result ?? {}
     // TODO: for better results, parse `metadata.getRaw()`
     book.metadata = {
         title: metadata?.get('dc:title') ?? info?.Title,
@@ -149,8 +155,9 @@ export const makePDF = async file => {
         rights: metadata?.get('dc:rights'),
     }
 
-    const outline = await pdf.getOutline()
-    book.toc = outline?.map(makeTOCItem)
+
+    }).catch(() => {})
+    void pdf.getOutline().then(outline => { book.toc = outline?.map(makeTOCItem) ?? [] }).catch(() => {})
 
     const cache = new Map()
     book.sections = Array.from({ length: pdf.numPages }).map((_, i) => ({
@@ -161,6 +168,11 @@ export const makePDF = async file => {
             const url = await renderPage(await pdf.getPage(i + 1))
             cache.set(i, url)
             return url
+        },
+        unload: () => {
+            const cached = cache.get(i)
+            if (cached) URL.revokeObjectURL(cached.src)
+            cache.delete(i)
         },
         size: 1000,
     }))
@@ -181,6 +193,10 @@ export const makePDF = async file => {
     }
     book.getTOCFragment = doc => doc.documentElement
     book.getCover = async () => renderPage(await pdf.getPage(1), true)
-    book.destroy = () => pdf.destroy()
+    book.destroy = () => {
+        for (const cached of cache.values()) URL.revokeObjectURL(cached.src)
+        cache.clear()
+        return pdf.destroy()
+    }
     return book
 }

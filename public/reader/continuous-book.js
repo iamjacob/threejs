@@ -41,12 +41,12 @@ export class ContinuousBook {
         const first = this.records.find(record => record.index === position?.index) ?? this.records[0]
         if (!first) throw new Error('Empty book')
         first.wanted = true
-        await this.load(first)
+        await this.load(first, true)
         if (position) this.restorePosition(position)
         for (const record of this.records) this.observer.observe(record.element)
     }
 
-    async load(record) {
+    async load(record, failOpening = false) {
         if (record.frame || record.loading || this.destroyed) return
         record.loading = true
         try {
@@ -94,7 +94,7 @@ export class ContinuousBook {
                 doc.fonts.ready.then(fit)
             }
             record.element.dataset.loaded = 'true'
-        } catch {
+        } catch (error) {
             if (!this.destroyed && record.wanted) {
                 record.frame?.remove()
                 record.frame = null
@@ -104,6 +104,7 @@ export class ContinuousBook {
                 retry.onclick = () => this.load(record)
                 record.element.replaceChildren(retry)
             }
+            if (failOpening) throw error
         } finally {
             record.loading = false
             if (!record.wanted || this.destroyed) this.release(record)

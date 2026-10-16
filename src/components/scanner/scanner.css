@@ -8,8 +8,7 @@
 	display: flex;
 	flex-direction: column;
 	color: var(--scan-ink);
-	background:
-		radial-gradient(ellipse at 50% 35%, #20294366, transparent 58%), #0b1020;
+	background: transparent;
 	font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 	overflow: auto;
 	overscroll-behavior: contain;
@@ -461,8 +460,8 @@
 	min-height: 220px;
 	overflow: hidden;
 	border-radius: 20px;
-	border: 1px solid #ffffff0d;
-	background: #050912;
+	border: 0;
+	background: transparent;
 }
 .scan-crop-canvas {
 	position: absolute;
@@ -805,4 +804,173 @@
 	.scan-spin {
 		animation-duration: 3s;
 	}
+}
+
+/* Portal adapted from the Boooks Portal Scanner reference. */
+.scanner-portal {
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+}
+.scanner-portal-canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+.scan-portal-welcome {
+	position: relative;
+	width: min(100%, 390px);
+	height: clamp(200px, 34svh, 310px);
+	margin: -12px 0 16px;
+	isolation: isolate;
+}
+.scan-portal-caption {
+	position: absolute;
+	bottom: 0;
+	left: 0;
+	width: 100%;
+	color: #b8b2cc;
+	font-size: 10px;
+	letter-spacing: 1.8px;
+	text-transform: uppercase;
+	pointer-events: none;
+}
+.scan-viewfinder.scan-portal-viewfinder {
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	min-height: 280px;
+	max-height: 600px;
+}
+.scan-portal-viewfinder > video {
+	opacity: 0;
+	pointer-events: none;
+}
+.scan-portal-viewfinder[data-fallback="true"] > video {
+	opacity: 1;
+	width: 63%;
+	height: 68%;
+	left: 18.5%;
+	top: 17.5%;
+	object-fit: cover;
+	border-radius: 50%;
+}
+.scanner-portal[data-fallback="true"]::before {
+	content: "";
+	position: absolute;
+	width: 63%;
+	height: 68%;
+	left: 18.5%;
+	top: 17.5%;
+	border: 2px solid #e22424;
+	border-left-color: #7c1414;
+	border-top-color: #aa1c1c;
+	border-radius: 50%;
+	box-shadow:
+		0 0 26px #9a66dd66,
+		inset 0 0 18px #78ccef33;
+}
+.scan-portal-viewfinder .scan-live,
+.scan-portal-viewfinder .scan-camera-loading {
+	z-index: 1;
+}
+@media (max-height: 600px) {
+	.scan-portal-welcome {
+		height: 180px;
+		margin-bottom: 10px;
+	}
+	.scan-portal-viewfinder {
+		min-height: 220px !important;
+	}
+}
+
+/* Keep scanner Close below the persistent top-right navigation. */
+.book-scanner .scan-header {
+	height: 112px;
+	align-items: flex-end;
+	padding-bottom: 12px;
+}
+
+.library-scan-button {
+	position: fixed;
+	top: 50%;
+	right: max(16px, env(safe-area-inset-right));
+	z-index: 60;
+	transform: translateY(-50%);
+	display: grid;
+	place-items: center;
+	width: 52px;
+	height: 52px;
+	border: 1px solid rgb(255 255 255 / 18%);
+	border-radius: 50%;
+	background: rgb(30 36 58 / 88%);
+	box-shadow: 0 6px 24px rgb(0 0 0 / 24%);
+	color: #f4f1ea;
+	cursor: pointer;
+	touch-action: manipulation;
+	-webkit-tap-highlight-color: transparent;
+}
+.library-scan-button:hover {
+	background: #35405d;
+}
+.library-scan-button:focus-visible {
+	outline: 2px solid #f4f1ea;
+	outline-offset: 4px;
+}
+.book-scanner:is(
+		[data-step="unavailable"],
+		[data-step="requesting"],
+		[data-step="camera"]
+	) {
+	background: transparent;
+}
+.book-scanner .scan-intro-copy {
+	padding: 12px 20px;
+	border-radius: 20px;
+	background: rgb(12 16 30 / 72%);
+}
+.book-scanner .scan-portal-caption,
+.book-scanner .scan-section-title {
+	text-shadow: 0 2px 8px #000;
+}
+
+.book-scanner .scan-section-title {
+	text-shadow:
+		0 2px 8px #000,
+		0 1px 3px #000;
+}
+.book-scanner .scan-live,
+.book-scanner .scan-crop-count {
+	backdrop-filter: none;
+	-webkit-backdrop-filter: none;
+}
+.scan-torch {
+	justify-self: center;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 6px;
+	font-size: 10px;
+	color: var(--scan-ink);
+	text-shadow: 0 1px 4px #000;
+}
+.scan-torch .scan-icon {
+	width: 46px;
+	height: 46px;
+	background: #141b2de0;
+	border-color: #ffffff25;
+}
+.scan-torch .scan-icon[aria-pressed="true"] {
+	background: linear-gradient(110deg, #7c1414, #e22424);
+	border-color: #f49d9d;
+	box-shadow: 0 0 18px #e2242444;
+}
+.scan-torch .scan-icon:disabled {
+	opacity: 0.5;
+}
+.scan-crop-tools {
+	align-self: center;
+	padding-inline: 12px;
+	border-radius: 24px;
+	background: #11182cdd;
 }

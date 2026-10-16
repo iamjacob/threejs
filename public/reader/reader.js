@@ -1,4 +1,3 @@
-import { makeBook } from './foliate/view.js'
 import { ContinuousBook } from './continuous-book.js'
 import { bookFile, positionKey, readSettings, readStored, settingsKey, writeStored } from './reader-storage.js'
 
@@ -103,6 +102,7 @@ const keyboard = event => {
 document.addEventListener('keydown', keyboard)
 
 function showError() {
+    parent.postMessage({ type: 'reader-error' }, location.origin)
     get('notice').hidden = false
     get('message').textContent = 'This file could not be opened.'
     get('hint').hidden = false
@@ -124,7 +124,7 @@ async function open(file) {
         // the entire response into a Blob (large PDFs can fail in that path).
         const book = typeof file === 'string' && new URL(file).pathname.toLowerCase().endsWith('.pdf')
             ? await (await import('./foliate/pdf.js')).makePDF(file)
-            : await makeBook(file)
+            : await (await import('./foliate/view.js')).makeBook(file)
         reader = new ContinuousBook(get('pages'), book, (doc, index) => {
             doc.addEventListener('keydown', keyboard)
             doc.addEventListener('pointerdown', () => { if (!get('settings').hidden) setSettingsOpen(false) })
@@ -140,6 +140,7 @@ async function open(file) {
         await reader.open(readStored(currentPositionKey))
         updateSettings()
         get('notice').hidden = true
+        parent.postMessage({ type: 'reader-ready' }, location.origin)
         get('pages').focus({ preventScroll: true })
         writeStored('boooks-last-reader', { bookId })
         if (typeof file === 'string') writeStored(sourceKey, { url: file })
@@ -147,7 +148,8 @@ async function open(file) {
             // The reader remains usable if private browsing blocks IndexedDB.
             bookFile(bookId, file).then(() => writeStored(sourceKey, { local: true })).catch(() => {})
         }
-    } catch {
+    } catch (error) {
+        console.error('Reader could not open the book:', error)
         showError()
     } finally {
         opening = false

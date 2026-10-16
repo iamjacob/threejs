@@ -206,7 +206,7 @@ test("the optional demo retains its own reader and stage progression", () => {
 	assert.equal(tour.getState().stage, "read");
 	assert.equal(tour.getState().bookPanel, "closed");
 	tour.getState().openReader();
-	assert.equal(tour.getState().reader, "zooming");
+	assert.equal(tour.getState().reader, "open");
 	tour.setState({ reader: "open" });
 	tour.getState().closeReader();
 	assert.equal(tour.getState().stage, "grow");

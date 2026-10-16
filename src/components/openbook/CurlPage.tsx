@@ -28,7 +28,7 @@ export function CurlPage({
 		const angle = page.parent.rotation.y;
 		// Flat on each stack and when closed; flexible while travelling between them.
 		const weight = Number(page.parent.userData.curlDragWeight ?? 0);
-		const automaticBend = Math.sin(angle * Math.PI) * 1.9;
+		const automaticBend = Math.sin(angle * Math.PI) * (1.9 * 1.33);
 		const bend = useReaderPreferences.getState().pageCurl
 			? automaticBend * (1 - weight) +
 				Number(page.parent.userData.curlDragBend ?? 0) * weight

@@ -79,7 +79,13 @@ export default function CropCanvas({
 		}));
 		if (screen.length === 4) {
 			ctx.beginPath();
-			ctx.rect(0, 0, view.width, view.height);
+			// Shade only the unused photo area, leaving the shelf clear around it.
+			ctx.rect(
+				view.x,
+				view.y,
+				source.width * view.scale,
+				source.height * view.scale,
+			);
 			ctx.moveTo(screen[0].x, screen[0].y);
 			for (const p of screen.slice(1)) ctx.lineTo(p.x, p.y);
 			ctx.closePath();

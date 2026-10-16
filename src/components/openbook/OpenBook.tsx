@@ -13,6 +13,7 @@ import { useSelectedBook } from "../../stores/useBookStore";
 import { BOOK_MATERIAL } from "../book/bookAppearance";
 import { BOOK_ROTATION } from "../tour/tourBookPose";
 import usePDFToImage from "./usePDFToImage";
+import { useTourStore } from "../../stores/useTourStore";
 import { useReaderPreferences } from "../../stores/useReaderPreferences";
 import { CurlPage } from "./CurlPage";
 import { curlPagePoint, releasedPageTurn } from "./pageCurl";
@@ -66,6 +67,7 @@ const OpenBook = ({
 }: OpenBookProps) => {
 	const { camera, size, controls } = useThree();
 	const cancelDragRef = useRef<(() => void) | null>(null);
+	const readerState = useTourStore((state) => state.reader);
 	const selectedBook = useSelectedBook();
 	const book = providedBook ?? selectedBook;
 	const [currentPage, setCurrentPage] = useState<number>(0);
@@ -410,8 +412,8 @@ const OpenBook = ({
 								-0.3,
 								0.3,
 							),
-						-3.2,
-						3.2,
+						-3.2 * 1.33,
+						3.2 * 1.33,
 					);
 				}
 			} else {
@@ -546,6 +548,7 @@ const OpenBook = ({
 	}, [closing, open]);
 
 	useEffect(() => {
+		if (readerState !== "closed") return;
 		let isActive = true;
 
 		const fetchAndUpdatePageImage = async (
@@ -612,7 +615,7 @@ const OpenBook = ({
 		return () => {
 			isActive = false;
 		};
-	}, [currentPage, getPageImage, pages]);
+	}, [currentPage, getPageImage, pages, readerState]);
 
 	const selectedPage = useReadingStore((state) => state.selectedPage);
 

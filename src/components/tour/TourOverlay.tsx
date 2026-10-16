@@ -212,6 +212,7 @@ export default function TourOverlay() {
 				</div>
 			)}
 			<aside
+				style={stage === "library" ? { top: "calc(50% + 64px)" } : undefined}
 				className="fixed right-2 top-1/2 z-30 flex w-11 -translate-y-1/2 flex-col items-center gap-1 sm:right-5"
 				aria-label="Demo controls"
 			>

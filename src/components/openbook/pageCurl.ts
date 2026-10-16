@@ -32,7 +32,7 @@ export function releasedPageTurn(
 	tapped: boolean,
 ) {
 	if (cancelled) return false;
-	if (tapped || progress >= 0.5) return true;
+	if (tapped || progress >= 0.2) return true;
 	if (Math.abs(velocity) > 0.65) return velocity > 0;
-	return progress >= 0.5;
+	return progress >= 0.2;
 }

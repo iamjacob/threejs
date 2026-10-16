@@ -1,10 +1,10 @@
 import { Stats } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { createFileRoute } from "@tanstack/react-router";
-import { Sparkles } from "lucide-react";
+import { Camera, Sparkles } from "lucide-react";
 import ShelfPlateEditor from "../components/layout/ShelfPlateEditor";
 import { useShelfPlatesStore } from "../stores/useShelfPlatesStore";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { type MouseEvent, Suspense, useEffect, useRef, useState } from "react";
 import { useShelfControlsStore } from "../../stores/useShelfControlsStore";
 import { readBookIds, REMOVED_BOOKS_KEY } from "../lib/bookPreferences";
 import Header from "../components/layout/header/header";
@@ -40,6 +40,8 @@ function Home() {
 		typeof window !== "undefined" &&
 		new URLSearchParams(window.location.search).has("controls");
 	const [scanning, setScanning] = useState(false);
+	const scanButton = useRef<HTMLButtonElement>(null);
+	const scannerOpener = useRef<HTMLElement | null>(null);
 	const [notice, setNotice] = useState("");
 	const stage = useTourStore((state) => state.stage);
 	const bookPanel = useTourStore((state) => state.bookPanel);
@@ -122,16 +124,30 @@ function Home() {
 	const closeScanner = () => {
 		setScanning(false);
 		useTourStore.setState({ paused: !SHOW_DEMO_UI || bookPanel !== "closed" });
+		requestAnimationFrame(() => {
+			const target = scannerOpener.current?.isConnected
+				? scannerOpener.current
+				: scanButton.current;
+			target?.focus({ preventScroll: true });
+		});
 	};
-	const toggleScanner = () => {
-		if (scanning) {
-			closeScanner();
-			return;
-		}
+	const openScanner = (trigger?: HTMLElement) => {
+		scannerOpener.current =
+			trigger ??
+			(document.activeElement instanceof HTMLElement
+				? document.activeElement
+				: null);
 		useShelfControlsStore.getState().setEditing(false);
 		useTourStore.setState({ paused: true });
 		setNotice("");
 		setScanning(true);
+	};
+	const toggleScanner = (event: MouseEvent<HTMLButtonElement>) => {
+		if (scanning) {
+			closeScanner();
+			return;
+		}
+		openScanner(event.currentTarget);
 	};
 	const addBook = async (scan: BookScan) => {
 		const newBook = await scannedBook(scan);
@@ -199,6 +215,25 @@ function Home() {
 						</Header>
 					</div>
 				)}
+			{!scanning &&
+				!editing &&
+				reader === "closed" &&
+				bookPanel === "closed" &&
+				stage === "library" &&
+				!platesOpen &&
+				!adding && (
+					<button
+						ref={scanButton}
+						type="button"
+						className="library-scan-button"
+						aria-label="Scan a book"
+						title="Scan a book"
+						aria-controls="book-scanner"
+						onClick={(event) => openScanner(event.currentTarget)}
+					>
+						<Camera size={23} aria-hidden="true" />
+					</button>
+				)}
 			{scanning && <BookScanner onClose={closeScanner} onAdd={addBook} />}
 			{showShelfControls && <ShelfControls />}
 			{platesOpen && !scanning && <ShelfPlateEditor />}
@@ -206,15 +241,13 @@ function Home() {
 				<LibraryMenus
 					scanning={scanning}
 					showActions={!scanning && editableStage}
-					onAddBook={() => {
-						useShelfControlsStore.getState().setEditing(false);
-						useTourStore.setState({ paused: true });
-						setNotice("");
-						setScanning(true);
-					}}
+					onAddBook={() => openScanner()}
 				/>
 			)}
-			{!scanning && !editing && bookPanel !== "closed" && <BookInfoCard />}
+			{!scanning &&
+				!editing &&
+				reader === "closed" &&
+				bookPanel !== "closed" && <BookInfoCard />}
 			{SHOW_HELIX_NAV &&
 				!scanning &&
 				!editing &&
@@ -234,11 +267,11 @@ function Home() {
 			<div
 				className="fixed inset-0"
 				data-scene={stage}
-				inert={scanning || reader === "open"}
-				aria-hidden={scanning || reader === "open"}
+				inert={scanning || reader !== "closed"}
+				aria-hidden={scanning || reader !== "closed"}
 			>
 				<Canvas
-					frameloop={scanning || reader === "open" ? "never" : "always"}
+					frameloop={scanning || reader !== "closed" ? "never" : "always"}
 					shadows="percentage"
 					gl={{ alpha: true }}
 					onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
@@ -254,7 +287,10 @@ function Home() {
 					{showStats && <Stats />}
 				</Canvas>
 			</div>
-			{SHOW_DEMO_UI && !scanning && bookPanel === "closed" && <TourOverlay />}
+			{SHOW_DEMO_UI &&
+				!scanning &&
+				reader === "closed" &&
+				bookPanel === "closed" && <TourOverlay />}
 			{!scanning && reader === "open" && <ReaderOverlay />}
 		</div>
 	);

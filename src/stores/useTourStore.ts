@@ -1,5 +1,9 @@
 import { create } from "zustand";
-import { BLURRED_BOOKS_KEY, readBookIds, saveBookIds } from "../lib/bookPreferences";
+import {
+	BLURRED_BOOKS_KEY,
+	readBookIds,
+	saveBookIds,
+} from "../lib/bookPreferences";
 import { useDissolveStore } from "../../stores/useDissolveStore";
 import { useParticleStore } from "../../stores/useParticleStore";
 import { useReadingStore } from "../../stores/useReadingStore";
@@ -175,7 +179,7 @@ export const useTourStore = create<TourState>((set, get) => ({
 			return;
 		}
 		if (get().stage === "read" && get().reader === "closed")
-			set({ reader: "zooming", paused: true });
+			set({ reader: "open", paused: true });
 	},
 	closeReader: () => {
 		const { reader, stage } = get();

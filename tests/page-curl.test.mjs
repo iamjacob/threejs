@@ -26,7 +26,7 @@ test('flat paper has its original dimensions', () => {
 });
 test('release respects taps, threshold, flick direction, and cancellation', () => {
   assert.equal(releasedPageTurn(0, 0, false, true), true);
-  assert.equal(releasedPageTurn(0.49, 0, false, false), false);
+  assert.equal(releasedPageTurn(0.19, 0, false, false), false);
   assert.equal(releasedPageTurn(0.51, 0, false, false), true);
   assert.equal(releasedPageTurn(0.2, 1, false, false), true);
   assert.equal(releasedPageTurn(0.8, -1, false, false), true);
@@ -43,8 +43,8 @@ test('release respects taps, threshold, flick direction, and cancellation', () =
   assert.ok(Math.abs(top.y + bottom.y) < 1e-10);
  });
 
-test('reaching halfway commits even with a backwards release velocity', () => {
-  assert.equal(releasedPageTurn(0.5, -2, false, false), true);
-  assert.equal(releasedPageTurn(0.49, -2, false, false), false);
+test('reaching 20 percent commits even with a backwards release velocity', () => {
+  assert.equal(releasedPageTurn(0.2, -2, false, false), true);
+  assert.equal(releasedPageTurn(0.199, -2, false, false), false);
   assert.equal(releasedPageTurn(0.8, -2, true, false), false);
 });
