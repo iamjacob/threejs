@@ -9,6 +9,19 @@ page stops all tracks, including a late permission grant. Retake and capturing
 an additional cover face restart the camera directly. Camera capture requires
 HTTPS or localhost; choosing a photo works without it.
 
+The scanner model dropdown offers **Scanner 1 · Manual crop** (the original
+flow) and **Scanner 2 · Auto corners**, and remembers the selection locally.
+Scanner 2 detects the four corners after capture, upload, rotation, or switching
+to it on the crop screen. It uses local edge and Hough line detection on a copy
+limited to 512 pixels in a disposable web worker, then maps the points back to
+the original photo for the existing perspective crop. No model download or
+remote service is required. This is a geometric detector, not book recognition;
+clutter or weak contrast may need manual correction. Dots remain draggable,
+Reset and Full image remain available, and Detect corners again retries.
+If no supported outline is found, manual placement remains available. Manual
+edits, model changes, retakes, replacement photos, and closing cancel pending
+detection so a late result cannot overwrite an adjusted crop.
+
 Camera, cropper, and review are transparent overlays above the paused shelf,
 without a full-screen dimmer or backdrop blur. Crop shading is limited to the
 photo itself. The flashlight button controls the existing track's `torch`
@@ -53,3 +66,6 @@ Validation: `npm run test:scanner`, `npm run test:shelf`, `npm run test:paths`,
 `npx tsc --noEmit`, and `npm run build`. Device QA should cover permission denied,
 permission canceled while pending, capture/retake, four-corner drag and rotation,
 optional face scans, adding two different covers, reload, and long-press editing.
+
+
+The camera roll accepts multiple images and keeps one editable draft per book in the local `boooks-scan-drafts` IndexedDB database. New book retains earlier drafts in the history strip. Each photo retains its source, tag, crop and corner coordinates. Tags include covers, spine, pages, dust jacket, index, copyright, contents and other. Interior photos are attached in roll order when adding/updating the shelf book and can be read in both 3D and Foliate. Re-adding a draft updates its existing book ID. Storage failures are shown in the scanner.

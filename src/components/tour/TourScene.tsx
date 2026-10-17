@@ -128,7 +128,12 @@ function TourBook({
 			position={arriving ? flight.origin : flight.focus}
 			quaternion={arriving ? flight.originRotation : flight.readingRotation}
 		>
-			<OpenBook book={book} presentation="tour" closing={arriving || closing} />
+			<OpenBook
+				book={book}
+				presentation="tour"
+				closing={arriving || closing}
+				onToggle={() => useTourStore.getState().openReader()}
+			/>
 		</group>
 	);
 }
@@ -147,7 +152,9 @@ export default function TourScene({
 	const returningBookId = useTourStore((state) => state.returningBookId);
 	const deletingBooks = useTourStore((state) => state.deletingBooks);
 	const deletingIds = useShelfControlsStore((state) => state.deletingIds);
-	const finishEditorDelete = useShelfControlsStore((state) => state.finishDeleteBook);
+	const finishEditorDelete = useShelfControlsStore(
+		(state) => state.finishDeleteBook,
+	);
 	const editorDeletingBooks = useMemo(
 		() => Object.fromEntries(deletingIds.map((id) => [id, 0])),
 		[deletingIds],

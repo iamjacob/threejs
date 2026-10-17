@@ -37,7 +37,7 @@ export default function BookPageSwiper({
 	const menuHeight = embedded ? 128 : 144;
 	const centerOffset = (menuHeight - ITEM_HEIGHT) / 2;
 	const book = useSelectedBook();
-	const total = Math.max(1, Math.min(120, book.pages));
+	const total = Math.max(1, book.pages);
 	const pageNumbers = useMemo(
 		() => Array.from({ length: total }, (_, index) => index),
 		[total],
@@ -60,7 +60,9 @@ export default function BookPageSwiper({
 		timer: null,
 	});
 
-	const [selectedPage, setSelectedPage] = useState<number>(0);
+	const [selectedPage, setSelectedPage] = useState<number>(
+		() => useReadingStore.getState().selectedPage,
+	);
 	const setReadingSelected = useReadingStore((state) => state.setSelectedPage);
 	const readingPage = useReadingStore((state) => state.selectedPage);
 	const interaction = useRef(onInteract);
@@ -70,6 +72,10 @@ export default function BookPageSwiper({
 		const state = stateRef.current;
 		if (state.lastHighlight?.dataset.page === String(readingPage)) return;
 		const cycle = total * ITEM_HEIGHT;
+		if (throttleRef.current.timer) {
+			clearTimeout(throttleRef.current.timer);
+			throttleRef.current.timer = null;
+		}
 		const center = centerOffset - readingPage * ITEM_HEIGHT;
 		state.current =
 			center + Math.round((state.current - center) / cycle) * cycle;
@@ -269,7 +275,7 @@ export default function BookPageSwiper({
 
 	return (
 		<aside
-			aria-label={`Selected page ${selectedPage}`}
+			aria-label={`Selected page ${selectedPage + 1}`}
 			className={
 				embedded
 					? "flex flex-col items-center justify-center overflow-hidden select-none"
@@ -281,9 +287,9 @@ export default function BookPageSwiper({
 				role="slider"
 				tabIndex={0}
 				aria-label="Book pages"
-				aria-valuemin={0}
-				aria-valuemax={total - 1}
-				aria-valuenow={selectedPage}
+				aria-valuemin={1}
+				aria-valuemax={total}
+				aria-valuenow={selectedPage + 1}
 				onKeyDown={(event) => {
 					const delta =
 						event.key === "ArrowDown" ? 1 : event.key === "ArrowUp" ? -1 : 0;
@@ -301,11 +307,11 @@ export default function BookPageSwiper({
 			>
 				{pageNumbers.map((page, index) => (
 					<div
-						key={page}
+						key={page + 1}
 						ref={(element) => {
 							itemsRef.current[index] = element;
 						}}
-						data-page={page}
+						data-page={page + 1}
 						className="absolute top-0 right-0 left-0 flex w-full flex-row items-center justify-between text-center"
 						style={{ height: ITEM_HEIGHT, opacity: 0.35 }}
 					>

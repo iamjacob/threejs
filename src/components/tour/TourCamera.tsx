@@ -75,6 +75,11 @@ export default function TourCamera() {
 		[editPlacements, book.id, size.width, size.height],
 	);
 	const browsingFocus = useRef(false);
+	const readShot = useRef<{
+		elapsed: number;
+		position: Vector3;
+		target: Vector3;
+	} | null>(null);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: Each explicit selection or return requests one smooth focus; orbit gestures can then take over.
 	useLayoutEffect(() => {
 		browsingFocus.current = true;
@@ -217,21 +222,32 @@ export default function TourCamera() {
 			}
 		}
 		if (tour.reader === "zooming") {
-			const focus = focusBookPosition(book.id);
-			target.set(...focus);
-			const portrait = Math.max(1, (size.height / size.width) * 0.9);
+			if (!readShot.current)
+				readShot.current = {
+					elapsed: 0,
+					position: camera.position.clone(),
+					target: orbit.target.clone(),
+				};
+			const shot = readShot.current;
+			shot.elapsed += Math.min(delta, 0.1);
+			const t = reducedMotion ? 1 : Math.min(1, shot.elapsed / 2.1);
+			const ease = t * t * t * (t * (t * 6 - 15) + 10);
+			target.set(...focusBookPosition(book.id));
 			position
 				.set(0, 0.12, 1.65)
-				.multiplyScalar(portrait * bookScale)
+				.multiplyScalar(
+					Math.max(1, (size.height / size.width) * 0.9) * bookScale,
+				)
 				.add(target);
-			const smoothing = 1 - Math.exp(-Math.min(delta, 0.1) * 5);
-			camera.position.lerp(position, smoothing);
-			orbit.target.lerp(target, smoothing);
+			camera.position.lerpVectors(shot.position, position, ease);
+			camera.position.x += Math.sin(t * Math.PI) * bookScale * 0.22;
+			camera.position.y += Math.sin(t * Math.PI) * bookScale * 0.1;
+			orbit.target.lerpVectors(shot.target, target, ease);
 			orbit.update();
-			if (camera.position.distanceTo(position) < 0.015)
-				useTourStore.setState({ reader: "open" });
+			if (t === 1) useTourStore.setState({ reader: "open" });
 			return;
 		}
+		readShot.current = null;
 		if (editing && (stage === "library" || stage === "pick")) {
 			if (drag) {
 				if (!dragView.current) {

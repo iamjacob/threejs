@@ -1,36 +1,49 @@
+import ScannerBookForm from "./ScannerBookForm";
+import {
+	loadDrafts,
+	saveDraft,
+	newScanDraft,
+	photoData,
+	photoTags,
+	type ScanDraft,
+	type ScanPhoto,
+	type PhotoTag,
+} from "./scanDrafts";
 import {
 	ArrowRight,
 	Camera,
 	Check,
 	Crop,
 	Download,
-	ImagePlus,
 	Flashlight,
 	FlashlightOff,
+	ImagePlus,
 	LoaderCircle,
 	Plus,
 	RotateCcw,
 	RotateCw,
+	ScanLine,
 	X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import CropCanvas, { cornerNames } from "./CropCanvas";
 import { cameraError, createCameraSession } from "./cameraSession";
 import { createCameraTorch } from "./cameraTorch";
-import CropCanvas, { cornerNames } from "./CropCanvas";
-import ScannerPortal from "./ScannerPortal";
-import {
-	cropPerspective,
-	decodePhoto,
-	imageCanvas,
-	rotatePhoto,
-} from "./cropImage";
+import { cropPerspective, imageCanvas, rotatePhoto } from "./cropImage";
+import { detectPhotoCorners } from "./detectPhotoCorners";
 import type { Point } from "./perspective";
+import ScannerModelSelect from "./ScannerModelSelect";
+import ScannerPortal from "./ScannerPortal";
 import type { BookScan, CroppedFace } from "./scannedBook";
+import {
+	readScannerModel,
+	type ScannerModel,
+	saveScannerModel,
+} from "./scannerModels";
 import "./scanner.css";
 
 type Step = "requesting" | "camera" | "unavailable" | "crop" | "review";
 type Face = "front" | "spine" | "back";
-const faceLabel = { front: "Front cover", spine: "Spine", back: "Back cover" };
 
 export default function BookScanner({
 	onClose,
@@ -40,13 +53,49 @@ export default function BookScanner({
 	onAdd: (scan: BookScan) => Promise<void>;
 }) {
 	const [step, setStep] = useState<Step>("requesting");
+	const [draftId, setDraftId] = useState(() => newScanDraft().id);
+	const [photos, setPhotos] = useState<ScanPhoto[]>([]);
+	const [activePhoto, setActivePhoto] = useState<string | null>(null);
+	const [history, setHistory] = useState<ScanDraft[]>([]);
+	const [draftsReady, setDraftsReady] = useState(false);
+	const [storageError, setStorageError] = useState(false);
+	useEffect(() => {
+		loadDrafts()
+			.then(setHistory)
+			.catch(() => setStorageError(true))
+			.finally(() => setDraftsReady(true));
+	}, []);
+
 	const [source, setSource] = useState<HTMLCanvasElement | null>(null);
 	const [points, setPoints] = useState<Point[]>([]);
 	const [faces, setFaces] = useState<Partial<Record<Face, CroppedFace>>>({});
 	const [face, setFace] = useState<Face>("front");
 	const [title, setTitle] = useState("");
+	useEffect(() => {
+		if (!draftsReady || (!title && !photos.length && !faces.front)) return;
+		const draft: ScanDraft = {
+			id: draftId,
+			title,
+			photos,
+			faces,
+			updated: Date.now(),
+		};
+		setHistory((current) => [
+			draft,
+			...current.filter((d) => d.id !== draft.id),
+		]);
+		void saveDraft(draft)
+			.then(() => setStorageError(false))
+			.catch(() => setStorageError(true));
+	}, [draftId, title, photos, faces, draftsReady]);
+
 	const [error, setError] = useState("");
 	const [busy, setBusy] = useState(false);
+	const [model, setModel] = useState(readScannerModel);
+	const [detection, setDetection] = useState<
+		"idle" | "detecting" | "found" | "missed"
+	>("idle");
+	const detector = useRef<AbortController | null>(null);
 	const [cameraReady, setCameraReady] = useState(false);
 	const [portalFallback, setPortalFallback] = useState(false);
 	const [stream, setStream] = useState<MediaStream | null>(null);
@@ -55,7 +104,41 @@ export default function BookScanner({
 	const [torchEnabled, setTorchEnabled] = useState(false);
 	const [torchPending, setTorchPending] = useState(false);
 	const video = useRef<HTMLVideoElement>(null);
+	const [cropDragging, setCropDragging] = useState(false);
+	const [liveCrop, setLiveCrop] = useState<{
+		tag: PhotoTag;
+		crop: CroppedFace;
+	} | null>(null);
+	useEffect(() => {
+		if (step !== "crop" || !source || points.length !== 4) {
+			setLiveCrop(null);
+			return;
+		}
+		if (cropDragging || busy || detection === "detecting") return;
+		const frame = requestAnimationFrame(() => {
+			try {
+				setLiveCrop({
+					tag: photos.find((p) => p.id === activePhoto)?.tag ?? face,
+					crop: cropPerspective(source, points),
+				});
+			} catch {
+				setLiveCrop(null);
+			}
+		});
+		return () => cancelAnimationFrame(frame);
+	}, [
+		source,
+		points,
+		step,
+		cropDragging,
+		busy,
+		detection,
+		activePhoto,
+		face,
+		photos,
+	]);
 	const fileInput = useRef<HTMLInputElement>(null);
+	const uploadPart = useRef<PhotoTag | null>(null);
 	const heading = useRef<HTMLHeadingElement>(null);
 	const mounted = useRef(true);
 	const loadingRevision = useRef(0);
@@ -79,6 +162,47 @@ export default function BookScanner({
 			}),
 		[],
 	);
+	const cancelDetection = useCallback(() => {
+		detector.current?.abort();
+		detector.current = null;
+		setDetection("idle");
+	}, []);
+	const findCorners = async (image: HTMLCanvasElement) => {
+		detector.current?.abort();
+		const controller = new AbortController();
+		detector.current = controller;
+		setDetection("detecting");
+		try {
+			const detected = await detectPhotoCorners(image, controller.signal);
+			if (!mounted.current || controller.signal.aborted) return;
+			if (detected) setPoints(detected);
+			setDetection(detected ? "found" : "missed");
+		} catch {
+			if (mounted.current && !controller.signal.aborted) setDetection("missed");
+		} finally {
+			if (detector.current === controller) detector.current = null;
+		}
+	};
+	const changePoints = (next: Point[]) => {
+		cancelDetection();
+		setPoints(next);
+	};
+	const prepareCrop = (image: HTMLCanvasElement) => {
+		setCropDragging(false);
+		cancelDetection();
+		setSource(image);
+		setPoints([]);
+		setStep("crop");
+		if (model === "corners") void findCorners(image);
+	};
+	const changeModel = (next: ScannerModel) => {
+		if (next === model) return;
+		cancelDetection();
+		setModel(next);
+		saveScannerModel(next);
+		if (next === "corners" && step === "crop" && source)
+			void findCorners(source);
+	};
 	useEffect(() => {
 		mounted.current = true;
 		const hide = () => {
@@ -96,6 +220,7 @@ export default function BookScanner({
 		return () => {
 			mounted.current = false;
 			loadingRevision.current++;
+			detector.current?.abort();
 			session.stop();
 			document.removeEventListener("visibilitychange", hide);
 		};
@@ -165,11 +290,13 @@ export default function BookScanner({
 	const close = () => {
 		if (adding.current) return;
 		loadingRevision.current++;
+		cancelDetection();
 		stopCamera();
 		onClose();
 	};
 	const back = () => {
 		if (busy) return;
+		cancelDetection();
 		setError("");
 		stopCamera();
 		if (step === "review") setStep("crop");
@@ -185,6 +312,7 @@ export default function BookScanner({
 		else close();
 	};
 	const startCamera = useCallback(async () => {
+		cancelDetection();
 		setError("");
 		setStep("requesting");
 		setCameraReady(false);
@@ -199,57 +327,136 @@ export default function BookScanner({
 				setStep("unavailable");
 			}
 		}
-	}, [session]);
+	}, [session, cancelDetection]);
 	// BookScanner only mounts after the user presses Scan or Add a book.
 	// getUserMedia itself asks for permission when the browser needs it.
 	useEffect(() => {
 		void startCamera();
 	}, [startCamera]);
-	const openPhoto = async (file: File) => {
-		if (!file.type.startsWith("image/")) {
-			setError("Choose an image of your book.");
-			return;
-		}
+
+	const selectPhoto = async (photo: ScanPhoto) => {
+		setLiveCrop(null);
+		setActivePhoto(photo.id);
+		if (photo.tag === "front" || photo.tag === "spine" || photo.tag === "back")
+			setFace(photo.tag);
 		const revision = ++loadingRevision.current;
+		cancelDetection();
 		stopCamera();
 		setBusy(true);
 		setError("");
 		try {
-			const image = await decodePhoto(file);
+			const image = new Image();
+			image.src = photo.image;
+			await image.decode();
 			if (!mounted.current || revision !== loadingRevision.current) return;
-			setSource(image);
-			setPoints([]);
-			setStep("crop");
+			prepareCrop(imageCanvas(image, image.naturalWidth, image.naturalHeight));
+			if (photo.points) {
+				cancelDetection();
+				setPoints(photo.points);
+			}
 		} catch {
-			if (mounted.current && revision === loadingRevision.current)
-				setError(
-					"That photo couldn’t be opened. Try a JPEG, PNG or WebP image.",
-				);
+			setError("Could not open this photo. Try another image.");
 		} finally {
 			if (mounted.current && revision === loadingRevision.current)
 				setBusy(false);
 		}
 	};
+	const importPhotos = async (files: File[]) => {
+		const targetPart = uploadPart.current;
+		uploadPart.current = null;
+		const images = files.filter((file) => file.type.startsWith("image/"));
+		if (!images.length) {
+			setError("Choose images of your book.");
+			return;
+		}
+		setBusy(true);
+		try {
+			const added: ScanPhoto[] = [];
+			for (const file of images)
+				added.push({
+					id: crypto.randomUUID(),
+					name: file.name,
+					image: await photoData(file),
+					tag:
+						targetPart && added.length === 0
+							? targetPart
+							: photos.length + added.length === 0
+								? "front"
+								: "page",
+				});
+			if (!mounted.current) return;
+			setPhotos((current) => [...current, ...added]);
+			await selectPhoto(added[0]);
+		} catch {
+			setError("Could not import these photos. Please try again.");
+		} finally {
+			if (mounted.current) setBusy(false);
+		}
+	};
+	const switchDraft = (draft: ScanDraft) => {
+		++loadingRevision.current;
+		cancelDetection();
+		stopCamera();
+		setDraftId(draft.id);
+		setTitle(draft.title);
+		setPhotos(draft.photos);
+		setFaces(draft.faces);
+		setActivePhoto(null);
+		setSource(null);
+		setPoints([]);
+		crops.current = {};
+		setFace("front");
+		setError("");
+		setStep(draft.faces.front ? "review" : "unavailable");
+	};
+	const tagPhoto = (tag: PhotoTag) => {
+		const photo = photos.find((p) => p.id === activePhoto);
+		if (!photo) return;
+		setPhotos((current) =>
+			current.map((p) =>
+				p.id === activePhoto
+					? { ...p, tag }
+					: ["front", "spine", "back"].includes(tag) && p.tag === tag
+						? { ...p, tag: "other" }
+						: p,
+			),
+		);
+		setFaces((current) => {
+			const next = { ...current };
+			if (
+				(photo.tag === "front" ||
+					photo.tag === "spine" ||
+					photo.tag === "back") &&
+				next[photo.tag]?.image === photo.crop?.image
+			)
+				delete next[photo.tag];
+			if ((tag === "front" || tag === "spine" || tag === "back") && photo.crop)
+				next[tag] = photo.crop;
+			return next;
+		});
+		if (tag === "front" || tag === "spine" || tag === "back") setFace(tag);
+	};
 	const capture = () => {
+		setActivePhoto(null);
 		if (!video.current || !cameraReady || !video.current.videoWidth) return;
 		try {
-			setSource(
+			prepareCrop(
 				imageCanvas(
 					video.current,
 					video.current.videoWidth,
 					video.current.videoHeight,
 				),
 			);
-			setPoints([]);
 			stopCamera();
-			setStep("crop");
 			setError("");
 		} catch {
 			setError("Couldn’t capture this frame. Please try again.");
 		}
 	};
 	const crop = async () => {
-		if (!source || points.length !== 4 || busy) return;
+		if (!source || points.length !== 4 || busy || detection === "detecting")
+			return;
+		cancelDetection();
 		setBusy(true);
 		setError("");
 		// Paint the busy state before doing GPU work.
@@ -259,9 +466,47 @@ export default function BookScanner({
 		if (!mounted.current) return;
 		try {
 			const result = cropPerspective(source, points);
-			crops.current[face] = { source, points };
-			setFaces((current) => ({ ...current, [face]: result }));
-			setStep("review");
+			const photo = photos.find((p) => p.id === activePhoto);
+			const tag = photo?.tag ?? face;
+			if (tag === "front" || tag === "spine" || tag === "back") {
+				crops.current[tag] = { source, points };
+				setFaces((current) => ({ ...current, [tag]: result }));
+			}
+			if (photo)
+				setPhotos((current) =>
+					current.map((p) =>
+						p.id === photo.id
+							? {
+									...p,
+									image: source.toDataURL("image/jpeg", 0.92),
+									crop: result,
+									points,
+								}
+							: p,
+					),
+				);
+			else {
+				const id = crypto.randomUUID();
+				setPhotos((current) => [
+					...current,
+					{
+						id,
+						name: "Camera photo",
+						image: source.toDataURL("image/jpeg", 0.92),
+						tag,
+						crop: result,
+						points,
+					},
+				]);
+				setActivePhoto(id);
+			}
+
+			setStep(
+				faces.front ||
+					(photos.find((p) => p.id === activePhoto)?.tag ?? face) === "front"
+					? "review"
+					: "crop",
+			);
 		} catch (cause) {
 			setError(
 				cause instanceof Error ? cause.message : "Couldn’t crop this photo.",
@@ -276,7 +521,16 @@ export default function BookScanner({
 		setBusy(true);
 		setError("");
 		try {
+			await saveDraft({
+				id: draftId,
+				title,
+				photos,
+				faces,
+				updated: Date.now(),
+			}).catch(() => setStorageError(true));
 			await onAdd({
+				id: draftId,
+				photos,
 				title: title.trim(),
 				front: faces.front,
 				spine: faces.spine,
@@ -310,7 +564,7 @@ export default function BookScanner({
 			disabled={busy}
 			onClick={() => fileInput.current?.click()}
 		>
-			<ImagePlus size={17} /> Choose a photo
+			<ImagePlus size={17} /> Camera roll · Add photos
 		</button>
 	);
 
@@ -318,6 +572,7 @@ export default function BookScanner({
 		<section
 			id="book-scanner"
 			data-step={step}
+			data-model={model}
 			className="book-scanner"
 			aria-label="Add a book"
 			onKeyDown={(event) => {
@@ -328,22 +583,104 @@ export default function BookScanner({
 			}}
 			onDrop={(event) => {
 				event.preventDefault();
-				if (!busy && event.dataTransfer.files[0])
-					void openPhoto(event.dataTransfer.files[0]);
+				if (!busy) void importPhotos(Array.from(event.dataTransfer.files));
 			}}
 		>
 			<input
 				ref={fileInput}
 				type="file"
 				accept="image/*"
+				multiple
 				hidden
 				onChange={(event) => {
-					const file = event.target.files?.[0];
+					const files = Array.from(event.target.files ?? []);
 					event.target.value = "";
-					if (file) void openPhoto(file);
+					if (files.length) void importPhotos(files);
 				}}
 			/>
+			<ScannerBookForm
+				preview={liveCrop}
+				title={title}
+				onTitle={setTitle}
+				photos={photos}
+				faces={faces}
+				activePhoto={activePhoto}
+				busy={busy}
+				onPart={(tag) => {
+					if (activePhoto) {
+						tagPhoto(tag);
+						return;
+					}
+					const photo = photos.find((p) => p.tag === tag);
+					if (photo) {
+						void selectPhoto(photo);
+						return;
+					}
+					uploadPart.current = tag;
+					if (tag === "front" || tag === "spine" || tag === "back")
+						setFace(tag);
+					fileInput.current?.click();
+				}}
+			>
+				<nav className="scan-draft-tabs" aria-label="Book scan history">
+					<button
+						type="button"
+						disabled={busy || !draftsReady}
+						onClick={() => switchDraft(newScanDraft())}
+					>
+						＋ New book
+					</button>
+					{history.map((draft, i) => (
+						<button
+							type="button"
+							key={draft.id}
+							disabled={busy}
+							aria-pressed={draftId === draft.id}
+							onClick={() => switchDraft(draft)}
+						>
+							{draft.title || `Untitled book ${history.length - i}`}{" "}
+							<small>{draft.photos.length} photos</small>
+						</button>
+					))}
+				</nav>
+				<section className="scan-camera-roll" aria-label="Camera roll">
+					<button
+						type="button"
+						disabled={busy}
+						onClick={() => fileInput.current?.click()}
+					>
+						<ImagePlus size={20} /> Add photos
+					</button>
+					{photos.map((photo, i) => (
+						<button
+							type="button"
+							key={photo.id}
+							disabled={busy}
+							aria-pressed={activePhoto === photo.id}
+							onClick={() => void selectPhoto(photo)}
+						>
+							<img src={photo.crop?.image ?? photo.image} alt={photo.name} />
+							<span>
+								{i + 1} · {photoTags[photo.tag]}
+							</span>
+							{photo.crop && <Check size={12} />}
+						</button>
+					))}
+				</section>
+
+				{storageError && (
+					<output>
+						Device storage unavailable. Keep this scanner open to retain your
+						drafts.
+					</output>
+				)}
+			</ScannerBookForm>
 			<header className="scan-header">
+				<ScannerModelSelect
+					value={model}
+					onChange={changeModel}
+					disabled={busy}
+				/>
 				<button
 					type="button"
 					className="scan-icon"
@@ -373,7 +710,9 @@ export default function BookScanner({
 								? "Allow camera access in your browser if asked."
 								: step === "unavailable"
 									? "Try the camera again or choose a photo below."
-									: "Keep all four corners inside the light. Hold steady and capture."}
+									: model === "corners"
+										? "Keep all four corners visible. We’ll find them after capture."
+										: "Keep all four corners inside the light. Hold steady and capture."}
 						</p>
 					</div>
 					<div
@@ -468,14 +807,45 @@ export default function BookScanner({
 						<h1 ref={heading} tabIndex={-1}>
 							Just the {face === "front" ? "cover" : face}.
 						</h1>
-						<p>
-							{points.length === 4
-								? "Drag the corners to fine-tune your crop."
-								: `Tap corner ${points.length + 1}: ${cornerNames[points.length].toLowerCase()}. Continue clockwise.`}
+						<p aria-live="polite">
+							{detection === "detecting"
+								? "Finding the four corners of your book…"
+								: detection === "found"
+									? "Corners detected. Drag the dots to fine-tune your crop."
+									: detection === "missed"
+										? points.length === 4
+											? "No clear outline found. Your crop is kept — adjust the dots as needed."
+											: "No clear outline found. Tap the corners clockwise from the top left."
+										: points.length === 4
+											? "Drag the corners to fine-tune your crop."
+											: `Tap corner ${points.length + 1}: ${cornerNames[points.length].toLowerCase()}. Continue clockwise.`}
 						</p>
+						{model === "corners" && (
+							<button
+								type="button"
+								className="scan-detect-button"
+								disabled={busy || detection === "detecting"}
+								onClick={() => void findCorners(source)}
+							>
+								{detection === "detecting" ? (
+									<LoaderCircle size={13} className="scan-spin" />
+								) : (
+									<ScanLine size={13} />
+								)}
+								{detection === "detecting"
+									? "Finding corners…"
+									: "Detect corners again"}
+							</button>
+						)}
 					</div>
 					<div className="scan-crop-workspace">
-						<CropCanvas source={source} points={points} onChange={setPoints} />
+						<CropCanvas
+							source={source}
+							points={points}
+							onChange={changePoints}
+							onInteractionChange={setCropDragging}
+							disabled={busy}
+						/>
 						<span className="scan-crop-count">{points.length} / 4 corners</span>
 					</div>
 					<div className="scan-crop-tools">
@@ -483,9 +853,9 @@ export default function BookScanner({
 							type="button"
 							className="scan-icon"
 							aria-label="Rotate photo left"
+							disabled={busy}
 							onClick={() => {
-								setSource(rotatePhoto(source, false));
-								setPoints([]);
+								prepareCrop(rotatePhoto(source, false));
 							}}
 						>
 							<RotateCcw size={18} />
@@ -493,15 +863,17 @@ export default function BookScanner({
 						<button
 							type="button"
 							className="scan-text-button"
-							onClick={() => setPoints([])}
+							disabled={busy}
+							onClick={() => changePoints([])}
 						>
 							Reset
 						</button>
 						<button
 							type="button"
 							className="scan-text-button"
+							disabled={busy}
 							onClick={() =>
-								setPoints([
+								changePoints([
 									{ x: 0, y: 0 },
 									{ x: source.width, y: 0 },
 									{ x: source.width, y: source.height },
@@ -515,9 +887,9 @@ export default function BookScanner({
 							type="button"
 							className="scan-icon"
 							aria-label="Rotate photo right"
+							disabled={busy}
 							onClick={() => {
-								setSource(rotatePhoto(source, true));
-								setPoints([]);
+								prepareCrop(rotatePhoto(source, true));
 							}}
 						>
 							<RotateCw size={18} />
@@ -537,7 +909,9 @@ export default function BookScanner({
 						<button
 							type="button"
 							className="scan-button scan-primary"
-							disabled={busy || points.length !== 4}
+							disabled={
+								busy || detection === "detecting" || points.length !== 4
+							}
 							onClick={crop}
 						>
 							{busy ? (
@@ -558,55 +932,7 @@ export default function BookScanner({
 						</h1>
 						<p>A real cover. A little particle magic.</p>
 					</div>
-					<div className="scan-preview-stage">
-						<img
-							src={(faces[face] ?? faces.front).image}
-							alt={`${title || "Your book"} · ${faceLabel[face]}`}
-						/>
-						<span className="scan-preview-shadow" />
-					</div>
 					<div className="scan-review-controls">
-						<label className="scan-title-label" htmlFor="scanned-book-title">
-							Book title
-							<input
-								id="scanned-book-title"
-								maxLength={160}
-								placeholder="What’s the book called?"
-								autoComplete="off"
-								value={title}
-								onChange={(event) => setTitle(event.target.value)}
-								onKeyDown={(event) => {
-									if (event.key === "Enter") void add();
-								}}
-							/>
-						</label>
-						<div className="scan-faces">
-							{(["front", "spine", "back"] as const).map((value) => (
-								<button
-									type="button"
-									key={value}
-									disabled={busy}
-									className={face === value ? "is-selected" : ""}
-									onClick={() => {
-										setFace(value);
-										const saved = crops.current[value];
-										if (saved) {
-											setSource(saved.source);
-											setPoints(saved.points);
-										} else {
-											setPoints([]);
-											void startCamera();
-										}
-									}}
-								>
-									{faces[value] ? <Check size={13} /> : <Plus size={13} />}
-									{faceLabel[value]}
-								</button>
-							))}
-						</div>
-						<p className="scan-faces-note">
-							Spine and back are optional. We’ll match them to your cover.
-						</p>
 						<button
 							type="button"
 							className="scan-button scan-primary"
@@ -626,7 +952,13 @@ export default function BookScanner({
 								type="button"
 								className="scan-text-button"
 								disabled={busy}
-								onClick={() => setStep("crop")}
+								onClick={() => {
+									const photo =
+										photos.find((p) => p.id === activePhoto) ??
+										photos.find((p) => p.tag === face);
+									if (photo) void selectPhoto(photo);
+									else if (source) setStep("crop");
+								}}
 							>
 								<Crop size={14} /> Adjust crop
 							</button>

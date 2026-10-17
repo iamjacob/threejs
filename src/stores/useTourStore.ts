@@ -73,11 +73,7 @@ function resetEffects() {
 		targetProgress: 0,
 		isDissolving: false,
 	});
-	useReadingStore.setState({
-		selectedPage: 0,
-		currentPage: 0,
-		bookOpen: false,
-	});
+	useReadingStore.getState().closeBook();
 }
 
 export const useTourStore = create<TourState>((set, get) => ({
@@ -169,17 +165,21 @@ export const useTourStore = create<TourState>((set, get) => ({
 		const book = library.books.find(
 			(entry) => entry.id === library.selectedBookId,
 		);
-		if (!book?.epub && !book?.pdf) return;
+		if (!book?.epub && !book?.pdf && !book?.scanPages?.length) return;
 		if (
 			get().bookPanel !== "closed" &&
 			["pick", "read"].includes(get().stage) &&
 			get().reader === "closed"
 		) {
-			set({ reader: "open", paused: true });
+			if (get().stage === "pick") {
+				get().openPreview();
+				return;
+			}
+			set({ reader: "zooming", paused: true });
 			return;
 		}
 		if (get().stage === "read" && get().reader === "closed")
-			set({ reader: "open", paused: true });
+			set({ reader: "zooming", paused: true });
 	},
 	closeReader: () => {
 		const { reader, stage } = get();
@@ -319,8 +319,7 @@ export const useTourStore = create<TourState>((set, get) => ({
 		if (["library", "pick", "delete", "add", "end"].includes(stage))
 			useLevelStore.getState().startDemo(4, false);
 		if (stage === "grow") useLevelStore.getState().startDemo(1, false);
-		if (stage === "read")
-			useReadingStore.setState({ selectedPage: 0, currentPage: 0 });
+
 		if (stage === "delete") {
 			get().resetDeletedBooks();
 			useDissolveStore.setState({
@@ -365,11 +364,8 @@ export const useTourStore = create<TourState>((set, get) => ({
 				get().stage === "read" && previousId !== id ? previousId : null,
 		});
 		useBookStore.getState().selectBook(id);
-		useReadingStore.setState({
-			selectedPage: 0,
-			currentPage: 0,
-			bookOpen: false,
-		});
+		useReadingStore.getState().activateBook(id);
+		useReadingStore.getState().closeBook();
 		set({ origin: origin ?? null });
 		get().enter("pull");
 	},

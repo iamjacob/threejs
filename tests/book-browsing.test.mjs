@@ -97,18 +97,22 @@ test("Open finishes the 3D animation and stays on the book without advancing the
 	assert.equal(reading.getState().selectedPage, 3);
 });
 
-test("Read can open directly from the card, and closing returns to the same preview", () => {
+test("Read opens in 3D before a second click starts the Foliate transition", () => {
 	tour.getState().previewBook(book.id);
-	tour.getState().openReader();
-	assert.equal(tour.getState().reader, "open");
-	assert.equal(tour.getState().stage, "pick");
-	tour.getState().previewBook(other.id);
-	assert.equal(library.getState().selectedBookId, book.id);
-	tour.getState().closeReader();
-	assert.equal(tour.getState().reader, "closed");
-	assert.equal(tour.getState().stage, "pick");
-	assert.equal(tour.getState().bookPanel, "preview");
-	assert.equal(tour.getState().paused, true);
+ tour.getState().openReader();
+ assert.equal(tour.getState().stage, "pull");
+ assert.equal(tour.getState().reader, "closed");
+ tour.getState().advance();
+ assert.equal(tour.getState().stage, "read");
+ tour.getState().openReader();
+ assert.equal(tour.getState().reader, "zooming");
+ tour.getState().previewBook(other.id);
+ assert.equal(library.getState().selectedBookId, book.id);
+ tour.setState({reader:"open"});
+ tour.getState().closeReader();
+ assert.equal(tour.getState().reader, "closed");
+ assert.equal(tour.getState().stage, "read");
+ assert.equal(tour.getState().bookPanel, "open");
 });
 
 test("closing the reader preserves an already open 3D book and its page", () => {
@@ -206,7 +210,7 @@ test("the optional demo retains its own reader and stage progression", () => {
 	assert.equal(tour.getState().stage, "read");
 	assert.equal(tour.getState().bookPanel, "closed");
 	tour.getState().openReader();
-	assert.equal(tour.getState().reader, "open");
+	assert.equal(tour.getState().reader, "zooming");
 	tour.setState({ reader: "open" });
 	tour.getState().closeReader();
 	assert.equal(tour.getState().stage, "grow");
@@ -240,10 +244,49 @@ test("helix navigation can cancel an opening flight but cannot change books insi
 	tour.getState().navigateBook(other.id);
 	assert.equal(tour.getState().stage, "pick");
 	assert.equal(library.getState().selectedBookId, other.id);
-	tour.getState().previewBook(book.id); tour.getState().openReader();
+	tour.getState().previewBook(book.id); tour.getState().openReader(); tour.getState().advance(); tour.getState().openReader();
 	tour.getState().navigateBook(other.id);
 	assert.equal(library.getState().selectedBookId, book.id);
 	tour.getState().closeReader(); tour.getState().editPreview();
 	tour.getState().navigateBook(other.id);
 	assert.equal(library.getState().selectedBookId, book.id);
+});
+
+
+test("positions and ribbon bookmarks are restored per book, including fractional reader position", () => {
+ const data=new Map(); globalThis.localStorage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};
+ reading.getState().activateBook("position-a");
+ reading.getState().receivePosition({index:175,fraction:.42});
+ reading.getState().toggleBookmark();
+ reading.getState().activateBook("position-b");
+ assert.equal(reading.getState().selectedPage,0);
+ reading.getState().activateBook("position-a");
+ assert.equal(reading.getState().selectedPage,175);
+ assert.equal(reading.getState().fraction,.42);
+ reading.getState().goToPage(24);
+ reading.getState().visitBookmark();
+ assert.equal(reading.getState().selectedPage,175);
+ assert.equal(reading.getState().fraction,.42);
+ reading.getState().receivePosition({index:-1,fraction:0});
+ assert.equal(reading.getState().selectedPage,175);
+ delete globalThis.localStorage;
+});
+
+test("ribbons keep distinct colors, survive reopening, and can be visited or removed independently", () => {
+ const data=new Map();globalThis.localStorage={getItem:k=>data.get(k)??null,setItem:(k,v)=>data.set(k,v)};
+ try {
+  reading.getState().activateBook('ribbon-test');
+  reading.getState().goToPage(3);reading.getState().toggleBookmark();
+  const first=reading.getState().bookmark;
+  reading.getState().goToPage(9);reading.getState().toggleBookmark();
+  const second=reading.getState().bookmark;
+  assert.notEqual(first.color,second.color);
+  assert.equal(reading.getState().bookmarks.length,2);
+  reading.getState().activateBook('elsewhere');reading.getState().activateBook('ribbon-test');
+  assert.deepEqual(reading.getState().bookmarks.map(b=>b.color),[first.color,second.color]);
+  assert.equal(reading.getState().bookmark.insertedAt,0,'restored ribbons do not replay insertion');
+  reading.getState().visitBookmark(first.id);assert.equal(reading.getState().selectedPage,3);
+  reading.getState().toggleBookmark();assert.deepEqual(reading.getState().bookmarks.map(b=>b.id),[second.id]);
+  reading.getState().toggleBookmark();assert.notEqual(reading.getState().bookmark.color,second.color);
+ } finally {delete globalThis.localStorage;}
 });

@@ -271,7 +271,7 @@ function Home() {
 				aria-hidden={scanning || reader !== "closed"}
 			>
 				<Canvas
-					frameloop={scanning || reader !== "closed" ? "never" : "always"}
+					frameloop={scanning || reader === "open" ? "never" : "always"}
 					shadows="percentage"
 					gl={{ alpha: true }}
 					onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}

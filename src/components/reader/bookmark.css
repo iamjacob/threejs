@@ -1,0 +1,8 @@
+.bookmark-control { position:absolute; right:18px; top:76px; z-index:12; }
+.bookmark-control.bookmark-embedded { position:relative; top:auto; right:auto; }
+.bookmark-ribbon { display:flex; align-items:center; justify-content:center; width:44px; height:44px; padding:0; border:1px solid #ffffff26; border-radius:50%; background:#142033; color:#fff; cursor:pointer; }
+.bookmark-control .bookmark-count { position:absolute; right:-5px; top:-5px; display:grid; place-items:center; width:19px; height:19px; min-width:0; min-height:0; padding:0; background:#33445d; color:white; border:1px solid #ffffff35; border-radius:50%; font:600 10px system-ui; cursor:pointer; }
+.bookmark-control .bookmark-list { position:absolute; right:54px; top:0; display:flex; flex-direction:column; gap:5px; max-height:40dvh; overflow:auto; min-width:112px; padding:8px; border:1px solid #ffffff26; border-radius:14px; background:#132033; box-shadow:0 8px 28px #0005; }
+.bookmark-control .bookmark-list .bookmark-return { display:flex; align-items:center; justify-content:flex-start; gap:8px; width:100%; height:36px; padding:0 8px; border:0; border-radius:8px; color:white; background:#ffffff0a; font:500 12px system-ui; cursor:pointer; }
+.bookmark-ribbon:focus-visible,.bookmark-count:focus-visible {outline:2px solid #a4d2ff;outline-offset:3px}
+.reader-ribbon-surface { position:absolute; inset:0; z-index:11; pointer-events:none; }

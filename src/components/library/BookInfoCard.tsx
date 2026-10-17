@@ -1,20 +1,22 @@
+import BookmarkRibbon from "../reader/BookmarkRibbon";
 import {
 	ArrowLeft,
 	BookOpen,
 	BookOpenText,
 	Check,
 	LoaderCircle,
-	PanelTopOpen,
 	PanelTopClose,
+	PanelTopOpen,
 	SquarePen,
 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
+
 import { bookImagePath } from "../../lib/bookImages";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
 import { useSelectedBook } from "../../stores/useBookStore";
 import { useTourStore } from "../../stores/useTourStore";
-import { requestReaderFullscreen } from "../reader/readerFullscreen";
 import BookPageSwiper from "../openbook/BookPageSwiper";
+
 import "./book-info.css";
 
 export default function BookInfoCard() {
@@ -35,7 +37,7 @@ export default function BookInfoCard() {
 	const id = useId();
 	const opening = stage === "pull";
 	const opened = stage === "read";
-	const readable = Boolean(book.epub || book.pdf);
+	const readable = Boolean(book.epub || book.pdf || book.scanPages?.length);
 	const author =
 		(Array.isArray(book.author)
 			? book.author.join(", ")
@@ -217,6 +219,7 @@ export default function BookInfoCard() {
 				)}
 			</section>
 			<aside className="book-info-actions" aria-label="Book actions">
+				{opened && <BookmarkRibbon embedded />}
 				<button
 					type="button"
 					onClick={open}
@@ -249,11 +252,11 @@ export default function BookInfoCard() {
 					className="book-info-read"
 					aria-label="Read book"
 					title={readable ? "Read book" : "No EPUB or PDF attached yet"}
-					data-tooltip="Read"
+					data-tooltip={opened ? "Read in Foliate" : "Open to read"}
 					disabled={!readable || opening}
 					aria-describedby={!readable ? `${id}-file-note` : undefined}
 					onClick={() => {
-						requestReaderFullscreen();
+						// Open in 3D first; the next click takes us into Foliate.
 						read();
 					}}
 				>

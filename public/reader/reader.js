@@ -10,12 +10,18 @@ let currentPositionKey
 const bookId = params.get('book') ?? params.get('url') ?? 'local'
 const sourceKey = `boooks-reader-source:${bookId}`
 const settings = readSettings()
-const screenDocument = parent.document
+// In the overlay, keep the iframe and its Close button on the same fullscreen
+// surface. Fullscreening the parent document would cover the modal with the shelf.
+const screenTarget = window.frameElement?.closest('[data-reader-surface]') ?? document.documentElement
+const screenDocument = screenTarget.ownerDocument
 
 const savePosition = () => {
     // Removing frames during teardown emits a final scroll event at zero.
     const position = reader && !reader.destroyed ? reader.getPosition() : null
-    if (!opening && currentPositionKey && position) writeStored(currentPositionKey, position)
+    if (!opening && currentPositionKey && position) {
+ writeStored(currentPositionKey, position)
+ parent.postMessage({type: "reader-position", position}, location.origin)
+ }
 }
 const setSettingsOpen = open => {
     get('settings').hidden = !open
@@ -55,10 +61,7 @@ const updateFullscreen = () => {
 get('fullscreen').addEventListener('click', async () => {
     try {
         if (screenDocument.fullscreenElement) await screenDocument.exitFullscreen()
-        else {
-            await screenDocument.documentElement.requestFullscreen()
-            screenDocument.documentElement.dataset.readerFullscreen = 'true'
-        }
+        else await screenTarget.requestFullscreen()
     } catch { get('settings-status').textContent = 'Fullscreen is unavailable in this browser. You can keep reading here.' }
 })
 screenDocument.addEventListener('fullscreenchange', updateFullscreen)
@@ -122,7 +125,7 @@ async function open(file) {
         await reader?.destroy()
         // Let PDF.js stream/range-load remote PDFs instead of first buffering
         // the entire response into a Blob (large PDFs can fail in that path).
-        const book = typeof file === 'string' && new URL(file).pathname.toLowerCase().endsWith('.pdf')
+        const book = typeof file === 'string' && file.startsWith('scan:') ? await (await import('./scanned-pages.js')).makeScannedBook(file.slice(5)) : typeof file === 'string' && new URL(file).pathname.toLowerCase().endsWith('.pdf')
             ? await (await import('./foliate/pdf.js')).makePDF(file)
             : await (await import('./foliate/view.js')).makeBook(file)
         reader = new ContinuousBook(get('pages'), book, (doc, index) => {
@@ -137,7 +140,7 @@ async function open(file) {
             })
         }, settings)
         currentPositionKey = positionKey(file)
-        await reader.open(readStored(currentPositionKey))
+        await reader.open(params.has("page") ? {index: Math.max(0, Number(params.get("page")) || 0), fraction: Number(params.get("fraction")) || 0} : readStored(currentPositionKey))
         updateSettings()
         get('notice').hidden = true
         parent.postMessage({ type: 'reader-ready' }, location.origin)
@@ -165,6 +168,9 @@ get('book-file').addEventListener('change', event => {
     event.target.value = ''
 })
 window.addEventListener('message', event => {
+ if(event.origin === location.origin && event.source === parent && event.data?.type === 'reader-go-to' && reader && !opening) {
+ const p = event.data.position; if(p && Number.isInteger(p.index) && p.index >= 0 && Number.isFinite(p.fraction)) reader.restorePosition(p);
+ }
     if (event.origin === location.origin && event.source === parent && event.data?.type === 'save-reader-position') savePosition()
 })
 window.addEventListener('pagehide', () => {
@@ -181,7 +187,7 @@ if (savedSource?.local) {
     } catch { /* Fall back to the catalog file or local file chooser. */ }
 } else if (typeof savedSource?.url === 'string') source = savedSource.url
 if (source) {
-    if (source instanceof File) open(source)
+    if (source instanceof File || (typeof source === "string" && source === `scan:${bookId}`)) open(source)
     else {
         const url = new URL(source, location.href)
         if (url.origin === location.origin) open(url.href)

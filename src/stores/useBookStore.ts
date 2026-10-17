@@ -14,7 +14,15 @@ type BookState = {
 export const useBookStore = create<BookState>()((set, get) => ({
 	books,
 	addBook: (book) => {
-		if (get().books.some((entry) => entry.id === book.id)) return;
+		if (get().books.some((entry) => entry.id === book.id)) {
+			set((state) => ({
+				books: state.books.map((entry) =>
+					entry.id === book.id ? book : entry,
+				),
+			}));
+			get().selectBook(book.id);
+			return;
+		}
 		set((state) => ({ books: [...state.books, book] }));
 		get().selectBook(book.id);
 	},
@@ -36,11 +44,7 @@ export const useBookStore = create<BookState>()((set, get) => ({
 			targetProgress: 0,
 			isDissolving: false,
 		});
-		useReadingStore.setState({
-			selectedPage: 0,
-			currentPage: 0,
-			bookOpen: false,
-		});
+		useReadingStore.getState().activateBook(id);
 		set({ selectedBookId: id });
 	},
 }));
@@ -53,3 +57,5 @@ export const useSelectedBook = () =>
 	);
 
 export const useLibraryBooks = () => useBookStore((state) => state.books);
+
+useReadingStore.getState().activateBook(books[0].id);

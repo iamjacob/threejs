@@ -1,4 +1,6 @@
-"use client";
+import PageStackFill from "./PageStackFill";
+import SilkRibbon from "../reader/SilkRibbon";
+("use client");
 
 import { useTexture } from "@react-three/drei";
 import { useThree, type ThreeEvent } from "@react-three/fiber";
@@ -39,6 +41,7 @@ interface BookData {
 	dimensions: BookDimensions;
 	cover: BookCover;
 	pdf?: string;
+	scanPages?: { image: string; width: number; height: number }[];
 	position?: {
 		x: number;
 		y: number;
@@ -70,7 +73,9 @@ const OpenBook = ({
 	const readerState = useTourStore((state) => state.reader);
 	const selectedBook = useSelectedBook();
 	const book = providedBook ?? selectedBook;
-	const [currentPage, setCurrentPage] = useState<number>(0);
+	const [currentPage, setCurrentPage] = useState<number>(
+		() => useReadingStore.getState().selectedPage,
+	);
 	const [bookRead, setBookRead] = useState<boolean>(false);
 	const [pagesToFlip] = useState<number>(1);
 	const currentPageRef = useRef(currentPage);
@@ -112,7 +117,7 @@ const OpenBook = ({
 	}, []);
 
 	const [width, height, thickness] = book.dimensions;
-	const pages = Math.max(1, Math.min(120, book.pages));
+	const pages = Math.max(1, book.pages);
 	const pageThickness = thickness / pages;
 	const openDegrees = 1;
 
@@ -165,7 +170,7 @@ const OpenBook = ({
 			if (page) {
 				gsap.to(page.rotation, {
 					y: index >= currentPageRef.current ? openDegrees : -openDegrees,
-					duration: duration + 0.1 - 0.001 * index,
+					duration: Math.max(0.15, duration + 0.1 - 0.001 * index),
 					ease: "power2.inOut",
 				});
 			}
@@ -318,7 +323,7 @@ const OpenBook = ({
 				0,
 				-width * Math.sin(angle),
 			).add(page.position);
-			page.parent!.localToWorld(point);
+			page.parent?.localToWorld(point);
 			point.project(camera);
 			return new THREE.Vector2(
 				(point.x * size.width) / 2,
@@ -341,7 +346,7 @@ const OpenBook = ({
 			const point = new THREE.Vector3(p.x, p.y, p.z)
 				.applyAxisAngle(new THREE.Vector3(0, 1, 0), angle)
 				.add(page.position);
-			page.parent!.localToWorld(point);
+			page.parent?.localToWorld(point);
 			point.project(camera);
 			return new THREE.Vector2(
 				(point.x * size.width) / 2,
@@ -548,14 +553,22 @@ const OpenBook = ({
 	}, [closing, open]);
 
 	useEffect(() => {
-		if (readerState !== "closed") return;
+		if (readerState === "open") return;
 		let isActive = true;
+		for (const [mesh, material] of pageMaterialsRef.current) {
+			if (!mesh.parent?.parent) {
+				material.map?.dispose();
+				material.dispose();
+				pageMaterialsRef.current.delete(mesh);
+			}
+		}
 
 		const fetchAndUpdatePageImage = async (
 			pageIndex: number,
 		): Promise<void> => {
 			try {
-				const imageUrl = await getPageImage(pageIndex);
+				const imageUrl =
+					book.scanPages?.[pageIndex]?.image ?? (await getPageImage(pageIndex));
 				if (!isActive || !imageUrl) return;
 
 				const existing = pageRefs.current[pageIndex]?.children[0];
@@ -615,8 +628,9 @@ const OpenBook = ({
 		return () => {
 			isActive = false;
 		};
-	}, [currentPage, getPageImage, pages, readerState]);
+	}, [currentPage, getPageImage, pages, readerState, book.scanPages]);
 
+	const bookmarks = useReadingStore((s) => s.bookmarks);
 	const selectedPage = useReadingStore((state) => state.selectedPage);
 
 	useEffect(() => {
@@ -625,9 +639,14 @@ const OpenBook = ({
 			typeof selectedPage === "number" &&
 			selectedPage !== currentPage
 		) {
-			flipTo(selectedPage);
+			if (readerState === "open") {
+				flipTimelineRef.current?.kill();
+				isAnimatingRef.current = false;
+				flipQueueRef.current = [];
+				setCurrentPage(selectedPage);
+			} else flipTo(selectedPage);
 		}
-	}, [closing, currentPage, flipTo, selectedPage]);
+	}, [closing, currentPage, flipTo, selectedPage, readerState]);
 
 	return (
 		// biome-ignore lint/a11y/noStaticElementInteractions: This is a Three.js group, with page controls also available outside the canvas.
@@ -643,10 +662,60 @@ const OpenBook = ({
 				name="open-book"
 				userData={{ bookID: book.id, pdf: activePdfUrl }}
 			>
-				<group ref={pagesGroupRef}>
-					{Array.from({ length: pages }, (_, index) => (
+				{bookmarks.map((bookmark, index) => (
+					<group
+						key={bookmark.id}
+						position={[
+							-width / 2,
+							0,
+							thickness * 0.5 -
+								(Math.min(bookmark.index, pages - 1) + 0.5) * pageThickness,
+						]}
+						rotation={[
+							0,
+							closing
+								? 0
+								: bookmark.index >= currentPage
+									? openDegrees
+									: -openDegrees,
+							0,
+						]}
+					>
 						<group
-							// biome-ignore lint/suspicious/noArrayIndexKey: The index is the permanent page number.
+							position={[
+								width * (0.3 + (index % 6) * 0.09),
+								height * 0.52,
+								0.002,
+							]}
+						>
+							<SilkRibbon
+								length={height * 1.18}
+								width={width * 0.065}
+								color={bookmark.color}
+								insertedAt={bookmark.insertedAt}
+								launch={bookmark.launch}
+								throughBook
+							/>
+						</group>
+					</group>
+				))}
+				<PageStackFill
+					pages={pages}
+					currentPage={currentPage}
+					width={width}
+					height={height}
+					thickness={thickness}
+					closing={closing}
+				/>
+				<group ref={pagesGroupRef}>
+					{Array.from(
+						{
+							length:
+								Math.min(pages, currentPage + 5) - Math.max(0, currentPage - 4),
+						},
+						(_, offset) => offset + Math.max(0, currentPage - 4),
+					).map((index) => (
+						<group
 							key={`page-${index}`}
 							ref={(element) => {
 								pageRefs.current[index] = element;
@@ -656,7 +725,11 @@ const OpenBook = ({
 								0,
 								thickness * 0.5 - (index + 0.5) * pageThickness,
 							]}
-							rotation={[0, 0, 0]}
+							rotation={[
+								0,
+								closing ? 0 : index >= currentPage ? openDegrees : -openDegrees,
+								0,
+							]}
 						>
 							<CurlPage
 								width={width}

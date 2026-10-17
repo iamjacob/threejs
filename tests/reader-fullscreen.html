@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Reader fullscreen regression</title>
+  <style>body { background: #1b2948; color: white; font-family: system-ui; } #instructions { max-width: 40rem; margin: 200px auto 0; padding: 24px; }</style>
+</head>
+<body>
+  <div id="app"></div>
+  <p id="instructions">Use the test button above to mount the actual reader surface. Foliate and Close reader should appear in fullscreen. Escape should leave the book visible, Settings should reenter fullscreen, and Close reader should return here.</p>
+  <script type="module">
+    import React from 'react';
+    import { createRoot } from 'react-dom/client';
+    import '/src/styles.css';
+    import {flushSync} from 'react-dom';
+ import {requestReaderFullscreen} from '/src/components/reader/readerFullscreen.ts';
+    import ReaderOverlay from '/src/components/reader/ReaderOverlay.tsx';
+    import { useBookStore } from '/src/stores/useBookStore.ts';
+    import { useTourStore } from '/src/stores/useTourStore.ts';
+    const book = useBookStore.getState().books.find(book => book.pdf || book.epub);
+    useTourStore.getState().previewBook(book.id);
+    document.addEventListener('fullscreenchange', () => {
+      document.title = document.fullscreenElement?.hasAttribute('data-reader-surface')
+        ? 'Fullscreen: reader content' : 'Reader fullscreen regression';
+    });
+    function TestReader() {
+      const reader = useTourStore(state => state.reader);
+      return React.createElement(React.Fragment, null,
+        React.createElement('button',{onClick:()=>{flushSync(()=>useTourStore.setState({reader:'open'}));void requestReaderFullscreen();}},'Test reader fullscreen'),
+        reader === 'open' && React.createElement(ReaderOverlay));
+    }
+    createRoot(document.getElementById('app')).render(React.createElement(TestReader));
+  </script>
+</body>
+</html>

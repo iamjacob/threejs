@@ -3,6 +3,8 @@ import { getBookTextureUrls } from "../book/bookTextures";
 
 export type CroppedFace = { image: string; width: number; height: number };
 export type BookScan = {
+	id?: string;
+	photos?: import("./scanDrafts").ScanPhoto[];
 	title: string;
 	front: CroppedFace;
 	spine?: CroppedFace;
@@ -49,11 +51,24 @@ export async function scannedBook(scan: BookScan): Promise<LibraryBook> {
 		spine: scan.spine?.image ?? makeFace(true),
 		back: scan.back?.image ?? makeFace(false),
 	};
+	const scanPages = scan.photos
+		?.filter(
+			(photo) => !["front", "spine", "back", "dustjacket"].includes(photo.tag),
+		)
+		.map(
+			(photo) =>
+				photo.crop ?? {
+					image: photo.image,
+					width: scan.front.width,
+					height: scan.front.height,
+				},
+		);
 	return {
-		id: `scan-${crypto.randomUUID()}`,
+		scanPages,
+		id: scan.id ?? `scan-${crypto.randomUUID()}`,
 		title,
 		author: "",
-		pages: 180,
+		pages: scanPages?.length || 180,
 		readDate: new Date().toISOString().slice(0, 10),
 		demoPages: 120,
 		cover,

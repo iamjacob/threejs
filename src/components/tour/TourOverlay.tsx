@@ -25,7 +25,6 @@ import BookPageSwiper from "../openbook/BookPageSwiper";
 
 import { useFeatureFlags } from "../../lib/featureFlags";
 
-import { requestReaderFullscreen } from "../reader/readerFullscreen";
 import ShakeToRead from "../reader/ShakeToRead";
 import ControlHint from "./ControlHint";
 import LibraryCount from "./LibraryCount";
@@ -242,11 +241,10 @@ export default function TourOverlay() {
 						label={reader === "zooming" ? "Opening reader" : "Read book"}
 						onClick={() => {
 							dismissHint("reader");
-							requestReaderFullscreen();
 							openReader();
 						}}
 						disabled={
-							loading || reader !== "closed" || (!book.epub && !book.pdf)
+							loading || reader !== "closed" || (!book.epub && !book.pdf && !book.scanPages?.length)
 						}
 						hint={
 							usedHints.includes("drag") && showHint("reader")

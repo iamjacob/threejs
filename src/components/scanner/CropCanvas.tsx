@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { type PointerEvent, useEffect, useRef, useState } from "react";
 import type { Point } from "./perspective";
 
 export const cornerNames = [
@@ -19,10 +19,14 @@ export default function CropCanvas({
 	source,
 	points,
 	onChange,
+	onInteractionChange,
+	disabled = false,
 }: {
 	source: HTMLCanvasElement;
 	points: Point[];
 	onChange: (points: Point[]) => void;
+	onInteractionChange?: (dragging: boolean) => void;
+	disabled?: boolean;
 }) {
 	const host = useRef<HTMLDivElement>(null);
 	const canvas = useRef<HTMLCanvasElement>(null);
@@ -116,6 +120,7 @@ export default function CropCanvas({
 	const end = (event: PointerEvent) => {
 		if (active.current?.pointer !== event.pointerId) return;
 		active.current = null;
+		onInteractionChange?.(false);
 		if (host.current?.hasPointerCapture(event.pointerId))
 			host.current.releasePointerCapture(event.pointerId);
 	};
@@ -124,7 +129,13 @@ export default function CropCanvas({
 			ref={host}
 			className="scan-crop-canvas"
 			onPointerDown={(event) => {
-				if (!event.isPrimary || event.button !== 0 || active.current) return;
+				if (
+					disabled ||
+					!event.isPrimary ||
+					event.button !== 0 ||
+					active.current
+				)
+					return;
 				const p = position(event);
 				const corner = (event.target as HTMLElement).closest<HTMLElement>(
 					"[data-corner]",
@@ -148,10 +159,11 @@ export default function CropCanvas({
 					onChange([...points, p]);
 				}
 				active.current = { index, pointer: event.pointerId };
+				onInteractionChange?.(true);
 				event.currentTarget.setPointerCapture(event.pointerId);
 			}}
 			onPointerMove={(event) => {
-				if (active.current?.pointer !== event.pointerId) return;
+				if (disabled || active.current?.pointer !== event.pointerId) return;
 				const index = active.current.index;
 				onChange(
 					points.map((p, i) => (i === index ? clamp(position(event)) : p)),
@@ -161,6 +173,7 @@ export default function CropCanvas({
 			onPointerCancel={end}
 			onLostPointerCapture={() => {
 				active.current = null;
+				onInteractionChange?.(false);
 			}}
 		>
 			<canvas
@@ -171,6 +184,7 @@ export default function CropCanvas({
 				<button
 					key={cornerNames[index]}
 					type="button"
+					disabled={disabled}
 					data-corner={index}
 					className="scan-corner"
 					aria-label={`${cornerNames[index]} corner. Use arrow keys to adjust.`}
