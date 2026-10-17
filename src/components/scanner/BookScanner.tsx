@@ -612,8 +612,13 @@ export default function BookScanner({
 			<ScanMetadataFeedback
 				key={draftId}
 				image={faces.front?.image}
-				scanId={draftId}
 				busy={busy}
+				onSuggest={(metadata) => {
+					if (metadata.title) setTitle((v) => v.trim() || metadata.title);
+					if (metadata.subtitle)
+						setSubtitle((v) => v.trim() || metadata.subtitle);
+					if (metadata.author) setAuthor((v) => v.trim() || metadata.author);
+				}}
 				onApply={(metadata) => {
 					if (metadata.title) setTitle(metadata.title);
 					if (metadata.subtitle) setSubtitle(metadata.subtitle);

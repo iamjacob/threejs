@@ -1192,3 +1192,7 @@
 .scan-ai-feedback dt { text-transform: capitalize; opacity: .65; }
 .scan-ai-feedback dd { margin: 0; overflow-wrap: anywhere; }
 .scan-ai-feedback button { padding: 7px 12px; margin: 4px 6px 0 0; border: 1px solid #ffffff30; border-radius: 20px; background: #ffffff10; color: inherit; cursor: pointer; }
+.scan-ai-spinner { display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: -2px; border: 2px solid #ffffff40; border-top-color: #E22424; border-radius: 50%; animation: scan-ai-spin .8s linear infinite; }
+@keyframes scan-ai-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .scan-ai-spinner { animation-duration: 2.4s; } }
+
