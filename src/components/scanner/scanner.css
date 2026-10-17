@@ -1184,3 +1184,11 @@
 .scan-three-book{height:220px;width:100%;touch-action:none;background:radial-gradient(ellipse at center,#7acbff10,transparent 65%);border-radius:20px}
 .scan-preview-assign{display:block;margin:8px auto 0;min-height:32px;padding:6px 14px;border:1px solid #9bcff544;border-radius:20px;background:#6ba6ca12;color:#d1eaff;font-size:11px}
 @media(max-width:480px){.scan-three-book{height:180px}}
+
+.scan-ai-feedback { padding: 12px 16px; border: 1px solid #ffffff20; border-radius: 16px; background: #ffffff08; font-size: 13px; }
+.scan-ai-feedback p { margin: 0 0 8px; }
+.scan-ai-feedback dl { display: grid; gap: 6px; margin: 8px 0; }
+.scan-ai-feedback dl div { display: grid; grid-template-columns: 70px 1fr; gap: 10px; }
+.scan-ai-feedback dt { text-transform: capitalize; opacity: .65; }
+.scan-ai-feedback dd { margin: 0; overflow-wrap: anywhere; }
+.scan-ai-feedback button { padding: 7px 12px; margin: 4px 6px 0 0; border: 1px solid #ffffff30; border-radius: 20px; background: #ffffff10; color: inherit; cursor: pointer; }

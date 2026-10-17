@@ -69,3 +69,46 @@ optional face scans, adding two different covers, reload, and long-press editing
 
 
 The camera roll accepts multiple images and keeps one editable draft per book in the local `boooks-scan-drafts` IndexedDB database. New book retains earlier drafts in the history strip. Each photo retains its source, tag, crop and corner coordinates. Tags include covers, spine, pages, dust jacket, index, copyright, contents and other. Interior photos are attached in roll order when adding/updating the shelf book and can be read in both 3D and Foliate. Re-adding a draft updates its existing book ID. Storage failures are shown in the scanner.
+
+## AI metadata API (frontend contract, backend pending)
+
+After the front cover is cropped, the scanner waits 600 ms and POSTs to
+`https://ai.boooks.app/v1/scans/metadata`. Changing crops or books cancels the
+previous request; requests time out after 20 seconds. Retry is manual.
+Only the cropped cover is sent, resized without upscaling to a maximum 768 px
+on its longest side, JPEG quality 0.72. No full-resolution photo or credentials
+are sent. The image is raw base64, without the data-URL prefix.
+
+Request (`Content-Type: application/json`):
+```json
+{
+  "version": 1,
+  "scanId": "scan-uuid",
+  "part": "front",
+  "image": { "mimeType": "image/jpeg", "base64": "...", "width": 512, "height": 768 },
+  "fields": ["title", "subtitle", "author"]
+}
+```
+
+Successful response (`200`, `Content-Type: application/json`):
+```json
+{
+  "metadata": {
+    "title": "The Book Title",
+    "subtitle": "An optional subtitle",
+    "author": "First Author, Second Author"
+  }
+}
+```
+Return all three keys, using `null` for unreadable or absent fields. Extra keys
+are allowed for future extensions. Non-2xx responses show a nonblocking retry
+message. The frontend validates strings and caps each at 300 characters.
+Suggestions require “Use suggestions”; manual fields remain editable and are
+saved with scan history and the resulting library book.
+
+The future backend must support CORS preflight (`OPTIONS`) and `POST` from the
+frontend's deployment origin and localhost:3000 during development, allowing
+`Content-Type`. No client API secret is required or embedded. This change only
+implements the frontend; the service has not been deployed or verified.
+
+Run contract tests: `node --test tests/scan-metadata.test.mjs`.

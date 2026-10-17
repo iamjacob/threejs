@@ -1,3 +1,4 @@
+import {watchLibraryLoops} from "../lib/syncLibraryLoops";
 import { Stats } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { createFileRoute } from "@tanstack/react-router";
@@ -81,6 +82,7 @@ function Home() {
 	useEffect(() => {
 		const shelf = useShelfControlsStore.getState();
 		shelf.initialize(useBookStore.getState().books);
+ const stopLoops=watchLibraryLoops();
 		useTourStore.getState().start();
 		useTourStore.setState({ paused: true });
 		let active = true;
@@ -110,6 +112,7 @@ function Home() {
 				/* Scanning still works if private browsing disables storage. */
 			});
 		return () => {
+ stopLoops();
 			active = false;
 		};
 	}, []);

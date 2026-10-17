@@ -14,7 +14,7 @@
     "typecheck": "npm run cf-typegen && tsc --noEmit && tsc --project tsconfig.worker.json",
     "test:shelf": "node --test tests/shelf-controls.test.mjs tests/book-long-press.test.mjs tests/book-drag.test.mjs",
     "test:scanner": "node --test tests/scanner.test.mjs tests/scanner-integration.test.mjs tests/corner-detector.test.mjs tests/scanner-detection-session.test.mjs tests/scan-drafts.test.mjs",
-    "test:browsing": "node --test tests/book-browsing.test.mjs",
+    "test:browsing": "node --test tests/book-browsing.test.mjs tests/center-camera.test.mjs",
     "test:reader": "node --test tests/reader-startup.test.mjs tests/reader-fullscreen.test.mjs tests/book-browsing.test.mjs tests/shake.test.mjs",
     "test:helix": "node --test tests/helix-navigation.test.mjs",
     "test:paths": "node --test tests/paths.test.mjs",

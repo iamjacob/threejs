@@ -6,6 +6,8 @@ export type BookScan = {
 	id?: string;
 	photos?: import("./scanDrafts").ScanPhoto[];
 	title: string;
+	subtitle?: string;
+	author?: string;
 	front: CroppedFace;
 	spine?: CroppedFace;
 	back?: CroppedFace;
@@ -67,7 +69,8 @@ export async function scannedBook(scan: BookScan): Promise<LibraryBook> {
 		scanPages,
 		id: scan.id ?? `scan-${crypto.randomUUID()}`,
 		title,
-		author: "",
+		author: scan.author?.trim() ?? "",
+		subtitle: scan.subtitle?.trim() ?? "",
 		pages: scanPages?.length || 180,
 		readDate: new Date().toISOString().slice(0, 10),
 		demoPages: 120,

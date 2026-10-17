@@ -8,7 +8,15 @@ import {
 	SHELF_THICKNESS,
 } from "./shelfBooks";
 
-function GoldPlate({ label, shelf }: { label: string; shelf: number }) {
+function GoldPlate({
+	label,
+	shelf,
+	radius,
+}: {
+	label: string;
+	shelf: number;
+	radius: number;
+}) {
 	const openEditor = useShelfPlatesStore((state) => state.openEditor);
 	const width = Math.min(2, Math.max(0.85, label.length * 0.047 + 0.22)) * 0.8;
 	const geometry = useMemo(() => createShelfPlateGeometry(width), [width]);
@@ -47,7 +55,7 @@ function GoldPlate({ label, shelf }: { label: string; shelf: number }) {
 	return (
 		<group
 			position={[
-				SHELF_INNER_RADIUS,
+				radius - 0.4,
 				(shelf - 1) * SHELF_SPACING + SHELF_THICKNESS / 2,
 				0,
 			]}
@@ -80,9 +88,15 @@ function GoldPlate({ label, shelf }: { label: string; shelf: number }) {
 	);
 }
 
-export default function ShelfPlates() {
+export default function ShelfPlates({
+	radius = SHELF_INNER_RADIUS + 0.4,
+}: {
+	radius?: number;
+}) {
 	const labels = useShelfPlatesStore((state) => state.labels);
 	return labels.map((label, shelf) =>
-		label ? <GoldPlate key={shelf} label={label} shelf={shelf} /> : null,
+		label ? (
+			<GoldPlate key={shelf} label={label} shelf={shelf} radius={radius} />
+		) : null,
 	);
 }

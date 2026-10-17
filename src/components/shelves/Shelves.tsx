@@ -16,7 +16,6 @@ import Book from "../book/book";
 import { progressionConfig } from "./progressionConfig";
 import {
 	SHELF_INNER_RADIUS,
-	SHELF_OUTER_RADIUS,
 	SHELF_SPACING,
 	SHELF_THICKNESS,
 } from "./shelfBooks";
@@ -28,6 +27,7 @@ interface ShelfProps {
 	rotation?: Vector3Tuple;
 	fraction: number;
 	index: number;
+	radius: number;
 }
 
 const Shelf = ({
@@ -35,8 +35,23 @@ const Shelf = ({
 	rotation = [-Math.PI / 2, 0, 0],
 	fraction,
 	index,
+	radius,
 }: ShelfProps) => {
 	const meshRef = useRef<THREE.Mesh>(null);
+	useEffect(() => {
+		const mesh = meshRef.current;
+		if (!mesh || window.matchMedia("(prefers-reduced-motion: reduce)").matches)
+			return;
+		const tween = gsap.fromTo(
+			mesh.position,
+			{ z: -0.5 },
+			{ z: 0, duration: 1.3, delay: index * 0.12, ease: "power3.out" },
+		);
+		return () => {
+			tween.kill();
+			mesh.position.z = 0;
+		};
+	}, [index, radius]);
 	// const { zoomToShelf } = useShelfZoomStore();
 
 	const textures = useLoader(
@@ -59,8 +74,8 @@ const Shelf = ({
 	}, [textures]);
 
 	const geometry = useMemo(() => {
-		const outerR = SHELF_OUTER_RADIUS;
-		const innerR = SHELF_INNER_RADIUS;
+		const outerR = radius + 0.6;
+		const innerR = radius - 0.4;
 		const arcLength = Math.PI * 2 * fraction;
 		const startAngle = -arcLength / 2; // Center the arc
 		const endAngle = arcLength / 2;
@@ -80,9 +95,9 @@ const Shelf = ({
 			depth: SHELF_THICKNESS,
 			bevelEnabled: false,
 			steps: 1,
-			curveSegments: 32,
+			curveSegments: 128,
 		});
-	}, [fraction]);
+	}, [fraction, radius]);
 
 	useEffect(() => () => geometry.dispose(), [geometry]);
 
@@ -116,9 +131,11 @@ const Shelf = ({
 
 const Shelves = ({
 	fixedLevel,
+	radius = SHELF_INNER_RADIUS + 0.4,
 	children,
 }: {
 	fixedLevel?: number;
+	radius?: number;
 	children?: ReactNode;
 }) => {
 	const book = useSelectedBook();
@@ -193,6 +210,7 @@ const Shelves = ({
 						// biome-ignore lint/suspicious/noArrayIndexKey: Each index is a fixed shelf position across levels.
 						key={i}
 						index={i}
+						radius={radius}
 						position={[0, (i - 1) * SHELF_SPACING, 0]}
 						fraction={fraction}
 					/>

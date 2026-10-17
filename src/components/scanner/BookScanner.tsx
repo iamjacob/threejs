@@ -1,3 +1,4 @@
+import ScanMetadataFeedback from "./ScanMetadataFeedback";
 import ScannerBookForm from "./ScannerBookForm";
 import {
 	loadDrafts,
@@ -71,11 +72,15 @@ export default function BookScanner({
 	const [faces, setFaces] = useState<Partial<Record<Face, CroppedFace>>>({});
 	const [face, setFace] = useState<Face>("front");
 	const [title, setTitle] = useState("");
+	const [subtitle, setSubtitle] = useState("");
+	const [author, setAuthor] = useState("");
 	useEffect(() => {
 		if (!draftsReady || (!title && !photos.length && !faces.front)) return;
 		const draft: ScanDraft = {
 			id: draftId,
 			title,
+			subtitle,
+			author,
 			photos,
 			faces,
 			updated: Date.now(),
@@ -87,7 +92,7 @@ export default function BookScanner({
 		void saveDraft(draft)
 			.then(() => setStorageError(false))
 			.catch(() => setStorageError(true));
-	}, [draftId, title, photos, faces, draftsReady]);
+	}, [draftId, title, subtitle, author, photos, faces, draftsReady]);
 
 	const [error, setError] = useState("");
 	const [busy, setBusy] = useState(false);
@@ -399,6 +404,8 @@ export default function BookScanner({
 		stopCamera();
 		setDraftId(draft.id);
 		setTitle(draft.title);
+		setSubtitle(draft.subtitle ?? "");
+		setAuthor(draft.author ?? "");
 		setPhotos(draft.photos);
 		setFaces(draft.faces);
 		setActivePhoto(null);
@@ -524,6 +531,8 @@ export default function BookScanner({
 			await saveDraft({
 				id: draftId,
 				title,
+				subtitle,
+				author,
 				photos,
 				faces,
 				updated: Date.now(),
@@ -532,6 +541,8 @@ export default function BookScanner({
 				id: draftId,
 				photos,
 				title: title.trim(),
+				subtitle: subtitle.trim(),
+				author: author.trim(),
 				front: faces.front,
 				spine: faces.spine,
 				back: faces.back,
@@ -598,6 +609,17 @@ export default function BookScanner({
 					if (files.length) void importPhotos(files);
 				}}
 			/>
+			<ScanMetadataFeedback
+				key={draftId}
+				image={faces.front?.image}
+				scanId={draftId}
+				busy={busy}
+				onApply={(metadata) => {
+					if (metadata.title) setTitle(metadata.title);
+					if (metadata.subtitle) setSubtitle(metadata.subtitle);
+					if (metadata.author) setAuthor(metadata.author);
+				}}
+			/>
 			<ScannerBookForm
 				preview={liveCrop}
 				title={title}
@@ -622,6 +644,24 @@ export default function BookScanner({
 					fileInput.current?.click();
 				}}
 			>
+				<label className="scan-book-name">
+					Subtitle
+					<input
+						value={subtitle}
+						maxLength={300}
+						disabled={busy}
+						onChange={(event) => setSubtitle(event.target.value)}
+					/>
+				</label>
+				<label className="scan-book-name">
+					Author
+					<input
+						value={author}
+						maxLength={300}
+						disabled={busy}
+						onChange={(event) => setAuthor(event.target.value)}
+					/>
+				</label>
 				<nav className="scan-draft-tabs" aria-label="Book scan history">
 					<button
 						type="button"

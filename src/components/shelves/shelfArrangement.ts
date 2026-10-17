@@ -22,8 +22,7 @@ export function arrangeShelfBooks(
 	document: ShelfDocument,
 ): ArrangedBook[] {
 	const catalog = new Map(books.map((book) => [book.id, book]));
-	const radius = SHELF_INNER_RADIUS + 0.4;
-	const capacity = radius * Math.PI * 2 * 0.08 - 0.16;
+
 	const seen = new Set<string>();
 	const rows: {
 		ids: string[];
@@ -57,10 +56,28 @@ export function arrangeShelfBooks(
 			width,
 		});
 	}
-	return rows.flatMap((row, shelfIndex) => {
+	const radius = SHELF_INNER_RADIUS + 0.4;
+	const capacity =
+		radius * Math.PI * 2 * (document.fullCircle ? 1 : 0.08) - 0.16;
+	return rows.flatMap((allUnits, shelfIndex) => {
+		// Only display complete units that fit; overflow stays in the library catalog.
+		let occupied = 0;
+		const row = document.fullCircle
+			? allUnits.filter((unit) => {
+					const required = unit.width + document.spacing;
+					if (occupied + required > capacity) return false;
+					occupied += required;
+					return true;
+				})
+			: allUnits;
+		const rowWidth = row.reduce((sum, unit) => sum + unit.width, 0);
+		const spacing =
+			document.fullCircle && row.length > 1
+				? Math.max(document.spacing, (capacity - rowWidth) / row.length)
+				: document.spacing;
 		const fullWidth =
 			row.reduce((sum, unit) => sum + unit.width, 0) +
-			Math.max(0, row.length - 1) * document.spacing;
+			Math.max(0, row.length - 1) * spacing;
 		// Arrangement never changes a book's physical dimensions.
 		const width = fullWidth;
 		const availableWidth = Math.max(capacity, width);
@@ -72,7 +89,7 @@ export function arrangeShelfBooks(
 					: -width / 2;
 		return row.flatMap((unit) => {
 			const center = cursor + unit.width / 2;
-			cursor += unit.width + document.spacing;
+			cursor += unit.width + spacing;
 			const angle = -center / radius;
 			const base = new Quaternion().setFromEuler(
 				new Euler(0, angle - Math.PI / 2, 0),
@@ -122,8 +139,7 @@ export function arrangeShelfBooks(
 				const y =
 					(shelfIndex - 1) * SHELF_SPACING +
 					SHELF_THICKNESS +
-					elevation +
-					height / 2;
+					(elevation + height / 2);
 				if (stack) elevation += height + 0.012;
 				return {
 					book,

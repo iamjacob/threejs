@@ -1,3 +1,4 @@
+import { pointerTurnSpeed, stepCenterTurn } from "./centerCamera";
 import { OrbitControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
@@ -30,7 +31,7 @@ import {
 
 export default function TourCamera() {
 	const { SHOW_DEMO_UI } = useFeatureFlags();
-	const { camera, size } = useThree();
+	const { camera, size, gl } = useThree();
 	const book = useSelectedBook();
 	const shelfBooks = useLibraryBooks();
 	const tallestShelfBook = Math.max(
@@ -169,6 +170,117 @@ export default function TourCamera() {
 		],
 	);
 	const bookScale = Math.max(book.dimensions[1], book.dimensions[0] / 0.7);
+	const libraryLevel = useLevelStore((state) => state.libraryLevel);
+	const centered =
+		reader === "closed" &&
+		!userAddition &&
+		libraryLevel <= 10 &&
+		["library", "pick", "end", "grow"].includes(stage);
+	const centeredRef = useRef(centered);
+	centeredRef.current = centered;
+	const centerTurn = useRef({
+		yaw: 0,
+		speed: 0,
+		wanted: 0,
+		pitch: 0,
+		dragging: false,
+		x: 0,
+		y: 0,
+		fov: 45,
+	});
+ useEffect(()=>{if(editing)centerTurn.current.fov=zoomMode==='book'?28:zoomMode==='shelf'?42:55;},[editing,zoomMode]);
+
+	useEffect(() => {
+		const canvas = gl.domElement;
+		const move = (event: PointerEvent) => {
+			if (!centeredRef.current) return;
+			const state = centerTurn.current;
+			if (
+				event.pointerType === "touch" &&
+				state.dragging &&
+				!useShelfControlsStore.getState().drag
+			) {
+				state.yaw -= (event.clientX - state.x) * 0.004;
+				state.pitch = MathUtils.clamp(
+					state.pitch + (event.clientY - state.y) * 0.002,
+					-0.35,
+					0.35,
+				);
+			}
+			state.x = event.clientX;
+			state.y = event.clientY;
+			const rect = canvas.getBoundingClientRect();
+			state.wanted =
+				event.pointerType === "mouse" && !event.buttons && !reducedMotion
+					? pointerTurnSpeed(((event.clientX - rect.left) / rect.width) * 2 - 1)
+					: 0;
+		};
+		const down = (event: PointerEvent) => {
+			const state = centerTurn.current;
+			state.dragging = true;
+			state.x = event.clientX;
+			state.y = event.clientY;
+			state.wanted = 0;
+			state.speed = 0;
+		};
+		const up = () => {
+			centerTurn.current.dragging = false;
+		};
+		const stop = () => {
+			centerTurn.current.wanted = 0;
+		};
+		const wheel = (event: WheelEvent) => {
+			if (!centeredRef.current) return;
+			event.preventDefault();
+			centerTurn.current.fov = MathUtils.clamp(
+				centerTurn.current.fov + event.deltaY * 0.025,
+				24,
+				70,
+			);
+		};
+		const key = (event: KeyboardEvent) => {
+			if (!centeredRef.current || document.activeElement !== canvas) return;
+			if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+				event.preventDefault();
+				centerTurn.current.yaw += (event.key === "ArrowRight" ? 1 : -1) * 0.15;
+			}
+		};
+		const previousTabIndex = canvas.getAttribute("tabindex");
+		canvas.tabIndex = 0;
+		canvas.addEventListener("pointermove", move);
+		canvas.addEventListener("pointerdown", down);
+		canvas.addEventListener("pointerleave", stop);
+		canvas.addEventListener("wheel", wheel, { passive: false });
+		canvas.addEventListener("keydown", key);
+		window.addEventListener("pointerup", up);
+		window.addEventListener("pointercancel", up);
+		window.addEventListener("blur", stop);
+		return () => {
+			canvas.removeEventListener("pointermove", move);
+			canvas.removeEventListener("pointerdown", down);
+			canvas.removeEventListener("pointerleave", stop);
+			canvas.removeEventListener("wheel", wheel);
+			canvas.removeEventListener("keydown", key);
+			window.removeEventListener("pointerup", up);
+			window.removeEventListener("pointercancel", up);
+			window.removeEventListener("blur", stop);
+			if (previousTabIndex === null) canvas.removeAttribute("tabindex");
+			else canvas.setAttribute("tabindex", previousTabIndex);
+		};
+	}, [gl, reducedMotion]);
+	useLayoutEffect(() => {
+		if (!centered) {
+			centerTurn.current.wanted = 0;
+			centerTurn.current.speed = 0;
+			camera.up.set(0, 1, 0);
+			if ("fov" in camera) {
+				camera.fov = 45;
+				camera.updateProjectionMatrix();
+			}
+			return;
+		}
+		entrance.current.done = true;
+	}, [centered, camera]);
 
 	useLayoutEffect(() => {
 		const orbit = controls.current;
@@ -183,6 +295,11 @@ export default function TourCamera() {
 				camera.position.copy(pose.position);
 				orbit.target.copy(pose.target);
 			}
+			if (centered) {
+				camera.position.set(0, 0.25, 0);
+				orbit.target.set(0, 0.25, -7.4);
+				entrance.current.done = true;
+			}
 			orbit.update();
 			initialized.current = true;
 		}
@@ -190,13 +307,51 @@ export default function TourCamera() {
 			startPosition.copy(camera.position);
 			startTarget.copy(orbit.target);
 		}
-	}, [stage, camera, framing, startPosition, startTarget]);
+	}, [stage, camera, framing, startPosition, startTarget, centered]);
 
 	useFrame((_, delta) => {
 		const orbit = controls.current;
 		const tour = useTourStore.getState();
 		if (!drag) dragView.current = null;
 		if (!orbit || !tour.ready || tour.reader === "open") return;
+		if (centered) {
+			const state = centerTurn.current;
+			const frozen =
+				Boolean(drag) ||
+				state.dragging ||
+				document.hidden ||
+				Boolean(document.querySelector("dialog[open]"));
+			const next = stepCenterTurn(
+				state.yaw,
+				frozen ? 0 : state.speed,
+				frozen ? 0 : state.wanted,
+				delta,
+			);
+			state.yaw = next.yaw;
+			state.speed = next.speed;
+			const ease = reducedMotion ? 1 : 1 - Math.exp(-Math.min(delta, 0.05) * 5);
+			// Dolly home after reading, then rotate in place. No orbit around the book.
+			camera.position.lerp(position.set(0, 0.25, 0), ease);
+			if (camera.position.distanceTo(position) < 0.001)
+				camera.position.copy(position);
+			target.set(
+				Math.sin(state.yaw) * 7.4,
+				0.25 + Math.sin(state.pitch) * 7.4,
+				-Math.cos(state.yaw) * 7.4,
+			);
+			orbit.target.copy(target);
+			const bank = reducedMotion ? 0 : -state.speed * 0.018;
+			camera.up
+				.set(Math.cos(state.yaw) * bank, 1, Math.sin(state.yaw) * bank)
+				.normalize();
+			if ("fov" in camera && typeof camera.fov === "number") {
+				camera.fov += (state.fov - camera.fov) * ease;
+				camera.updateProjectionMatrix();
+			}
+			orbit.update();
+			return;
+		}
+
 		if (!entrance.current.done) {
 			if (
 				stage !== "library" ||
@@ -453,6 +608,7 @@ export default function TourCamera() {
 			ref={controls}
 			makeDefault
 			enabled={
+				!centered &&
 				!userAddition &&
 				!drag &&
 				reader === "closed" &&
@@ -462,7 +618,7 @@ export default function TourCamera() {
 			enableRotate={!editing}
 			enablePan={!editing}
 			enableZoom={!drag}
-			enableDamping
+			enableDamping={!centered}
 			dampingFactor={0.08}
 			zoomSpeed={0.75}
 			minDistance={shelves ? 2 : bookScale * 0.6}

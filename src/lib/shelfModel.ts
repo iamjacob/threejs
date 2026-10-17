@@ -20,6 +20,7 @@ export type BookStack = {
 };
 export type ShelfGroup = { id: string; name: string; bookIds: string[] };
 export type ShelfDocument = {
+ fullCircle?: boolean;
 	items: Record<string, BookArrangement>;
 	order: string[];
 	stacks: BookStack[];

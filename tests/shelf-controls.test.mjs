@@ -540,3 +540,48 @@ test("camera focus is computed from the chosen book's real position and adapts t
 		mobile.target,
 	);
 });
+
+test('full-circle shelves distribute books across the front and rear without changing book scale', () => {
+ const repeated=Array.from({length:8},(_,loop)=>books.map(book=>({...book,id:`loop-${loop}:${book.id}`}))).flat();
+ store.setState({initialized:false});store.getState().initialize(repeated);
+ const placements=arrangeShelfBooks(repeated,{...store.getState().document,fullCircle:true});
+ assert.equal(placements.length,repeated.length);
+ assert.ok(placements.every(p=>p.scale===1));
+ for(let row=0;row<4;row++){
+  const entries=placements.filter(p=>p.shelfIndex===row);
+  assert.ok(entries.some(p=>p.position[0]<-5),'books reach the rear');
+  assert.ok(entries.some(p=>p.position[0]>5),'books reach the front');
+  assert.ok(entries.some(p=>p.position[2]<-5));
+  assert.ok(entries.some(p=>p.position[2]>5));
+ }
+});
+
+test('level 10 expands the former 24 sets tenfold with stable independent identities', async()=>{
+ const {loopLibrary}=await import('../src/lib/libraryLoops.ts');
+ const expanded=loopLibrary(books,10);
+ assert.equal(expanded.length,books.length*240);
+ assert.equal(new Set(expanded.map(b=>b.id)).size,expanded.length);
+ assert.deepEqual(loopLibrary(expanded,10).map(b=>b.id),expanded.map(b=>b.id));
+ assert.deepEqual(loopLibrary(expanded,9),books);
+});
+
+test('full shelves preserve original sizes and leave overflow in the catalog', async () => {
+ const {loopLibrary}=await import('../src/lib/libraryLoops.ts');
+ const expanded=loopLibrary(books,10);
+ const document={fullCircle:true,items:Object.fromEntries(expanded.map((book,index)=>[book.id,{shelf:index%4,layout:'upright',angle:0,face:'spine'}])),order:expanded.map(book=>book.id),stacks:[],groups:[],spacing:0.16,alignment:'center'};
+ const originalOrder=[...document.order];
+ const result=arrangeShelfBooks(expanded,document);
+ assert.ok(result.length > 0 && result.length < expanded.length);
+ assert.equal(expanded.length,books.length*240);
+ assert.deepEqual(document.order,originalOrder);
+ assert.ok(result.every(entry => entry.scale === 1));
+ for(const entry of result) closeTo(Math.hypot(entry.position[0],entry.position[2]),7.4,'original shelf radius');
+ for(let row=0;row<4;row++) {
+  const entries=result.filter(entry=>entry.shelfIndex===row).map(entry=>({angle:Math.atan2(entry.position[2],entry.position[0]),width:entry.book.dimensions[2]})).sort((a,b)=>a.angle-b.angle);
+  for(let index=0;index<entries.length;index++) {
+   const current=entries[index],next=entries[(index+1)%entries.length];
+   const angle=(next.angle-current.angle+Math.PI*2)%(Math.PI*2);
+   assert.ok(angle*7.4+1e-7 >= (current.width+next.width)/2+document.spacing);
+  }
+ }
+});

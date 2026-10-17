@@ -16,6 +16,9 @@ import {
 	useState,
 } from "react";
 import {
+	Frustum,
+	Matrix4,
+	Sphere,
 	Euler,
 	type Group,
 	LoadingManager,
@@ -343,6 +346,43 @@ export default function Bookshelves({
 					).map((item) => ({ ...item, scale: 1 })),
 		[document, initialized, shelfBooks],
 	);
+	const shelfRadius = 7.4;
+	const [inView, setInView] = useState<Set<string>>(() => new Set());
+	const visibility = useMemo(
+		() => ({
+			frustum: new Frustum(),
+			matrix: new Matrix4(),
+			sphere: new Sphere(),
+			elapsed: 1,
+		}),
+		[],
+	);
+	useFrame(({ camera }, delta) => {
+		if (placements.length < 500) return;
+		visibility.elapsed += delta;
+		if (visibility.elapsed < 0.1) return;
+		visibility.elapsed = 0;
+		visibility.frustum.setFromProjectionMatrix(
+			visibility.matrix.multiplyMatrices(
+				camera.projectionMatrix,
+				camera.matrixWorldInverse,
+			),
+		);
+		const next = new Set<string>();
+		for (const entry of placements) {
+			const [x, y, z] = entry.position;
+			visibility.sphere.center.set(z, y - 0.8, -x);
+			// Overscan keeps volumes mounted before they cross the viewport edge.
+			visibility.sphere.radius = Math.max(...entry.book.dimensions) + 2;
+			if (visibility.frustum.intersectsSphere(visibility.sphere))
+				next.add(entry.book.id);
+		}
+		setInView((previous) =>
+			previous.size === next.size && [...next].every((id) => previous.has(id))
+				? previous
+				: next,
+		);
+	});
 	const drag = useShelfControlsStore((state) => state.drag);
 	const dragControls = useShelfBookDrag(editing && canEdit, placements);
 	const dropPlacements = useMemo(
@@ -358,6 +398,10 @@ export default function Bookshelves({
 	// Keep receivers still while dragging so the drop target does not move away.
 	const visible = placements.filter(
 		({ book }) =>
+			(placements.length < 500 ||
+				inView.has(book.id) ||
+				selectedIds.includes(book.id) ||
+				deletingBooks[book.id] !== undefined) &&
 			book.id !== hiddenBookId &&
 			book.id !== returningBookId &&
 			!hiddenBookIds.includes(book.id),
@@ -388,9 +432,13 @@ export default function Bookshelves({
 
 	return (
 		<>
-			<Shelves fixedLevel={libraryLevel}>
-				<ShelfPlates />
-				{pictureFrameVisible && <PictureFrame />}
+			<Shelves fixedLevel={libraryLevel} radius={shelfRadius}>
+				<ShelfPlates radius={shelfRadius} />
+				{pictureFrameVisible && (
+					<group position={[shelfRadius - 7.4, 0, 0]}>
+						<PictureFrame />
+					</group>
+				)}
 				{blurredBookIds.length > 0 && (
 					<CollectionBlur
 						placements={visible.filter(
@@ -510,6 +558,7 @@ function AnimatedPlacement({
 	return (
 		<group
 			ref={ref}
+			scale={placement.scale}
 			position={initial.position}
 			rotation={initial.rotation}
 			userData={{

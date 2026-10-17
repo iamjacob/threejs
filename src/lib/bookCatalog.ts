@@ -18,4 +18,4 @@ function booksReadOffset(id: string) {
 	return Math.max(0, getShelfBooks(catalog).findIndex((book) => book.id === id));
 }
 
-export type LibraryBook = (typeof books)[number] & { scanPages?: {image:string;width:number;height:number}[] };
+export type LibraryBook = (typeof books)[number] & { subtitle?: string; loopSourceId?: string; scanPages?: {image:string;width:number;height:number}[] };

@@ -23,6 +23,8 @@ export type ScanPhoto = {
 export type ScanDraft = {
 	id: string;
 	title: string;
+	subtitle?: string;
+	author?: string;
 	photos: ScanPhoto[];
 	faces: Partial<Record<"front" | "spine" | "back", CroppedFace>>;
 	updated: number;
