@@ -42,7 +42,10 @@ import { useTourStore } from "../../stores/useTourStore";
 import { BOOK_MATERIAL } from "../book/bookAppearance";
 import { getBookTextureUrls } from "../book/bookTextures";
 import type { BookPose } from "../tour/tourStages";
+import { coverInAtlas } from "../../lib/coverAtlas";
+import { useFeatureFlags } from "../../lib/featureFlags";
 import CollectionBlur from "./CollectionBlur";
+import InstancedBooks from "./InstancedBooks";
 import PictureFrame from "./PictureFrame";
 import { progressionConfig } from "./progressionConfig";
 import ShelfBookDissolve from "./ShelfBookDissolve";
@@ -357,8 +360,11 @@ export default function Bookshelves({
 		}),
 		[],
 	);
+	const instancedShelf = useFeatureFlags((state) => state.INSTANCED_SHELF);
 	useFrame(({ camera }, delta) => {
-		if (placements.length < 500) return;
+		// Instanced sectors are culled as whole batches; per-book checks only
+		// matter while editing, when every book has its own mesh.
+		if (placements.length < 500 || (instancedShelf && !editing)) return;
 		visibility.elapsed += delta;
 		if (visibility.elapsed < 0.1) return;
 		visibility.elapsed = 0;
@@ -396,16 +402,84 @@ export default function Bookshelves({
 		[document, shelfBooks, drag?.ids, drag?.drop, drag?.moved, placements],
 	);
 	// Keep receivers still while dragging so the drop target does not move away.
-	const visible = placements.filter(
+	// Static books share one instanced draw per sector; anything interactive,
+	// highlighted, or animating keeps its own mesh so existing behaviour holds.
+	const isInstanced = (placement: ArrangedBook) =>
+		instancedShelf &&
+		!editing &&
+		!blurredBookIds.includes(placement.book.id) &&
+		deletingBooks[placement.book.id] === undefined &&
+		coverInAtlas(placement.book.cover);
+	const shown = placements.filter(
 		({ book }) =>
-			(placements.length < 500 ||
-				inView.has(book.id) ||
-				selectedIds.includes(book.id) ||
-				deletingBooks[book.id] !== undefined) &&
 			book.id !== hiddenBookId &&
 			book.id !== returningBookId &&
 			!hiddenBookIds.includes(book.id),
 	);
+	const instanced = shown.filter(isInstanced);
+	const visible = shown.filter(
+		(placement) =>
+			!isInstanced(placement) &&
+			(placements.length < 500 ||
+				inView.has(placement.book.id) ||
+				selectedIds.includes(placement.book.id) ||
+				deletingBooks[placement.book.id] !== undefined),
+	);
+	const hoveredInstance = useRef<string | null>(null);
+	useEffect(
+		() => () => {
+			globalThis.document.body.style.cursor = "";
+		},
+		[],
+	);
+	const editCallback = useRef(onBookEdit);
+	editCallback.current = onBookEdit;
+	const instanceLongPress = useMemo(() => {
+		let bookId: string | null = null;
+		const press = createBookLongPress((pointer) => {
+			if (!bookId) return;
+			const position = { x: pointer.clientX, y: pointer.clientY };
+			if (editCallback.current) editCallback.current(bookId, position);
+			else {
+				useTourStore.getState().previewBook(bookId);
+				useTourStore.getState().editPreview();
+			}
+			vibrateBookEdit();
+		});
+		return {
+			start(id: string, pointer: Parameters<typeof press.start>[0]) {
+				bookId = id;
+				press.start(pointer);
+			},
+			cancel: press.cancel,
+			consumeClick: press.consumeClick,
+			move: press.move,
+			end: press.end,
+			additionalPointer: press.additionalPointer,
+		};
+	}, []);
+	useEffect(() => {
+		if (!canEdit || instanced.length === 0) return;
+		const press = instanceLongPress;
+		const cancelWhenHidden = () => {
+			if (globalThis.document.hidden) press.cancel();
+		};
+		window.addEventListener("pointermove", press.move, true);
+		window.addEventListener("pointerup", press.end, true);
+		window.addEventListener("pointercancel", press.end, true);
+		window.addEventListener("pointerdown", press.additionalPointer, true);
+		window.addEventListener("blur", press.cancel);
+		globalThis.document.addEventListener("visibilitychange", cancelWhenHidden);
+		return () => {
+			press.cancel();
+			window.removeEventListener("pointermove", press.move, true);
+			window.removeEventListener("pointerup", press.end, true);
+			window.removeEventListener("pointercancel", press.end, true);
+			window.removeEventListener("pointerdown", press.additionalPointer, true);
+			window.removeEventListener("blur", press.cancel);
+			globalThis.document.removeEventListener("visibilitychange", cancelWhenHidden);
+		};
+	}, [canEdit, instanced.length, instanceLongPress]);
 	const stackTarget = drag?.drop.stackOnId
 		? placements.find((entry) => entry.book.id === drag.drop.stackOnId)
 		: undefined;
@@ -447,6 +521,39 @@ export default function Bookshelves({
 								deletingBooks[book.id] === undefined,
 						)}
 					/>
+				)}
+				{instanced.length > 0 && (
+					<Suspense fallback={null}>
+						<InstancedBooks
+							placements={instanced}
+							onPointerOver={(_, event) => {
+								if (!onBookSelect) return;
+								event.stopPropagation();
+								hoveredInstance.current = _.book.id;
+								globalThis.document.body.style.cursor = "pointer";
+							}}
+							onPointerOut={(placement) => {
+								if (hoveredInstance.current !== placement.book.id) return;
+								hoveredInstance.current = null;
+								globalThis.document.body.style.cursor = "";
+								instanceLongPress.cancel();
+							}}
+							onPointerDown={(placement, event) => {
+								if (!canEdit) return;
+								event.stopPropagation();
+								instanceLongPress.start(placement.book.id, event.nativeEvent);
+							}}
+							onClick={(placement, event) => {
+								if (instanceLongPress.consumeClick()) {
+									event.stopPropagation();
+									return;
+								}
+								if (!onBookSelect || event.delta > 5) return;
+								event.stopPropagation();
+								onBookSelect(placement.book.id, arrangedBookPose(placement));
+							}}
+						/>
+					</Suspense>
 				)}
 				{visible.map((placement) => (
 					<AnimatedPlacement key={placement.book.id} placement={placement}>

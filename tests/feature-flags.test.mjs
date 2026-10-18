@@ -13,7 +13,7 @@ test("every feature flag updates live, persists, reloads, and resets", async (t)
 	const changes = [];
 	const unsubscribe = store.subscribe(state => changes.push(state));
 	for (const flag of Object.keys(featureDefaults)) store.getState().setFlag(flag, !featureDefaults[flag]);
-	assert.equal(changes.length, 3);
+	assert.equal(changes.length, Object.keys(featureDefaults).length);
 	const { useFeatureFlags: reloaded } = await import("../src/lib/featureFlags.ts?test=reload");
 	for (const flag of Object.keys(featureDefaults)) assert.equal(reloaded.getState()[flag], !featureDefaults[flag]);
 	reloaded.getState().reset();

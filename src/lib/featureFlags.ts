@@ -4,6 +4,7 @@ export const featureDefaults = {
 	SHOW_DEMO_UI: import.meta.env?.VITE_SHOW_DEMO_UI === "true",
 	SHOW_HELIX_NAV: import.meta.env?.VITE_SHOW_HELIX_NAV === "true",
 	SHOW_TOUR_TEXT: false,
+	INSTANCED_SHELF: import.meta.env?.VITE_INSTANCED_SHELF !== "false",
 };
 export type FeatureFlag = keyof typeof featureDefaults;
 const key = "boooks-feature-flags-v1";
