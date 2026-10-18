@@ -394,20 +394,32 @@
 
 /* Quick actions: one-tap row under the menu heading. */
 .nav-quick {
-	padding: 0 12px 10px;
+	padding: 0 0 10px;
 }
 .nav-quick-row {
-	display: grid;
-	grid-template-columns: repeat(4, 1fr);
+	display: flex;
 	gap: 8px;
+	padding: 2px 12px;
+	overflow-x: auto;
+	scroll-snap-type: x proximity;
+	scrollbar-width: none;
+	-webkit-overflow-scrolling: touch;
+	/* Fade the right edge so the strip reads as scrollable. */
+	mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);
+}
+.nav-quick-row::-webkit-scrollbar {
+	display: none;
 }
 .nav-quick-button {
 	display: flex;
+	flex: 0 0 72px;
+	scroll-snap-align: start;
 	flex-direction: column;
 	align-items: center;
 	justify-content: center;
-	gap: 3px;
-	min-height: 52px;
+	gap: 4px;
+	min-height: 60px;
+	padding: 6px 4px;
 	border: 0;
 	border-radius: 12px;
 	background: #ffffff14;
@@ -423,14 +435,18 @@
 	color: #f5d6a0;
 }
 .nav-quick-caption {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
 	font-size: 10px;
 	line-height: 1;
 	text-transform: capitalize;
 	opacity: 0.8;
 }
 .nav-quick-reload {
-	margin-top: 8px;
-	width: 100%;
+	margin: 8px 12px 0;
+	width: calc(100% - 24px);
 	padding: 8px;
 	border: 0;
 	border-radius: 10px;

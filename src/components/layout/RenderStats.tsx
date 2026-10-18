@@ -1,7 +1,10 @@
 import { Html } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useRef, useState } from "react";
+import { currentRenderQuality } from "../../lib/renderQuality";
 import { useLevelStore } from "../../stores/useLevelStore";
+
+const quality = currentRenderQuality();
 
 type Snapshot = {
 	fps: number;
@@ -59,7 +62,7 @@ export default function RenderStats() {
 					background: "rgba(0,0,0,.65)",
 				}}
 			>
-				{`level ${level}
+				{`level ${level}  tier ${quality.tier}  dpr ${gl.getPixelRatio().toFixed(2)}  shadows ${quality.shadows ? "on" : "off"}
 fps        ${snapshot.fps.toFixed(0)}  (worst ${snapshot.frameMs.toFixed(1)} ms)
 draw calls ${snapshot.calls}
 triangles  ${snapshot.triangles.toLocaleString()}

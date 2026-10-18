@@ -282,8 +282,9 @@ function Home() {
 					frameloop={scanning || reader === "open" ? "never" : "always"}
 					shadows={renderQuality.shadows ? "percentage" : false}
 					dpr={renderQuality.dpr}
-					gl={{ alpha: true, powerPreference: "high-performance" }}
-					onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
+					// A transparent canvas forces per-frame page compositing and locks many
+					// phones to 30 fps; the scene paints its own background instead.
+					gl={{ alpha: false, powerPreference: "high-performance" }}
 					camera={{ position: [0, 4, 8], fov: 45, near: 0.01, far: 500 }}
 				>
 					<Suspense fallback={null}>

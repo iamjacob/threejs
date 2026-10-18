@@ -67,6 +67,10 @@ const words = {
 		scene: "Näkymä",
 		performance: "Suorituskykytila",
 		reloadHint: "Lataa sivu uudelleen",
+		shuffle: "Sekoita hylly",
+		randomBook: "Satunnainen kirja",
+		recenter: "Keskitä näkymä",
+		scan: "Skannaa kirja",
 		unavailable:
 			"Kirjautuminen ei ole vielä käytettävissä. Hyllysi tallennetaan tähän selaimeen.",
 	},
@@ -98,6 +102,10 @@ const words = {
 		scene: "Sviðsmynd",
 		performance: "Afkastahamur",
 		reloadHint: "Endurhlaða til að virkja",
+		shuffle: "Stokka hilluna",
+		randomBook: "Bók af handahófi",
+		recenter: "Miðja sýn",
+		scan: "Skanna bók",
 		unavailable:
 			"Innskráning er ekki enn í boði. Hillan þín er vistuð í þessum vafra.",
 	},
@@ -129,6 +137,10 @@ const words = {
 		scene: "Scene",
 		performance: "Performance mode",
 		reloadHint: "Reload to apply",
+		shuffle: "Shuffle shelf",
+		randomBook: "Random book",
+		recenter: "Recenter view",
+		scan: "Scan a book",
 		unavailable:
 			"Sign-in is not available yet. Your shelf is saved in this browser.",
 	},
@@ -160,6 +172,10 @@ const words = {
 		scene: "Scene",
 		performance: "Ydelsestilstand",
 		reloadHint: "Genindlæs for at anvende",
+		shuffle: "Bland hylden",
+		randomBook: "Tilfældig bog",
+		recenter: "Centrér visning",
+		scan: "Scan en bog",
 		unavailable:
 			"Login er ikke tilgængeligt endnu. Din hylde gemmes i denne browser.",
 	},
@@ -191,6 +207,10 @@ const words = {
 		scene: "Szene",
 		performance: "Leistungsmodus",
 		reloadHint: "Neu laden zum Anwenden",
+		shuffle: "Regal mischen",
+		randomBook: "Zufälliges Buch",
+		recenter: "Ansicht zentrieren",
+		scan: "Buch scannen",
 		unavailable:
 			"Die Anmeldung ist noch nicht verfügbar. Dein Regal wird in diesem Browser gespeichert.",
 	},
@@ -222,6 +242,10 @@ const words = {
 		scene: "Scen",
 		performance: "Prestandaläge",
 		reloadHint: "Ladda om för att tillämpa",
+		shuffle: "Blanda hyllan",
+		randomBook: "Slumpmässig bok",
+		recenter: "Centrera vyn",
+		scan: "Skanna en bok",
 		unavailable:
 			"Inloggning är inte tillgänglig ännu. Din hylla sparas i den här webbläsaren.",
 	},
@@ -253,6 +277,10 @@ const words = {
 		scene: "Scene",
 		performance: "Ytelsesmodus",
 		reloadHint: "Last inn på nytt for å bruke",
+		shuffle: "Stokk hyllen",
+		randomBook: "Tilfeldig bok",
+		recenter: "Sentrer visningen",
+		scan: "Skann en bok",
 		unavailable:
 			"Innlogging er ikke tilgjengelig ennå. Hyllen din lagres i denne nettleseren.",
 	},
@@ -458,7 +486,13 @@ export default function LibraryMenus({
 									scene: t.scene,
 									performance: t.performance,
 									reloadHint: t.reloadHint,
+									shuffle: t.shuffle,
+									randomBook: t.randomBook,
+									recenter: t.recenter,
+									scan: t.scan,
 								}}
+								onClose={() => setPanel(null)}
+								onScan={showActions ? addBook : undefined}
 							/>
 							{showActions && (
 								<>

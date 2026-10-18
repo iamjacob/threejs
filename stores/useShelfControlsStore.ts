@@ -73,6 +73,7 @@ type ShelfControlsState = Snapshot & {
 	ungroup: () => void;
 	togglePictureFrame: () => void;
 	groupBy: (by: ShelfGroupBy, books: ShelfBook[]) => void;
+	shuffle: (books: ShelfBook[]) => void;
 	removeSelection: () => void;
 	deletingIds: string[];
 	deleteCompletedIds: string[];
@@ -566,6 +567,32 @@ export const useShelfControlsStore = create<ShelfControlsState>((set, get) => {
 					),
 				},
 				"Books ungrouped.",
+			);
+		},
+		shuffle: (books) => {
+			const { document } = get();
+			const available = books.filter((book) => document.items[book.id]);
+			for (let i = available.length - 1; i > 0; i--) {
+				const j = Math.floor(Math.random() * (i + 1));
+				[available[i], available[j]] = [available[j], available[i]];
+			}
+			const items = { ...document.items };
+			const rows = Math.max(1, Math.ceil(available.length / 4));
+			available.forEach((book, index) => {
+				items[book.id] = {
+					...items[book.id],
+					shelf: 3 - Math.min(3, Math.floor(index / rows)),
+				};
+			});
+			commit(
+				{
+					...document,
+					items,
+					order: available.map((book) => book.id),
+					stacks: [],
+				},
+				"Books shuffled.",
+				{ activeStackId: null },
 			);
 		},
 		groupBy: (by, books) => {

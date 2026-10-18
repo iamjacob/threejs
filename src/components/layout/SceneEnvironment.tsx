@@ -1,18 +1,20 @@
-import { useShelfControlsStore } from "../../../stores/useShelfControlsStore";
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef } from "react";
 import {
 	Color,
 	DoubleSide,
-	Group,
-	Mesh,
+	type Group,
+	type Mesh,
 	MeshBasicMaterial,
 } from "three";
+import { useShelfControlsStore } from "../../../stores/useShelfControlsStore";
 import {
 	type EnvironmentMode,
 	usePresentationStore,
 } from "../../stores/usePresentationStore";
 
+// Matches the page colour that used to show through the transparent canvas.
+const EDITING_BACKGROUND = "#121a3c";
 const BACKGROUNDS: Record<EnvironmentMode, string> = {
 	library: "#07182c",
 	castle: "#180b2e",
@@ -35,12 +37,20 @@ function CastleBackdrop({ opacity }: { opacity: number }) {
 	const windows = useMemo(() => makeMaterial("#ffc875", opacity), [opacity]);
 	const towers = Array.from({ length: 12 }, (_, index) => {
 		const angle = (index / 12) * Math.PI * 2;
-		return [Math.sin(angle) * 28, -1.5, Math.cos(angle) * 28] as [number, number, number];
+		return [Math.sin(angle) * 28, -1.5, Math.cos(angle) * 28] as [
+			number,
+			number,
+			number,
+		];
 	});
 	return (
 		<group>
 			{towers.map(([x, y, z], index) => (
-				<group key={index} position={[x, y + (index % 2 ? 4 : 2.5), z]} rotation={[0, (index / 12) * Math.PI * 2, 0]}>
+				<group
+					key={index}
+					position={[x, y + (index % 2 ? 4 : 2.5), z]}
+					rotation={[0, (index / 12) * Math.PI * 2, 0]}
+				>
 					<mesh material={stone}>
 						<boxGeometry args={[3.2, index % 2 ? 8 : 5, 2]} />
 					</mesh>
@@ -48,7 +58,11 @@ function CastleBackdrop({ opacity }: { opacity: number }) {
 						<coneGeometry args={[2.1, 2.4, 4]} />
 					</mesh>
 					{[-0.65, 0.65].map((windowX) => (
-						<mesh key={windowX} position={[windowX, 0.7, -1.05]} material={windows}>
+						<mesh
+							key={windowX}
+							position={[windowX, 0.7, -1.05]}
+							material={windows}
+						>
 							<boxGeometry args={[0.25, 0.8, 0.04]} />
 						</mesh>
 					))}
@@ -79,7 +93,12 @@ function CastleSky({ opacity }: { opacity: number }) {
 				<sphereGeometry args={[2.2, 24, 16]} />
 			</mesh>
 			{stars.map((item) => (
-				<mesh key={item.position.join(":")} position={item.position} scale={item.scale} material={star}>
+				<mesh
+					key={item.position.join(":")}
+					position={item.position}
+					scale={item.scale}
+					material={star}
+				>
 					<sphereGeometry args={[1, 8, 8]} />
 				</mesh>
 			))}
@@ -99,7 +118,11 @@ function ForestBackdrop({ opacity }: { opacity: number }) {
 				const z = Math.cos(angle) * radius;
 				const height = 5 + (index % 4) * 1.8;
 				return (
-					<group key={index} position={[x, height / 2, z]} rotation={[0, angle, 0]}>
+					<group
+						key={index}
+						position={[x, height / 2, z]}
+						rotation={[0, angle, 0]}
+					>
 						<mesh material={trunk}>
 							<cylinderGeometry args={[0.35, 0.6, height, 7]} />
 						</mesh>
@@ -118,14 +141,23 @@ function ZenBackdrop({ opacity }: { opacity: number }) {
 	return (
 		<group>
 			{colors.map((color, index) => (
-				<mesh key={color} position={[0, index * 2.1 - 2, -24 - index * 2]} material={makeMaterial(color, opacity)}>
+				<mesh
+					key={color}
+					position={[0, index * 2.1 - 2, -24 - index * 2]}
+					material={makeMaterial(color, opacity)}
+				>
 					<coneGeometry args={[14 - index * 2, 5, 7]} />
 				</mesh>
 			))}
 			{Array.from({ length: 8 }, (_, index) => {
 				const angle = (index / 8) * Math.PI * 2;
 				return (
-					<mesh key={index} position={[Math.sin(angle) * 25, 0, Math.cos(angle) * 25]} rotation={[0, angle, 0]} material={makeMaterial(colors[index % colors.length], opacity)}>
+					<mesh
+						key={index}
+						position={[Math.sin(angle) * 25, 0, Math.cos(angle) * 25]}
+						rotation={[0, angle, 0]}
+						material={makeMaterial(colors[index % colors.length], opacity)}
+					>
 						<coneGeometry args={[10, 5, 7]} />
 					</mesh>
 				);
@@ -145,7 +177,11 @@ export default function SceneEnvironment() {
 	const opacity = useRef(1);
 
 	useEffect(() => {
-		scene.background = editing && environment === "library" ? null : new Color(BACKGROUNDS[environment]);
+		scene.background = new Color(
+			editing && environment === "library"
+				? EDITING_BACKGROUND
+				: BACKGROUNDS[environment],
+		);
 		opacity.current = 0;
 	}, [environment, editing, scene]);
 
@@ -156,16 +192,24 @@ export default function SceneEnvironment() {
 		root.current.traverse((object) => {
 			const mesh = object as Mesh;
 			if (!mesh.isMesh) return;
-			const materials = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+			const materials = Array.isArray(mesh.material)
+				? mesh.material
+				: [mesh.material];
 			materials.forEach((currentMaterial) => {
-				if (currentMaterial.transparent) currentMaterial.opacity = opacity.current;
+				if (currentMaterial.transparent)
+					currentMaterial.opacity = opacity.current;
 			});
 		});
 	});
 
 	return (
 		<group ref={root} name="environment-backdrop" renderOrder={-1000}>
-			{environment === "castle" && <><CastleBackdrop opacity={1} /><CastleSky opacity={1} /></>}
+			{environment === "castle" && (
+				<>
+					<CastleBackdrop opacity={1} />
+					<CastleSky opacity={1} />
+				</>
+			)}
 			{environment === "forest" && <ForestBackdrop opacity={1} />}
 			{environment === "zen" && <ZenBackdrop opacity={1} />}
 		</group>
