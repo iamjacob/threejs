@@ -4,6 +4,9 @@ import { Canvas } from "@react-three/fiber";
 import { createFileRoute } from "@tanstack/react-router";
 import { Camera, Sparkles } from "lucide-react";
 import RenderStats from "../components/layout/RenderStats";
+import { currentRenderQuality } from "../lib/renderQuality";
+
+const renderQuality = currentRenderQuality();
 import ShelfPlateEditor from "../components/layout/ShelfPlateEditor";
 import { useShelfPlatesStore } from "../stores/useShelfPlatesStore";
 import { type MouseEvent, Suspense, useEffect, useRef, useState } from "react";
@@ -277,7 +280,8 @@ function Home() {
 				<Canvas
 					frameloop={scanning || reader === "open" ? "never" : "always"}
 					shadows="percentage"
-					gl={{ alpha: true }}
+					dpr={renderQuality.dpr}
+					gl={{ alpha: true, powerPreference: "high-performance" }}
 					onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
 					camera={{ position: [0, 4, 8], fov: 45, near: 0.01, far: 500 }}
 				>

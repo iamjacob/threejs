@@ -1,4 +1,9 @@
-import { type ThreeEvent, useLoader, useThree } from "@react-three/fiber";
+import {
+	type ThreeEvent,
+	useFrame,
+	useLoader,
+	useThree,
+} from "@react-three/fiber";
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import {
 	BoxGeometry,
@@ -44,6 +49,8 @@ const FACE_ATTRIBUTES = [
 ] as const;
 
 const unitBox = new BoxGeometry(1, 1, 1);
+/** World units; the shelf radius is 7.4 so this spans roughly the visible arc. */
+const shadowDistance = 9;
 const atlasLoader = new TextureLoader();
 
 function createAtlasMaterial(anisotropy: number) {
@@ -131,6 +138,20 @@ function SectorBatch({
 		instanced.instanceMatrix.needsUpdate = true;
 		instanced.computeBoundingSphere();
 	}, [items]);
+	// The shadow pass redraws every caster; distant sectors contribute nothing
+	// visible, so only sectors within shadowDistance of the camera cast.
+	const shadowCheck = useRef(0);
+	useFrame(({ camera, clock }) => {
+		const instanced = mesh.current;
+		if (!instanced || clock.elapsedTime < shadowCheck.current) return;
+		shadowCheck.current = clock.elapsedTime + 0.25;
+		const sphere = instanced.boundingSphere;
+		if (!sphere) return;
+		instanced.updateWorldMatrix(true, false);
+		const center = sphere.center.clone().applyMatrix4(instanced.matrixWorld);
+		const distance = center.distanceTo(camera.position) - sphere.radius;
+		instanced.castShadow = distance < shadowDistance;
+	});
 	const bookAt = (event: { instanceId?: number }) =>
 		event.instanceId === undefined ? undefined : items[event.instanceId];
 	return (

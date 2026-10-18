@@ -9,7 +9,10 @@ import {
 	Sprite,
 	SpriteMaterial,
 } from "three";
+import { currentRenderQuality } from "../../lib/renderQuality";
 import { usePresentationStore } from "../../stores/usePresentationStore";
+
+const { shadowMapSize } = currentRenderQuality();
 
 const INTRO_ROW_Y = [1.55, 0.55, -0.45, -1.45];
 
@@ -163,7 +166,7 @@ export default function Lightning() {
 					color="#fff0df"
 					intensity={2.6}
 					castShadow
-					shadow-mapSize={[1024, 1024]}
+					shadow-mapSize={[shadowMapSize, shadowMapSize]}
 					shadow-camera-left={-10}
 					shadow-camera-right={10}
 					shadow-camera-top={10}
