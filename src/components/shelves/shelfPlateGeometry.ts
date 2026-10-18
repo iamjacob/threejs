@@ -1,6 +1,4 @@
-import { type BufferGeometry, PlaneGeometry } from "three";
-import { RoundedBoxGeometry } from "three/addons/geometries/RoundedBoxGeometry.js";
-import { TessellateModifier } from "three/addons/modifiers/TessellateModifier.js";
+import { BoxGeometry, type BufferGeometry, PlaneGeometry } from "three";
 import { SHELF_INNER_RADIUS } from "./shelfBooks.ts";
 
 // Bend both the metal and lettering around the shelf's inner radius.
@@ -23,22 +21,30 @@ function curvePlate(geometry: BufferGeometry) {
 	return geometry;
 }
 
+/**
+ * A plate only bends along its length, so the box is subdivided along X
+ * (one segment per ~0.02 units) and left coarse elsewhere. The previous
+ * RoundedBox + TessellateModifier version produced ~37k triangles per plate;
+ * this stays under 1k with the same silhouette on screen.
+ */
 export function createShelfPlateGeometry(width: number) {
-	const rounded = new RoundedBoxGeometry(
+	const lengthSegments = Math.max(16, Math.ceil(width / 0.02));
+	const body = new BoxGeometry(
 		width,
 		0.078,
 		0.02,
-		8,
-		0.006,
+		lengthSegments,
+		2,
+		1,
 	).translate(0, 0, 0.013);
-	// RoundedBox has large flat center triangles. Subdivide BEFORE bending so
-	// its face follows the arc instead of cutting across the lettering layer.
-	const body = new TessellateModifier(0.04, 10).modify(rounded);
-	rounded.dispose();
 	return {
 		body: curvePlate(body),
 		face: curvePlate(
-			new PlaneGeometry(width - 0.012, 0.066, 64, 1).translate(0, 0, 0.025),
+			new PlaneGeometry(width - 0.012, 0.066, lengthSegments, 1).translate(
+				0,
+				0,
+				0.025,
+			),
 		),
 	};
 }

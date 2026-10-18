@@ -11,6 +11,8 @@ test("desktops render at up to 1.5x with full shadows", () => {
 	assert.equal(quality.tier, "high");
 	assert.deepEqual(quality.dpr, [1, 1.5]);
 	assert.equal(quality.shadowMapSize, 1024);
+	assert.equal(quality.shadows, true);
+	assert.equal(quality.pointLights, true);
 });
 
 test("few cores, little memory, save-data, or mid-range phones drop to 1x", () => {
@@ -24,6 +26,8 @@ test("few cores, little memory, save-data, or mid-range phones drop to 1x", () =
 		assert.equal(quality.tier, "low", JSON.stringify(hints));
 		assert.deepEqual(quality.dpr, [1, 1]);
 		assert.equal(quality.shadowMapSize, 512);
+		assert.equal(quality.shadows, false);
+		assert.equal(quality.pointLights, false);
 	}
 });
 

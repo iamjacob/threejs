@@ -4,6 +4,7 @@ import { Canvas } from "@react-three/fiber";
 import { createFileRoute } from "@tanstack/react-router";
 import { Camera, Sparkles } from "lucide-react";
 import RenderStats from "../components/layout/RenderStats";
+import ShaderWarmup from "../components/layout/ShaderWarmup";
 import { currentRenderQuality } from "../lib/renderQuality";
 
 const renderQuality = currentRenderQuality();
@@ -279,7 +280,7 @@ function Home() {
 			>
 				<Canvas
 					frameloop={scanning || reader === "open" ? "never" : "always"}
-					shadows="percentage"
+					shadows={renderQuality.shadows ? "percentage" : false}
 					dpr={renderQuality.dpr}
 					gl={{ alpha: true, powerPreference: "high-performance" }}
 					onCreated={({ gl }) => gl.setClearColor(0x000000, 0)}
@@ -292,6 +293,7 @@ function Home() {
 					<TourCamera />
 					<TourDirector />
 					<Lightning />
+					<ShaderWarmup />
 					{showStats && <Stats />}
 					{showStats && <RenderStats />}
 				</Canvas>

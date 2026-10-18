@@ -4,6 +4,8 @@ export type RenderQuality = {
 	dpr: [number, number];
 	shadows: boolean;
 	shadowMapSize: number;
+	/** Flickering fire/row point lights; off on low-end to cut per-pixel lighting cost. */
+	pointLights: boolean;
 };
 
 type DeviceHints = {
@@ -27,9 +29,23 @@ export function detectRenderQuality(hints: DeviceHints): RenderQuality {
 		cores <= 4 ||
 		memory <= 2 ||
 		(mobile && cores <= 6);
+	// Mobile GPUs are fill-rate bound: the shadow pass is a second full draw of
+	// every caster, and each point light adds a per-pixel cost to everything lit.
 	return low
-		? { tier: "low", dpr: [1, 1], shadows: true, shadowMapSize: 512 }
-		: { tier: "high", dpr: [1, 1.5], shadows: true, shadowMapSize: 1024 };
+		? {
+				tier: "low",
+				dpr: [1, 1],
+				shadows: false,
+				shadowMapSize: 512,
+				pointLights: false,
+			}
+		: {
+				tier: "high",
+				dpr: [1, 1.5],
+				shadows: true,
+				shadowMapSize: 1024,
+				pointLights: true,
+			};
 }
 
 export function currentRenderQuality(): RenderQuality {

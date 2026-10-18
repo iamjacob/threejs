@@ -12,7 +12,7 @@ import {
 import { currentRenderQuality } from "../../lib/renderQuality";
 import { usePresentationStore } from "../../stores/usePresentationStore";
 
-const { shadowMapSize } = currentRenderQuality();
+const { shadowMapSize, pointLights } = currentRenderQuality();
 
 const INTRO_ROW_Y = [1.55, 0.55, -0.45, -1.45];
 
@@ -189,7 +189,7 @@ export default function Lightning() {
 					intensity={0.5}
 				/>
 			</group>
-			<MovingSpotlight />
+			{pointLights && <MovingSpotlight />}
 			<Environment resolution={128} frames={1}>
 				<Lightformer
 					form="rect"
