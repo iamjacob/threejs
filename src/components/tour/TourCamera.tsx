@@ -22,6 +22,10 @@ import {
 	frameShelfEditor,
 	frameShelfSelection,
 } from "../shelves/shelfArrangement";
+import {
+	currentShelfArcFraction,
+	useShelfArcFraction,
+} from "../shelves/useShelfArc";
 import { focusBookPosition } from "./tourBookPose";
 import { tourStages } from "./tourStages";
 import {
@@ -48,6 +52,7 @@ export default function TourCamera() {
 						arrangeShelfBooks(
 							shelfBooks,
 							useShelfControlsStore.getState().document,
+							currentShelfArcFraction(),
 						).filter((entry) => entry.book.id === book.id),
 						size.width,
 						size.height,
@@ -62,9 +67,10 @@ export default function TourCamera() {
 	const selectedIds = useShelfControlsStore((state) => state.selectedIds);
 	const zoomMode = useShelfControlsStore((state) => state.zoomMode);
 	const drag = useShelfControlsStore((state) => state.drag);
+	const arcFraction = useShelfArcFraction();
 	const editPlacements = useMemo(
-		() => arrangeShelfBooks(shelfBooks, shelfDocument),
-		[shelfBooks, shelfDocument],
+		() => arrangeShelfBooks(shelfBooks, shelfDocument, arcFraction),
+		[shelfBooks, shelfDocument, arcFraction],
 	);
 	const previewFrame = useMemo(
 		() =>
@@ -159,8 +165,10 @@ export default function TourCamera() {
 				collection ? tallestShelfBook : book.dimensions[1],
 				collection,
 				size.width < 768,
+				collection ? arcFraction : undefined,
 			),
 		[
+			arcFraction,
 			collection,
 			level,
 			size.width,

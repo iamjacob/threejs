@@ -5,6 +5,7 @@ import { MathUtils, Vector3 } from "three";
 import { useLibraryBooks, useSelectedBook } from "../../stores/useBookStore";
 import { useLevelStore } from "../../stores/useLevelStore";
 import { progressionConfig } from "../shelves/progressionConfig";
+import { useShelfArcFraction } from "../shelves/useShelfArc";
 import type { CameraView } from "./demoScenes";
 
 export function shelfFraming(
@@ -13,9 +14,10 @@ export function shelfFraming(
 	bookHeight = 0,
 	collection = false,
 	isMobile = false,
+	arcFraction?: number,
 ) {
 	const fractions = progressionConfig.levels[levelIndex].shelves;
-	const fraction = Math.max(...fractions, 0.08);
+	const fraction = Math.max(...fractions, arcFraction ?? 0, 0.08);
 	const halfArc = Math.PI * fraction;
 	const halfWidth = 8 * Math.sin(Math.min(halfArc, Math.PI / 2));
 	const back = -8;
@@ -80,6 +82,7 @@ export default function DemoCamera({ view }: { view: CameraView }) {
 	const isCollection = view === "shelves-books";
 	const isShelves = view === "shelves" || isCollection;
 	const elevation = isCollection ? 0.12 : 0.5;
+	const arcFraction = useShelfArcFraction();
 	const framing = useMemo(
 		() =>
 			shelfFraming(
@@ -88,8 +91,10 @@ export default function DemoCamera({ view }: { view: CameraView }) {
 				isCollection ? tallestShelfBook : book.dimensions[1],
 				isCollection,
 				size.width < 768,
+				isCollection ? arcFraction : undefined,
 			),
 		[
+			arcFraction,
 			libraryLevel,
 			levelIndex,
 			size.width,

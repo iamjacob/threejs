@@ -4,17 +4,19 @@ which is not a direct project dependency. With it installed, run
 
 The generator keeps every original and writes WebP variants to
 `public/book-images/`, with their paths and dimensions in
-`src/lib/bookImageVariants.json`. Small shelf covers use about 10% of the
-original dimensions (at least 256 pixels tall/wide); images already under
-512 pixels stay unchanged. Close views use a maximum of 1536 pixels.
+`src/lib/bookImageVariants.json`: `low` (384 px, the size that packs all
+covers into one 2048² atlas), `medium` (1024 px) and `detail` (1536 px).
+Front covers keep a higher WebP quality than spines and back covers. Stale
+files from earlier runs are deleted.
 
-Shelves choose small, detail, or original textures from the projected size
-on screen, including device pixel ratio. Upgrades load in the background
-while the current texture remains visible. File names include content hashes
-and use the existing image cache headers. Open books use the detail versions;
-the header and book bar use small covers.
+Shelves choose the small texture by default and upgrade to `detail`
+(`medium` on low-tier devices, see `src/lib/renderQuality.ts`) from the
+projected size on screen, including device pixel ratio; originals are only
+used by the reader. Upgrades load in the background while the current texture
+remains visible. File names include content hashes and use the existing image
+cache headers. The header and book bar use small covers.
 
-`npm run atlas` packs every small shelf cover into a single
+`npm run atlas` packs every small shelf cover into a single opaque RGB
 `public/book-images/cover-atlas.webp` (smallest power-of-two square that fits,
 2 px padding) and writes `src/lib/coverAtlas.json` with each source path's
 pixel rectangle plus ready-to-use `offset`/`repeat` UV transforms. The atlas

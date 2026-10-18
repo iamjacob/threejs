@@ -1,6 +1,6 @@
 import variants from "./bookImageVariants.json";
 
-export type BookImageLevel = "low" | "detail" | "original";
+export type BookImageLevel = "low" | "medium" | "detail" | "original";
 type ImageVariant = {
 	path: string;
 	width: number;

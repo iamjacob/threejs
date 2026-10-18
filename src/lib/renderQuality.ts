@@ -51,9 +51,12 @@ export function detectRenderQuality(hints: DeviceHints): RenderQuality {
 /**
  * Shelf covers never need the multi-thousand-pixel originals (up to ~3800px,
  * ~860 MB RGBA across the library); those are for the reader. Close-up levels
- * like level 4 otherwise decode and upload them on the main thread.
+ * like level 4 otherwise decode and upload them on the main thread. Low-tier
+ * devices stop one step earlier at the 1024px medium variant (2.25x fewer texels).
  */
-export const MAX_SHELF_IMAGE_LEVEL = "detail" as const;
+export function maxShelfImageLevel(quality: RenderQuality) {
+	return quality.tier === "low" ? ("medium" as const) : ("detail" as const);
+}
 
 /** Anisotropic sampling multiplies texture fetches; low-tier GPUs get half. */
 export function shelfAnisotropy(quality: RenderQuality) {

@@ -16,19 +16,17 @@ export type ArrangedBook = {
 	stackId?: string;
 };
 
-/** Lay out on the shelf's arc, preserving contact with the shelf at every angle. */
-export function arrangeShelfBooks(
-	books: ShelfBook[],
-	document: ShelfDocument,
-): ArrangedBook[] {
-	const catalog = new Map(books.map((book) => [book.id, book]));
+export const SHELF_RADIUS = SHELF_INNER_RADIUS + 0.4;
+/** Arc fraction of the smallest (level 4) shelf; see progressionConfig. */
+export const BASE_SHELF_FRACTION = 0.08;
 
+type ShelfUnit = { ids: string[]; stackId?: string; width: number };
+
+/** Group books into per-shelf units (single books or whole stacks) with their footprint. */
+function shelfRows(books: ShelfBook[], document: ShelfDocument): ShelfUnit[][] {
+	const catalog = new Map(books.map((book) => [book.id, book]));
 	const seen = new Set<string>();
-	const rows: {
-		ids: string[];
-		stackId?: string;
-		width: number;
-	}[][] = [[], [], [], []];
+	const rows: ShelfUnit[][] = [[], [], [], []];
 	const widthOf = (id: string) => {
 		const book = catalog.get(id)!;
 		const item = document.items[id];
@@ -46,19 +44,99 @@ export function arrangeShelfBooks(
 		const ids = (stack?.bookIds ?? [id]).filter(
 			(bookId) => catalog.has(bookId) && document.items[bookId],
 		);
-		ids.forEach((bookId) => seen.add(bookId));
+		for (const bookId of ids) seen.add(bookId);
 		const width = stack
 			? Math.max(...ids.map((bookId) => catalog.get(bookId)!.dimensions[1]))
 			: widthOf(id);
-		rows[document.items[id].shelf].push({
-			ids,
-			stackId: stack?.id,
-			width,
-		});
+		rows[document.items[id].shelf].push({ ids, stackId: stack?.id, width });
 	}
-	const radius = SHELF_INNER_RADIUS + 0.4;
+	return rows;
+}
+
+/** Width of each shelf row including spacing between units. */
+export function shelfRowWidths(books: ShelfBook[], document: ShelfDocument) {
+	return shelfRows(books, document).map(
+		(row) =>
+			row.reduce((sum, unit) => sum + unit.width, 0) +
+			Math.max(0, row.length - 1) * document.spacing,
+	);
+}
+
+/**
+ * Shelves grow with the library: the arc is whatever the widest row needs
+ * (plus `extraWidth`, e.g. a picture frame, and a margin at each end), never
+ * smaller than the level's own arc and never more than the full circle.
+ */
+export function shelfArcFraction(
+	books: ShelfBook[],
+	document: ShelfDocument,
+	levelFraction = BASE_SHELF_FRACTION,
+	extraWidth = 0,
+) {
+	if (document.fullCircle || levelFraction >= 1) return 1;
+	const widest = Math.max(0, ...shelfRowWidths(books, document));
+	const needed =
+		(widest + extraWidth + document.spacing * 2) / (SHELF_RADIUS * Math.PI * 2);
+	return Math.min(1, Math.max(levelFraction, needed));
+}
+
+/** Usable cursor range of a row along the arc, matching `arrangeShelfBooks` alignment. */
+function rowSpan(
+	rowWidth: number,
+	document: ShelfDocument,
+	arcFraction: number,
+) {
+	const capacity = SHELF_RADIUS * Math.PI * 2 * arcFraction - 0.16;
+	const availableWidth = Math.max(capacity, rowWidth);
+	const start =
+		document.alignment === "left"
+			? -availableWidth / 2
+			: document.alignment === "right"
+				? availableWidth / 2 - rowWidth
+				: -rowWidth / 2;
+	return { start, end: start + rowWidth, capacity };
+}
+
+/**
+ * Where a front-facing picture frame stands: on the emptiest shelf, just past
+ * the last book of that row, like one more upright cover.
+ */
+export function pictureFrameSlot(
+	books: ShelfBook[],
+	document: ShelfDocument,
+	arcFraction: number,
+	frameWidth: number,
+) {
+	const widths = shelfRowWidths(books, document);
+	const shelf = widths.indexOf(Math.min(...widths));
+	const { end } = rowSpan(widths[shelf], document, arcFraction);
+	const gap = widths[shelf] > 0 ? document.spacing : 0;
+	return { shelf, angle: -(end + gap + frameWidth / 2) / SHELF_RADIUS };
+}
+
+/** Pose on the arc for something standing upright on a shelf and facing outward. */
+export function shelfSlotPose(shelf: number, angle: number, height: number) {
+	return {
+		position: [
+			Math.cos(angle) * SHELF_RADIUS,
+			(shelf - 1) * SHELF_SPACING + SHELF_THICKNESS + height / 2,
+			-Math.sin(angle) * SHELF_RADIUS,
+		] as [number, number, number],
+		rotation: [0, angle - Math.PI / 2, 0] as [number, number, number],
+	};
+}
+
+/** Lay out on the shelf's arc, preserving contact with the shelf at every angle. */
+export function arrangeShelfBooks(
+	books: ShelfBook[],
+	document: ShelfDocument,
+	arcFraction = document.fullCircle ? 1 : BASE_SHELF_FRACTION,
+): ArrangedBook[] {
+	const catalog = new Map(books.map((book) => [book.id, book]));
+	const rows = shelfRows(books, document);
+	const radius = SHELF_RADIUS;
 	const capacity =
-		radius * Math.PI * 2 * (document.fullCircle ? 1 : 0.08) - 0.16;
+		radius * Math.PI * 2 * (document.fullCircle ? 1 : arcFraction) - 0.16;
 	return rows.flatMap((allUnits, shelfIndex) => {
 		// Only display complete units that fit; overflow stays in the library catalog.
 		let occupied = 0;

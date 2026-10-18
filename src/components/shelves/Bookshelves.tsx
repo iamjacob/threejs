@@ -38,7 +38,7 @@ import { createBookLongPress, vibrateBookEdit } from "../../lib/bookLongPress";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
 import {
 	currentRenderQuality,
-	MAX_SHELF_IMAGE_LEVEL,
+	maxShelfImageLevel,
 	shelfAnisotropy,
 } from "../../lib/renderQuality";
 import { moveShelfBooks } from "../../lib/shelfDrag";
@@ -63,7 +63,13 @@ import {
 	arrangedBookPose,
 	arrangedBooksBounds,
 	arrangeShelfBooks,
+	pictureFrameSlot,
 } from "./shelfArrangement";
+import {
+	currentShelfArcFraction,
+	PICTURE_FRAME_WIDTH,
+	useShelfArcFraction,
+} from "./useShelfArc";
 import {
 	BOOKS_SHELF_LEVEL,
 	layoutShelfBooks,
@@ -71,6 +77,7 @@ import {
 } from "./shelfBooks";
 import { useShelfBookDrag } from "./useShelfBookDrag";
 
+const renderQuality = currentRenderQuality();
 // Initial covers participate in the loader; later LOD upgrades stay in the background.
 const shelfTextureLoader = new TextureLoader();
 const detailTextureLoader = new TextureLoader(new LoadingManager());
@@ -83,7 +90,7 @@ export function shelfBookPose(id: string): BookPose {
 		progressionConfig.levels[BOOKS_SHELF_LEVEL].shelves,
 	);
 	const placements = initialized
-		? arrangeShelfBooks(shelfBooks, document)
+		? arrangeShelfBooks(shelfBooks, document, currentShelfArcFraction())
 		: defaultPlacements.map((item) => ({ ...item, scale: 1 }));
 	const placement =
 		placements.find(({ book }) => book.id === id) ?? placements[0];
@@ -184,7 +191,7 @@ function CollectionBook({
 		const pixels = halfHeight * size.height * gl.getPixelRatio();
 		const lowHeight = bookImageHeight(book.cover.front, "low");
 		const level: BookImageLevel =
-			pixels > lowHeight * 1.15 ? MAX_SHELF_IMAGE_LEVEL : "low";
+			pixels > lowHeight * 1.15 ? maxShelfImageLevel(renderQuality) : "low";
 		if (level === requestedLevel.current) return;
 		// Hysteresis prevents repeated swaps near a resolution boundary.
 		if (level === "low" && pixels > lowHeight * 0.8) return;
@@ -218,7 +225,7 @@ function CollectionBook({
 	}, [textures]);
 	const anisotropy = useThree((state) =>
 		Math.min(
-			shelfAnisotropy(currentRenderQuality()),
+			shelfAnisotropy(renderQuality),
 			state.gl.capabilities.getMaxAnisotropy(),
 		),
 	);
@@ -338,15 +345,28 @@ export default function Bookshelves({
 		(state) => state.pictureFrameVisible,
 	);
 	const selectBook = useShelfControlsStore((state) => state.selectBook);
+	const arcFraction = useShelfArcFraction();
 	const placements = useMemo(
 		() =>
 			initialized
-				? arrangeShelfBooks(shelfBooks, document)
+				? arrangeShelfBooks(shelfBooks, document, arcFraction)
 				: layoutShelfBooks(
 						shelfBooks,
 						progressionConfig.levels[BOOKS_SHELF_LEVEL].shelves,
 					).map((item) => ({ ...item, scale: 1 })),
-		[document, initialized, shelfBooks],
+		[document, initialized, shelfBooks, arcFraction],
+	);
+	const frameSlot = useMemo(
+		() =>
+			pictureFrameVisible && initialized
+				? pictureFrameSlot(
+						shelfBooks,
+						document,
+						arcFraction,
+						PICTURE_FRAME_WIDTH,
+					)
+				: null,
+		[pictureFrameVisible, initialized, shelfBooks, document, arcFraction],
 	);
 	const shelfRadius = 7.4;
 	const [inView, setInView] = useState<Set<string>>(() => new Set());
@@ -397,9 +417,18 @@ export default function Bookshelves({
 				? arrangeShelfBooks(
 						shelfBooks,
 						moveShelfBooks(document, drag.ids, drag.drop),
+						arcFraction,
 					)
 				: placements,
-		[document, shelfBooks, drag?.ids, drag?.drop, drag?.moved, placements],
+		[
+			document,
+			shelfBooks,
+			drag?.ids,
+			drag?.drop,
+			drag?.moved,
+			placements,
+			arcFraction,
+		],
 	);
 	// Keep receivers still while dragging so the drop target does not move away.
 	// Static books share one instanced draw per sector; anything interactive,
@@ -533,12 +562,14 @@ export default function Bookshelves({
 
 	return (
 		<>
-			<Shelves fixedLevel={libraryLevel} radius={shelfRadius}>
+			<Shelves
+				fixedLevel={libraryLevel}
+				arcFraction={arcFraction}
+				radius={shelfRadius}
+			>
 				<ShelfPlates radius={shelfRadius} />
-				{pictureFrameVisible && (
-					<group position={[shelfRadius - 7.4, 0, 0]}>
-						<PictureFrame />
-					</group>
+				{frameSlot && (
+					<PictureFrame shelf={frameSlot.shelf} angle={frameSlot.angle} />
 				)}
 				{blurredBookIds.length > 0 &&
 					(fastBlur ? (

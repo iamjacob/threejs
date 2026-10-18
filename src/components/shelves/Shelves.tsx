@@ -117,10 +117,13 @@ const Shelf = ({
 
 const Shelves = ({
 	fixedLevel,
+	arcFraction,
 	radius = SHELF_INNER_RADIUS + 0.4,
 	children,
 }: {
 	fixedLevel?: number;
+	/** Overrides the level's arc so shelves can grow with the library. */
+	arcFraction?: number;
 	radius?: number;
 	children?: ReactNode;
 }) => {
@@ -131,7 +134,14 @@ const Shelves = ({
 	);
 	const advanceLevel = useLevelStore((state) => state.advanceLevel);
 	const playback = useRef({ levelIndex, isPlaying, elapsed: 0 });
-	const targetFractions = progressionConfig.levels[levelIndex]?.shelves ?? [];
+	const levelFractions = progressionConfig.levels[levelIndex]?.shelves ?? [];
+	const targetFractions = useMemo(
+		() =>
+			arcFraction === undefined
+				? levelFractions
+				: levelFractions.map((fraction) => (fraction > 0 ? arcFraction : 0)),
+		[levelFractions, arcFraction],
+	);
 	const bookShelfIndex = targetFractions.findIndex((fraction) => fraction > 0);
 	const [animatedFractions, setAnimatedFractions] =
 		useState<number[]>(targetFractions);

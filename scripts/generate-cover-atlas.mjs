@@ -16,14 +16,15 @@ const composites = []
 for (const region of regions) {
     const { path } = inputs.find(input => input.id === region.id)
     composites.push({
-        input: await sharp(fileURLToPath(new URL(`public${path}`, root))).rotate().ensureAlpha().toBuffer(),
+        input: await sharp(fileURLToPath(new URL(`public${path}`, root))).rotate().removeAlpha().toBuffer(),
         left: region.x, top: region.y,
     })
 }
 await mkdir(new URL('public/book-images/', root), { recursive: true })
 const output = new URL('public/book-images/cover-atlas.webp', root)
-await sharp({ create: { width: size, height: size, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
-    .composite(composites).webp({ quality: 82, effort: 5 }).toFile(fileURLToPath(output))
+// Covers are opaque: an RGB atlas decodes faster and skips an alpha channel on upload.
+await sharp({ create: { width: size, height: size, channels: 3, background: { r: 0, g: 0, b: 0 } } })
+    .composite(composites).webp({ quality: 82, effort: 6, alphaQuality: 0 }).toFile(fileURLToPath(output))
 const manifest = {
     path: '/book-images/cover-atlas.webp', size,
     regions: Object.fromEntries(regions.map(region => [region.id, {

@@ -7,16 +7,22 @@
       "bytes": 715554
     },
     "low": {
-      "path": "/book-images/a7704eb872963803-low.webp",
-      "width": 172,
-      "height": 256,
-      "bytes": 3676
+      "path": "/book-images/9ab304939f584f7a-low.webp",
+      "width": 258,
+      "height": 384,
+      "bytes": 10234
+    },
+    "medium": {
+      "path": "/book-images/bca02100139b1ddb-medium.webp",
+      "width": 688,
+      "height": 1024,
+      "bytes": 74190
     },
     "detail": {
-      "path": "/book-images/e2ebc647e2e7611e-detail.webp",
+      "path": "/book-images/6eb06145c1926c9a-detail.webp",
       "width": 1032,
       "height": 1536,
-      "bytes": 198144
+      "bytes": 147974
     }
   },
   "/blockchain/a/c/a course in miracles/a_course_in_miracles.front.webp": {
@@ -27,10 +33,16 @@
       "bytes": 795256
     },
     "low": {
-      "path": "/book-images/2e6952d31759db98-low.webp",
-      "width": 231,
-      "height": 354,
-      "bytes": 6960
+      "path": "/book-images/3eedec5d019c5d91-low.webp",
+      "width": 250,
+      "height": 384,
+      "bytes": 7944
+    },
+    "medium": {
+      "path": "/book-images/5ff0989aa8aef060-medium.webp",
+      "width": 667,
+      "height": 1024,
+      "bytes": 37380
     },
     "detail": {
       "path": "/book-images/0e0b23245021bc30-detail.webp",
@@ -47,16 +59,22 @@
       "bytes": 232396
     },
     "low": {
-      "path": "/book-images/7db56d4bd6486542-low.webp",
-      "width": 69,
-      "height": 256,
-      "bytes": 2070
+      "path": "/book-images/a9601b73438a71c7-low.webp",
+      "width": 104,
+      "height": 384,
+      "bytes": 4442
+    },
+    "medium": {
+      "path": "/book-images/7fda041004e1e165-medium.webp",
+      "width": 276,
+      "height": 1024,
+      "bytes": 23124
     },
     "detail": {
-      "path": "/book-images/03405798a86f8f61-detail.webp",
+      "path": "/book-images/052c5122965789c3-detail.webp",
       "width": 415,
       "height": 1536,
-      "bytes": 59600
+      "bytes": 43766
     }
   },
   "/blockchain/b/e/be useful/Be_useful.back.webp": {
@@ -67,16 +85,22 @@
       "bytes": 696978
     },
     "low": {
-      "path": "/book-images/f9648c176cd45bf1-low.webp",
-      "width": 189,
-      "height": 307,
-      "bytes": 9640
+      "path": "/book-images/e806fcc926ba24c7-low.webp",
+      "width": 237,
+      "height": 384,
+      "bytes": 14024
+    },
+    "medium": {
+      "path": "/book-images/2ae74c658ae7fb0d-medium.webp",
+      "width": 631,
+      "height": 1024,
+      "bytes": 52624
     },
     "detail": {
-      "path": "/book-images/86e7bed3032a07fb-detail.webp",
+      "path": "/book-images/0962dd07ac2f4673-detail.webp",
       "width": 946,
       "height": 1536,
-      "bytes": 117320
+      "bytes": 86114
     }
   },
   "/blockchain/b/e/be useful/Be_useful.front.webp": {
@@ -87,10 +111,16 @@
       "bytes": 575858
     },
     "low": {
-      "path": "/book-images/4cb84f824d6dd2a1-low.webp",
-      "width": 184,
-      "height": 289,
-      "bytes": 8360
+      "path": "/book-images/f209392e1870cab7-low.webp",
+      "width": 244,
+      "height": 384,
+      "bytes": 12204
+    },
+    "medium": {
+      "path": "/book-images/f9ee79ff4b4db920-medium.webp",
+      "width": 651,
+      "height": 1024,
+      "bytes": 49872
     },
     "detail": {
       "path": "/book-images/607c2ab05627197e-detail.webp",
@@ -107,16 +137,22 @@
       "bytes": 139924
     },
     "low": {
-      "path": "/book-images/a060ee1b0cab3641-low.webp",
-      "width": 31,
-      "height": 331,
-      "bytes": 2366
+      "path": "/book-images/b21cf9c66e4844c7-low.webp",
+      "width": 36,
+      "height": 384,
+      "bytes": 2598
+    },
+    "medium": {
+      "path": "/book-images/4fef7e0b9c2f952a-medium.webp",
+      "width": 97,
+      "height": 1024,
+      "bytes": 7008
     },
     "detail": {
-      "path": "/book-images/02d5997d2f59879f-detail.webp",
+      "path": "/book-images/ac6b1a13816893fe-detail.webp",
       "width": 145,
       "height": 1536,
-      "bytes": 16918
+      "bytes": 12226
     }
   },
   "/blockchain/b/e/behave/Behave.back.webp": {
@@ -127,16 +163,22 @@
       "bytes": 757532
     },
     "low": {
-      "path": "/book-images/f555671867e48b1e-low.webp",
-      "width": 168,
-      "height": 256,
-      "bytes": 6298
+      "path": "/book-images/405ea036ce01e96c-low.webp",
+      "width": 252,
+      "height": 384,
+      "bytes": 12868
+    },
+    "medium": {
+      "path": "/book-images/8605c81c4d7910cd-medium.webp",
+      "width": 673,
+      "height": 1024,
+      "bytes": 55254
     },
     "detail": {
-      "path": "/book-images/98168b29976dbde5-detail.webp",
+      "path": "/book-images/2e0a0bdd5bc0c25c-detail.webp",
       "width": 1009,
       "height": 1536,
-      "bytes": 129568
+      "bytes": 95630
     }
   },
   "/blockchain/b/e/behave/Behave.front.webp": {
@@ -147,10 +189,16 @@
       "bytes": 712346
     },
     "low": {
-      "path": "/book-images/579bd4656279f555-low.webp",
-      "width": 206,
-      "height": 312,
-      "bytes": 7070
+      "path": "/book-images/c2a3284f9c6bf5ae-low.webp",
+      "width": 253,
+      "height": 384,
+      "bytes": 10146
+    },
+    "medium": {
+      "path": "/book-images/26f16bc572a18daa-medium.webp",
+      "width": 674,
+      "height": 1024,
+      "bytes": 41598
     },
     "detail": {
       "path": "/book-images/c51235a8d6fdfd1d-detail.webp",
@@ -167,16 +215,22 @@
       "bytes": 323364
     },
     "low": {
-      "path": "/book-images/9e1f194d05615c2e-low.webp",
-      "width": 59,
-      "height": 306,
-      "bytes": 2206
+      "path": "/book-images/ce8bd2476310c1bb-low.webp",
+      "width": 74,
+      "height": 384,
+      "bytes": 2946
+    },
+    "medium": {
+      "path": "/book-images/c9faa113710909ab-medium.webp",
+      "width": 196,
+      "height": 1024,
+      "bytes": 11880
     },
     "detail": {
-      "path": "/book-images/9813228edc110e5d-detail.webp",
+      "path": "/book-images/9e1aedeea28b7d27-detail.webp",
       "width": 295,
       "height": 1536,
-      "bytes": 33932
+      "bytes": 23908
     }
   },
   "/blockchain/b/l/blitzscaling/Blitzscaling.back.webp": {
@@ -187,16 +241,22 @@
       "bytes": 547912
     },
     "low": {
-      "path": "/book-images/464093fb70785252-low.webp",
-      "width": 166,
-      "height": 256,
-      "bytes": 4112
+      "path": "/book-images/adc505a6e7dea16d-low.webp",
+      "width": 250,
+      "height": 384,
+      "bytes": 9194
+    },
+    "medium": {
+      "path": "/book-images/a970650df18c5d9d-medium.webp",
+      "width": 666,
+      "height": 1024,
+      "bytes": 39334
     },
     "detail": {
-      "path": "/book-images/c3912014f34c8dc5-detail.webp",
+      "path": "/book-images/e61a532bfe76853d-detail.webp",
       "width": 999,
       "height": 1536,
-      "bytes": 106648
+      "bytes": 74336
     }
   },
   "/blockchain/b/l/blitzscaling/Blitzscaling.front.webp": {
@@ -207,10 +267,16 @@
       "bytes": 818590
     },
     "low": {
-      "path": "/book-images/b9d6069a6f21e859-low.webp",
-      "width": 229,
-      "height": 354,
-      "bytes": 8986
+      "path": "/book-images/2352186b216c8a9b-low.webp",
+      "width": 248,
+      "height": 384,
+      "bytes": 10200
+    },
+    "medium": {
+      "path": "/book-images/8355c4678d0ea4df-medium.webp",
+      "width": 662,
+      "height": 1024,
+      "bytes": 35174
     },
     "detail": {
       "path": "/book-images/d74d846c1c52488d-detail.webp",
@@ -227,16 +293,22 @@
       "bytes": 174334
     },
     "low": {
-      "path": "/book-images/626c04f2616040ce-low.webp",
-      "width": 35,
-      "height": 358,
-      "bytes": 2446
+      "path": "/book-images/3b8aa811b00f551b-low.webp",
+      "width": 37,
+      "height": 384,
+      "bytes": 2768
+    },
+    "medium": {
+      "path": "/book-images/969dbe510cc87a60-medium.webp",
+      "width": 100,
+      "height": 1024,
+      "bytes": 7960
     },
     "detail": {
-      "path": "/book-images/b54b907f1e63c845-detail.webp",
+      "path": "/book-images/bb37bd445b8ad818-detail.webp",
       "width": 149,
       "height": 1536,
-      "bytes": 19258
+      "bytes": 13536
     }
   },
   "/blockchain/d/i/discipline is destiny/discipline_is_destiny.back.webp": {
@@ -247,16 +319,22 @@
       "bytes": 684106
     },
     "low": {
-      "path": "/book-images/e30c5be77a1f751c-low.webp",
-      "width": 199,
-      "height": 306,
-      "bytes": 9826
+      "path": "/book-images/5c8b06ed7c023d1b-low.webp",
+      "width": 249,
+      "height": 384,
+      "bytes": 13660
+    },
+    "medium": {
+      "path": "/book-images/e9e08279cd0d94c2-medium.webp",
+      "width": 664,
+      "height": 1024,
+      "bytes": 50364
     },
     "detail": {
-      "path": "/book-images/7629731545067b57-detail.webp",
+      "path": "/book-images/6027f976999733b2-detail.webp",
       "width": 997,
       "height": 1536,
-      "bytes": 119304
+      "bytes": 87950
     }
   },
   "/blockchain/d/i/discipline is destiny/discipline_is_destiny.front.webp": {
@@ -267,10 +345,16 @@
       "bytes": 753386
     },
     "low": {
-      "path": "/book-images/57dfe01c94df8344-low.webp",
-      "width": 199,
-      "height": 299,
-      "bytes": 9700
+      "path": "/book-images/3e54d89b40cad919-low.webp",
+      "width": 256,
+      "height": 384,
+      "bytes": 13240
+    },
+    "medium": {
+      "path": "/book-images/7ab9a8c016f957ff-medium.webp",
+      "width": 683,
+      "height": 1024,
+      "bytes": 55948
     },
     "detail": {
       "path": "/book-images/bb8575c9c56d5518-detail.webp",
@@ -287,16 +371,22 @@
       "bytes": 140812
     },
     "low": {
-      "path": "/book-images/7a5368be5f8f6047-low.webp",
-      "width": 37,
-      "height": 324,
-      "bytes": 2474
+      "path": "/book-images/dc3c8d2465ae39b1-low.webp",
+      "width": 44,
+      "height": 384,
+      "bytes": 2896
+    },
+    "medium": {
+      "path": "/book-images/ef8c18feeea06429-medium.webp",
+      "width": 118,
+      "height": 1024,
+      "bytes": 8370
     },
     "detail": {
-      "path": "/book-images/366c463eb97df97d-detail.webp",
+      "path": "/book-images/387ba876c717c11d-detail.webp",
       "width": 177,
       "height": 1536,
-      "bytes": 18074
+      "bytes": 13948
     }
   },
   "/blockchain/e/m/empowered.back.webp": {
@@ -307,16 +397,22 @@
       "bytes": 712208
     },
     "low": {
-      "path": "/book-images/8c95c5c36e0400d4-low.webp",
-      "width": 195,
-      "height": 290,
-      "bytes": 9310
+      "path": "/book-images/bc89aa6b059253a5-low.webp",
+      "width": 259,
+      "height": 384,
+      "bytes": 15940
+    },
+    "medium": {
+      "path": "/book-images/b92f9dc6d5d0cc13-medium.webp",
+      "width": 689,
+      "height": 1024,
+      "bytes": 67388
     },
     "detail": {
-      "path": "/book-images/7fa5f4c09afc26a7-detail.webp",
+      "path": "/book-images/031f5b062bf21923-detail.webp",
       "width": 1034,
       "height": 1536,
-      "bytes": 144618
+      "bytes": 110338
     }
   },
   "/blockchain/e/m/empowered.front.webp": {
@@ -327,10 +423,16 @@
       "bytes": 582708
     },
     "low": {
-      "path": "/book-images/246170a53c8cbf2c-low.webp",
-      "width": 218,
-      "height": 328,
-      "bytes": 5194
+      "path": "/book-images/26d478ed96c7dbbc-low.webp",
+      "width": 255,
+      "height": 384,
+      "bytes": 6084
+    },
+    "medium": {
+      "path": "/book-images/59bcca11c4de729e-medium.webp",
+      "width": 680,
+      "height": 1024,
+      "bytes": 21332
     },
     "detail": {
       "path": "/book-images/6f06e0fa06edfea9-detail.webp",
@@ -347,16 +449,22 @@
       "bytes": 148666
     },
     "low": {
-      "path": "/book-images/53999e6cf4b42fa1-low.webp",
-      "width": 37,
-      "height": 333,
-      "bytes": 2576
+      "path": "/book-images/f00ee176be83d5f3-low.webp",
+      "width": 43,
+      "height": 384,
+      "bytes": 3248
+    },
+    "medium": {
+      "path": "/book-images/67a655b6da04e7a9-medium.webp",
+      "width": 114,
+      "height": 1024,
+      "bytes": 9506
     },
     "detail": {
-      "path": "/book-images/d4f2acea8222dad0-detail.webp",
+      "path": "/book-images/94e080a7c438a42e-detail.webp",
       "width": 170,
       "height": 1536,
-      "bytes": 20448
+      "bytes": 15476
     }
   },
   "/blockchain/f/o/four thousand weeks/four_thousand_weeks.back.webp": {
@@ -367,16 +475,22 @@
       "bytes": 701388
     },
     "low": {
-      "path": "/book-images/698ed6c80e03c490-low.webp",
-      "width": 168,
-      "height": 261,
-      "bytes": 8286
+      "path": "/book-images/778373a8d607bfa0-low.webp",
+      "width": 247,
+      "height": 384,
+      "bytes": 16218
+    },
+    "medium": {
+      "path": "/book-images/ac0ffff13d541bd9-medium.webp",
+      "width": 658,
+      "height": 1024,
+      "bytes": 58924
     },
     "detail": {
-      "path": "/book-images/759531d9bf52836d-detail.webp",
+      "path": "/book-images/d8fc7d698d98ecdb-detail.webp",
       "width": 986,
       "height": 1536,
-      "bytes": 137102
+      "bytes": 101412
     }
   },
   "/blockchain/f/o/four thousand weeks/four_thousand_weeks.front.webp": {
@@ -387,10 +501,16 @@
       "bytes": 1186658
     },
     "low": {
-      "path": "/book-images/e355acbf6aca1197-low.webp",
-      "width": 223,
-      "height": 343,
-      "bytes": 12392
+      "path": "/book-images/657b0e3c17ecaf57-low.webp",
+      "width": 250,
+      "height": 384,
+      "bytes": 14458
+    },
+    "medium": {
+      "path": "/book-images/220e4fd804233814-medium.webp",
+      "width": 666,
+      "height": 1024,
+      "bytes": 67686
     },
     "detail": {
       "path": "/book-images/53ae344ce9050e54-detail.webp",
@@ -407,16 +527,22 @@
       "bytes": 209698
     },
     "low": {
-      "path": "/book-images/05a948ee94f3b9af-low.webp",
-      "width": 31,
-      "height": 352,
-      "bytes": 2606
+      "path": "/book-images/9cb9267196d0eaed-low.webp",
+      "width": 34,
+      "height": 384,
+      "bytes": 2902
+    },
+    "medium": {
+      "path": "/book-images/88c2c9ba524acbb0-medium.webp",
+      "width": 90,
+      "height": 1024,
+      "bytes": 10950
     },
     "detail": {
-      "path": "/book-images/1d5a64557ae4bcca-detail.webp",
+      "path": "/book-images/f7eba60d0244edca-detail.webp",
       "width": 135,
       "height": 1536,
-      "bytes": 27254
+      "bytes": 20366
     }
   },
   "/blockchain/h/o/how big things get done/how_big_things_get_done.back.webp": {
@@ -427,16 +553,22 @@
       "bytes": 510408
     },
     "low": {
-      "path": "/book-images/3def017550b6a216-low.webp",
-      "width": 179,
-      "height": 282,
-      "bytes": 6798
+      "path": "/book-images/beaa4f3b311bbabd-low.webp",
+      "width": 244,
+      "height": 384,
+      "bytes": 12074
+    },
+    "medium": {
+      "path": "/book-images/e5914cfd32db5409-medium.webp",
+      "width": 650,
+      "height": 1024,
+      "bytes": 48884
     },
     "detail": {
-      "path": "/book-images/45b952874272b577-detail.webp",
+      "path": "/book-images/1363cd0e6bec4cba-detail.webp",
       "width": 975,
       "height": 1536,
-      "bytes": 104344
+      "bytes": 80652
     }
   },
   "/blockchain/h/o/how big things get done/how_big_things_get_done.front.webp": {
@@ -447,10 +579,16 @@
       "bytes": 538036
     },
     "low": {
-      "path": "/book-images/7e83a04d332dfeea-low.webp",
-      "width": 192,
-      "height": 301,
-      "bytes": 7512
+      "path": "/book-images/1f200ce72ce31190-low.webp",
+      "width": 245,
+      "height": 384,
+      "bytes": 9944
+    },
+    "medium": {
+      "path": "/book-images/cdeed9ca302372f7-medium.webp",
+      "width": 654,
+      "height": 1024,
+      "bytes": 32860
     },
     "detail": {
       "path": "/book-images/7b6708392ce00698-detail.webp",
@@ -467,16 +605,22 @@
       "bytes": 144290
     },
     "low": {
-      "path": "/book-images/8d219efd139b97c9-low.webp",
-      "width": 26,
-      "height": 318,
-      "bytes": 2276
+      "path": "/book-images/3ef568846c4991d1-low.webp",
+      "width": 32,
+      "height": 384,
+      "bytes": 2882
+    },
+    "medium": {
+      "path": "/book-images/385d9c42cf34d927-medium.webp",
+      "width": 85,
+      "height": 1024,
+      "bytes": 7550
     },
     "detail": {
-      "path": "/book-images/2f9185cd01301bd2-detail.webp",
+      "path": "/book-images/8dc854195ca9a107-detail.webp",
       "width": 128,
       "height": 1536,
-      "bytes": 18584
+      "bytes": 13408
     }
   },
   "/blockchain/m/i/mit_liv_med_fangekoret-00000001/cover/back.webp": {
@@ -487,10 +631,16 @@
       "bytes": 39658
     },
     "low": {
-      "path": "/book-images/d76f4b53602c33dd-low.webp",
-      "width": 165,
-      "height": 256,
-      "bytes": 3398
+      "path": "/book-images/61b86080f5807217-low.webp",
+      "width": 247,
+      "height": 384,
+      "bytes": 6760
+    },
+    "medium": {
+      "path": "/blockchain/m/i/mit_liv_med_fangekoret-00000001/cover/back.webp",
+      "width": 531,
+      "height": 825,
+      "bytes": 39658
     },
     "detail": {
       "path": "/blockchain/m/i/mit_liv_med_fangekoret-00000001/cover/back.webp",
@@ -512,6 +662,12 @@
       "height": 365,
       "bytes": 16382
     },
+    "medium": {
+      "path": "/blockchain/m/i/mit_liv_med_fangekoret-00000001/cover/front.webp",
+      "width": 235,
+      "height": 365,
+      "bytes": 16382
+    },
     "detail": {
       "path": "/blockchain/m/i/mit_liv_med_fangekoret-00000001/cover/front.webp",
       "width": 235,
@@ -527,10 +683,16 @@
       "bytes": 3370
     },
     "low": {
-      "path": "/book-images/0a63118b5cb7286a-low.webp",
-      "width": 17,
-      "height": 256,
-      "bytes": 414
+      "path": "/book-images/cd9a443204c07086-low.webp",
+      "width": 25,
+      "height": 384,
+      "bytes": 730
+    },
+    "medium": {
+      "path": "/blockchain/m/i/mit_liv_med_fangekoret-00000001/cover/spine.webp",
+      "width": 54,
+      "height": 824,
+      "bytes": 3370
     },
     "detail": {
       "path": "/blockchain/m/i/mit_liv_med_fangekoret-00000001/cover/spine.webp",
@@ -547,16 +709,22 @@
       "bytes": 852868
     },
     "low": {
-      "path": "/book-images/aaf939dcb36f8705-low.webp",
-      "width": 211,
-      "height": 341,
-      "bytes": 8320
+      "path": "/book-images/3bb275e040ff6a64-low.webp",
+      "width": 238,
+      "height": 384,
+      "bytes": 10470
+    },
+    "medium": {
+      "path": "/book-images/64a15d434c3d7cab-medium.webp",
+      "width": 634,
+      "height": 1024,
+      "bytes": 56490
     },
     "detail": {
-      "path": "/book-images/2e6806e700d0ccf6-detail.webp",
+      "path": "/book-images/392a32b2f27032f9-detail.webp",
       "width": 951,
       "height": 1536,
-      "bytes": 140878
+      "bytes": 108522
     }
   },
   "/blockchain/s/e/seneca on the shortness of life/Seneca_on_the_shortness_of_life.front.webp": {
@@ -571,6 +739,12 @@
       "width": 248,
       "height": 384,
       "bytes": 7512
+    },
+    "medium": {
+      "path": "/book-images/ed7a440f3c340212-medium.webp",
+      "width": 661,
+      "height": 1024,
+      "bytes": 35058
     },
     "detail": {
       "path": "/book-images/1e9b57dd97223f52-detail.webp",
@@ -587,16 +761,22 @@
       "bytes": 63948
     },
     "low": {
-      "path": "/book-images/819658eb4ccf1240-low.webp",
-      "width": 13,
-      "height": 355,
-      "bytes": 838
+      "path": "/book-images/8d2e74457e1a6c8c-low.webp",
+      "width": 14,
+      "height": 384,
+      "bytes": 952
+    },
+    "medium": {
+      "path": "/book-images/d3f6ebe9ba963654-medium.webp",
+      "width": 38,
+      "height": 1024,
+      "bytes": 4084
     },
     "detail": {
-      "path": "/book-images/314c726ea2b009d5-detail.webp",
+      "path": "/book-images/304e1fa67b889b55-detail.webp",
       "width": 56,
       "height": 1536,
-      "bytes": 9858
+      "bytes": 7236
     }
   },
   "/blockchain/s/h/shaolin_spirit.back.webp": {
@@ -607,16 +787,22 @@
       "bytes": 785112
     },
     "low": {
-      "path": "/book-images/d2a0d288d82e99a0-low.webp",
-      "width": 199,
-      "height": 294,
-      "bytes": 8904
+      "path": "/book-images/4bd2e5abec29f81e-low.webp",
+      "width": 259,
+      "height": 384,
+      "bytes": 13624
+    },
+    "medium": {
+      "path": "/book-images/b4428d591052a435-medium.webp",
+      "width": 692,
+      "height": 1024,
+      "bytes": 50182
     },
     "detail": {
-      "path": "/book-images/3cf87904914c36d9-detail.webp",
+      "path": "/book-images/f0cc8c0872fa19bd-detail.webp",
       "width": 1038,
       "height": 1536,
-      "bytes": 127162
+      "bytes": 94434
     }
   },
   "/blockchain/s/h/shaolin_spirit.front.webp": {
@@ -627,10 +813,16 @@
       "bytes": 480422
     },
     "low": {
-      "path": "/book-images/90e1ac9e1d2cecac-low.webp",
-      "width": 190,
-      "height": 276,
-      "bytes": 4988
+      "path": "/book-images/42e2ad7054ad19d9-low.webp",
+      "width": 264,
+      "height": 384,
+      "bytes": 7640
+    },
+    "medium": {
+      "path": "/book-images/76ecf0404a38b02e-medium.webp",
+      "width": 704,
+      "height": 1024,
+      "bytes": 30722
     },
     "detail": {
       "path": "/book-images/e8631569aeb1475f-detail.webp",
@@ -647,16 +839,22 @@
       "bytes": 123762
     },
     "low": {
-      "path": "/book-images/fe88edb3060a292b-low.webp",
-      "width": 33,
-      "height": 351,
-      "bytes": 1920
+      "path": "/book-images/8b58e8378aace8f8-low.webp",
+      "width": 36,
+      "height": 384,
+      "bytes": 2056
+    },
+    "medium": {
+      "path": "/book-images/e876424161f0ac29-medium.webp",
+      "width": 97,
+      "height": 1024,
+      "bytes": 6144
     },
     "detail": {
-      "path": "/book-images/5326a235ec2d51bd-detail.webp",
+      "path": "/book-images/e466286dcd758333-detail.webp",
       "width": 146,
       "height": 1536,
-      "bytes": 15332
+      "bytes": 11312
     }
   },
   "/blockchain/s/m/small data/Small_data.back.webp": {
@@ -667,16 +865,22 @@
       "bytes": 834524
     },
     "low": {
-      "path": "/book-images/4895742000cf6416-low.webp",
-      "width": 191,
-      "height": 292,
-      "bytes": 11536
+      "path": "/book-images/311eaf5403c64b5d-low.webp",
+      "width": 251,
+      "height": 384,
+      "bytes": 19428
+    },
+    "medium": {
+      "path": "/book-images/72a22407905f0011-medium.webp",
+      "width": 670,
+      "height": 1024,
+      "bytes": 81360
     },
     "detail": {
-      "path": "/book-images/a18282077f2d6ce9-detail.webp",
+      "path": "/book-images/e746210f024100c1-detail.webp",
       "width": 1005,
       "height": 1536,
-      "bytes": 178234
+      "bytes": 142460
     }
   },
   "/blockchain/s/m/small data/Small_data.front.webp": {
@@ -687,10 +891,16 @@
       "bytes": 604056
     },
     "low": {
-      "path": "/book-images/06573e4d14514ed0-low.webp",
-      "width": 213,
-      "height": 338,
-      "bytes": 7636
+      "path": "/book-images/fdc7eccc897b231c-low.webp",
+      "width": 242,
+      "height": 384,
+      "bytes": 8836
+    },
+    "medium": {
+      "path": "/book-images/956dede0514f3cf8-medium.webp",
+      "width": 646,
+      "height": 1024,
+      "bytes": 34120
     },
     "detail": {
       "path": "/book-images/a0e834690036d969-detail.webp",
@@ -707,16 +917,22 @@
       "bytes": 162732
     },
     "low": {
-      "path": "/book-images/3a73832a4a4749be-low.webp",
+      "path": "/book-images/1d73e668175cea0f-low.webp",
       "width": 34,
-      "height": 380,
-      "bytes": 2234
+      "height": 384,
+      "bytes": 2242
+    },
+    "medium": {
+      "path": "/book-images/1d7ba73a87759301-medium.webp",
+      "width": 91,
+      "height": 1024,
+      "bytes": 5882
     },
     "detail": {
-      "path": "/book-images/58ced5e9b869bf6e-detail.webp",
+      "path": "/book-images/abf929aa59fe2d51-detail.webp",
       "width": 137,
       "height": 1536,
-      "bytes": 15662
+      "bytes": 10860
     }
   },
   "/blockchain/s/t/stilness is the key/stilness_is_the_key.back.webp": {
@@ -727,16 +943,22 @@
       "bytes": 779518
     },
     "low": {
-      "path": "/book-images/a370789c0cf38d16-low.webp",
-      "width": 184,
-      "height": 285,
-      "bytes": 9850
+      "path": "/book-images/42600aa89580d488-low.webp",
+      "width": 247,
+      "height": 384,
+      "bytes": 15434
+    },
+    "medium": {
+      "path": "/book-images/8fe8e05020068992-medium.webp",
+      "width": 659,
+      "height": 1024,
+      "bytes": 62066
     },
     "detail": {
-      "path": "/book-images/29f1d7e51a8cde10-detail.webp",
+      "path": "/book-images/11e9579f70d048c7-detail.webp",
       "width": 989,
       "height": 1536,
-      "bytes": 149340
+      "bytes": 112504
     }
   },
   "/blockchain/s/t/stilness is the key/stilness_is_the_key.front.webp": {
@@ -747,10 +969,16 @@
       "bytes": 427622
     },
     "low": {
-      "path": "/book-images/34eb1cc7f54511c9-low.webp",
-      "width": 197,
-      "height": 301,
-      "bytes": 7880
+      "path": "/book-images/37cd5285c65f9645-low.webp",
+      "width": 251,
+      "height": 384,
+      "bytes": 10562
+    },
+    "medium": {
+      "path": "/book-images/205500a01faf619f-medium.webp",
+      "width": 669,
+      "height": 1024,
+      "bytes": 36512
     },
     "detail": {
       "path": "/book-images/5c47e8835aba102d-detail.webp",
@@ -767,16 +995,22 @@
       "bytes": 100868
     },
     "low": {
-      "path": "/book-images/0c8c219bb1478035-low.webp",
-      "width": 30,
-      "height": 282,
-      "bytes": 1276
+      "path": "/book-images/1ed74a328bff7396-low.webp",
+      "width": 41,
+      "height": 384,
+      "bytes": 1784
+    },
+    "medium": {
+      "path": "/book-images/4c6fe18e2fb9c94f-medium.webp",
+      "width": 108,
+      "height": 1024,
+      "bytes": 5806
     },
     "detail": {
-      "path": "/book-images/461663e33c952938-detail.webp",
+      "path": "/book-images/a558e893af37f1c8-detail.webp",
       "width": 162,
       "height": 1536,
-      "bytes": 16668
+      "bytes": 11664
     }
   },
   "/blockchain/t/h/the_daily_stoic/The_Daily_Stoic.back.webp": {
@@ -787,16 +1021,22 @@
       "bytes": 666912
     },
     "low": {
-      "path": "/book-images/8fdc9ba8d26f8536-low.webp",
-      "width": 194,
-      "height": 301,
-      "bytes": 5734
+      "path": "/book-images/fac0b347fbd02931-low.webp",
+      "width": 248,
+      "height": 384,
+      "bytes": 8754
+    },
+    "medium": {
+      "path": "/book-images/5eb895dec0c92c70-medium.webp",
+      "width": 661,
+      "height": 1024,
+      "bytes": 34716
     },
     "detail": {
-      "path": "/book-images/21988b27ef26827a-detail.webp",
+      "path": "/book-images/b85e0fb0f41c8123-detail.webp",
       "width": 992,
       "height": 1536,
-      "bytes": 85804
+      "bytes": 61334
     }
   },
   "/blockchain/t/h/the_daily_stoic/The_Daily_Stoic.front.webp": {
@@ -807,10 +1047,16 @@
       "bytes": 703646
     },
     "low": {
-      "path": "/book-images/5e1903076819bf86-low.webp",
-      "width": 205,
-      "height": 321,
-      "bytes": 5294
+      "path": "/book-images/c258743421338ffa-low.webp",
+      "width": 245,
+      "height": 384,
+      "bytes": 6760
+    },
+    "medium": {
+      "path": "/book-images/47b168e41b60774a-medium.webp",
+      "width": 655,
+      "height": 1024,
+      "bytes": 31750
     },
     "detail": {
       "path": "/book-images/a7835af0dad19e94-detail.webp",
@@ -827,16 +1073,22 @@
       "bytes": 136374
     },
     "low": {
-      "path": "/book-images/fe8d9cac02d374de-low.webp",
-      "width": 43,
-      "height": 350,
-      "bytes": 1978
+      "path": "/book-images/ccc5b4c5f2e1295c-low.webp",
+      "width": 47,
+      "height": 384,
+      "bytes": 2000
+    },
+    "medium": {
+      "path": "/book-images/25299c85a0210c80-medium.webp",
+      "width": 124,
+      "height": 1024,
+      "bytes": 6170
     },
     "detail": {
-      "path": "/book-images/553c3c666f21c4cc-detail.webp",
+      "path": "/book-images/876807037c08fc01-detail.webp",
       "width": 187,
       "height": 1536,
-      "bytes": 14786
+      "bytes": 11050
     }
   },
   "/blockchain/t/h/the_source/the_source.back.webp": {
@@ -847,16 +1099,22 @@
       "bytes": 763628
     },
     "low": {
-      "path": "/book-images/71e8bd58bcc5c646-low.webp",
-      "width": 192,
-      "height": 307,
-      "bytes": 12338
+      "path": "/book-images/59f627169c6792b7-low.webp",
+      "width": 241,
+      "height": 384,
+      "bytes": 16892
+    },
+    "medium": {
+      "path": "/book-images/8b374f0cdb86de22-medium.webp",
+      "width": 641,
+      "height": 1024,
+      "bytes": 54696
     },
     "detail": {
-      "path": "/book-images/06c6ee77a48d5ea2-detail.webp",
+      "path": "/book-images/80eff09e5c6d94e5-detail.webp",
       "width": 962,
       "height": 1536,
-      "bytes": 124862
+      "bytes": 93232
     }
   },
   "/blockchain/t/h/the_source/the_source.front.webp": {
@@ -867,10 +1125,16 @@
       "bytes": 889304
     },
     "low": {
-      "path": "/book-images/58bc53ca17fcf466-low.webp",
-      "width": 186,
-      "height": 291,
-      "bytes": 12328
+      "path": "/book-images/9c7af5ce51cbfd3e-low.webp",
+      "width": 246,
+      "height": 384,
+      "bytes": 16784
+    },
+    "medium": {
+      "path": "/book-images/ce17a111124f2331-medium.webp",
+      "width": 656,
+      "height": 1024,
+      "bytes": 59012
     },
     "detail": {
       "path": "/book-images/311e38eeff8029c3-detail.webp",
@@ -887,16 +1151,22 @@
       "bytes": 86030
     },
     "low": {
-      "path": "/book-images/e525eb09c42db16b-low.webp",
-      "width": 24,
-      "height": 278,
-      "bytes": 1428
+      "path": "/book-images/d8def84d3fd41326-low.webp",
+      "width": 33,
+      "height": 384,
+      "bytes": 1976
+    },
+    "medium": {
+      "path": "/book-images/405016e2a49e4a16-medium.webp",
+      "width": 87,
+      "height": 1024,
+      "bytes": 5498
     },
     "detail": {
-      "path": "/book-images/ce38b3f205e19bb6-detail.webp",
+      "path": "/book-images/bf8b01afac050622-detail.webp",
       "width": 131,
       "height": 1536,
-      "bytes": 14008
+      "bytes": 9946
     }
   },
   "/blockchain/t/r/traction.back.webp": {
@@ -907,16 +1177,22 @@
       "bytes": 524592
     },
     "low": {
-      "path": "/book-images/3278cfa2351ac6e2-low.webp",
-      "width": 169,
-      "height": 256,
-      "bytes": 5066
+      "path": "/book-images/23b2ca0d48ba0570-low.webp",
+      "width": 253,
+      "height": 384,
+      "bytes": 10358
+    },
+    "medium": {
+      "path": "/book-images/fbde1d91014d9bae-medium.webp",
+      "width": 674,
+      "height": 1024,
+      "bytes": 39014
     },
     "detail": {
-      "path": "/book-images/4eada49584e46272-detail.webp",
+      "path": "/book-images/660e7a19fa047a96-detail.webp",
       "width": 1011,
       "height": 1536,
-      "bytes": 97792
+      "bytes": 71266
     }
   },
   "/blockchain/t/r/traction.front.webp": {
@@ -927,10 +1203,16 @@
       "bytes": 773348
     },
     "low": {
-      "path": "/book-images/c4c6b8b5dfd43907-low.webp",
-      "width": 233,
-      "height": 352,
-      "bytes": 9704
+      "path": "/book-images/92d081738a766332-low.webp",
+      "width": 254,
+      "height": 384,
+      "bytes": 10866
+    },
+    "medium": {
+      "path": "/book-images/f639b2b3cb41b27b-medium.webp",
+      "width": 678,
+      "height": 1024,
+      "bytes": 40010
     },
     "detail": {
       "path": "/book-images/c81be3dca92f0efa-detail.webp",
@@ -947,16 +1229,22 @@
       "bytes": 117676
     },
     "low": {
-      "path": "/book-images/45b07428a3e3513c-low.webp",
-      "width": 28,
-      "height": 368,
-      "bytes": 1968
+      "path": "/book-images/c0bd6be2a68f2304-low.webp",
+      "width": 29,
+      "height": 384,
+      "bytes": 2088
+    },
+    "medium": {
+      "path": "/book-images/646991746134e12a-medium.webp",
+      "width": 78,
+      "height": 1024,
+      "bytes": 6122
     },
     "detail": {
-      "path": "/book-images/5a7997dc5c19c18f-detail.webp",
+      "path": "/book-images/d563ec239d13b62a-detail.webp",
       "width": 117,
       "height": 1536,
-      "bytes": 13074
+      "bytes": 10010
     }
   },
   "/blockchain/w/h/whats your dream/What_s_your_dream.back.webp": {
@@ -967,16 +1255,22 @@
       "bytes": 572942
     },
     "low": {
-      "path": "/book-images/f1880ed469c975d1-low.webp",
-      "width": 213,
-      "height": 313,
-      "bytes": 6808
+      "path": "/book-images/c5c6ea5bda65ea4b-low.webp",
+      "width": 261,
+      "height": 384,
+      "bytes": 9124
+    },
+    "medium": {
+      "path": "/book-images/13cf8db6669af63a-medium.webp",
+      "width": 697,
+      "height": 1024,
+      "bytes": 30218
     },
     "detail": {
-      "path": "/book-images/17a9476bb6175504-detail.webp",
+      "path": "/book-images/663106006e73f261-detail.webp",
       "width": 1045,
       "height": 1536,
-      "bytes": 69952
+      "bytes": 53572
     }
   },
   "/blockchain/w/h/whats your dream/What_s_your_dream.front.webp": {
@@ -987,10 +1281,16 @@
       "bytes": 704608
     },
     "low": {
-      "path": "/book-images/b7462faebab0728a-low.webp",
-      "width": 239,
-      "height": 354,
-      "bytes": 9848
+      "path": "/book-images/51343d7bf60bc155-low.webp",
+      "width": 259,
+      "height": 384,
+      "bytes": 10968
+    },
+    "medium": {
+      "path": "/book-images/0e623f953a1c8408-medium.webp",
+      "width": 691,
+      "height": 1024,
+      "bytes": 36940
     },
     "detail": {
       "path": "/book-images/c395dedd6a75f3eb-detail.webp",
@@ -1007,16 +1307,22 @@
       "bytes": 153368
     },
     "low": {
-      "path": "/book-images/b7ca69b756fd5d4b-low.webp",
-      "width": 38,
-      "height": 359,
-      "bytes": 3032
+      "path": "/book-images/3d86db08c607f0fd-low.webp",
+      "width": 41,
+      "height": 384,
+      "bytes": 3270
+    },
+    "medium": {
+      "path": "/book-images/d4c9e967a38eb805-medium.webp",
+      "width": 108,
+      "height": 1024,
+      "bytes": 8926
     },
     "detail": {
-      "path": "/book-images/cd375f6ad9c8a4bd-detail.webp",
+      "path": "/book-images/dcbb212e5c999204-detail.webp",
       "width": 162,
       "height": 1536,
-      "bytes": 19238
+      "bytes": 14412
     }
   },
   "/experience/books/assets/booktexture.webp": {
@@ -1027,10 +1333,16 @@
       "bytes": 4342
     },
     "low": {
-      "path": "/book-images/3d44eb31df85ad7c-low.webp",
-      "width": 256,
-      "height": 60,
-      "bytes": 872
+      "path": "/book-images/956560d7ce85a836-low.webp",
+      "width": 384,
+      "height": 90,
+      "bytes": 1732
+    },
+    "medium": {
+      "path": "/experience/books/assets/booktexture.webp",
+      "width": 714,
+      "height": 168,
+      "bytes": 4342
     },
     "detail": {
       "path": "/experience/books/assets/booktexture.webp",
@@ -1047,10 +1359,16 @@
       "bytes": 4092
     },
     "low": {
-      "path": "/book-images/def106fb09404511-low.webp",
-      "width": 60,
-      "height": 256,
-      "bytes": 836
+      "path": "/book-images/2a680ec9a87e65bb-low.webp",
+      "width": 90,
+      "height": 384,
+      "bytes": 1690
+    },
+    "medium": {
+      "path": "/experience/books/assets/booktextureSide.webp",
+      "width": 168,
+      "height": 714,
+      "bytes": 4092
     },
     "detail": {
       "path": "/experience/books/assets/booktextureSide.webp",
