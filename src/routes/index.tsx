@@ -3,6 +3,7 @@ import { Stats } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { createFileRoute } from "@tanstack/react-router";
 import { Camera, Sparkles } from "lucide-react";
+import RenderStats from "../components/layout/RenderStats";
 import ShelfPlateEditor from "../components/layout/ShelfPlateEditor";
 import { useShelfPlatesStore } from "../stores/useShelfPlatesStore";
 import { type MouseEvent, Suspense, useEffect, useRef, useState } from "react";
@@ -288,6 +289,7 @@ function Home() {
 					<TourDirector />
 					<Lightning />
 					{showStats && <Stats />}
+					{showStats && <RenderStats />}
 				</Canvas>
 			</div>
 			{SHOW_DEMO_UI &&

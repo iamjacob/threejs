@@ -22,7 +22,9 @@
     "format": "biome format",
     "lint": "biome lint",
     "check": "biome check",
-    "images": "node scripts/generate-book-images.mjs"
+    "images": "node scripts/generate-book-images.mjs",
+    "atlas": "node scripts/generate-cover-atlas.mjs",
+    "test:atlas": "node --test tests/atlas-packing.test.mjs"
   },
   "dependencies": {
     "@number-flow/react": "^0.6.2",
