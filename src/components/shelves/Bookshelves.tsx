@@ -46,6 +46,7 @@ import { coverInAtlas } from "../../lib/coverAtlas";
 import { useFeatureFlags } from "../../lib/featureFlags";
 import CollectionBlur from "./CollectionBlur";
 import InstancedBooks from "./InstancedBooks";
+import InstancedCollectionBlur from "./InstancedCollectionBlur";
 import PictureFrame from "./PictureFrame";
 import { progressionConfig } from "./progressionConfig";
 import ShelfBookDissolve from "./ShelfBookDissolve";
@@ -361,6 +362,7 @@ export default function Bookshelves({
 		[],
 	);
 	const instancedShelf = useFeatureFlags((state) => state.INSTANCED_SHELF);
+	const fastBlur = useFeatureFlags((state) => state.FAST_BLUR);
 	useFrame(({ camera }, delta) => {
 		// Instanced sectors are culled as whole batches; per-book checks only
 		// matter while editing, when every book has its own mesh.
@@ -480,6 +482,11 @@ export default function Bookshelves({
 			globalThis.document.removeEventListener("visibilitychange", cancelWhenHidden);
 		};
 	}, [canEdit, instanced.length, instanceLongPress]);
+	const blurredPlacements = visible.filter(
+		({ book }) =>
+			blurredBookIds.includes(book.id) &&
+			deletingBooks[book.id] === undefined,
+	);
 	const stackTarget = drag?.drop.stackOnId
 		? placements.find((entry) => entry.book.id === drag.drop.stackOnId)
 		: undefined;
@@ -513,15 +520,12 @@ export default function Bookshelves({
 						<PictureFrame />
 					</group>
 				)}
-				{blurredBookIds.length > 0 && (
-					<CollectionBlur
-						placements={visible.filter(
-							({ book }) =>
-								blurredBookIds.includes(book.id) &&
-								deletingBooks[book.id] === undefined,
-						)}
-					/>
-				)}
+				{blurredBookIds.length > 0 &&
+					(fastBlur ? (
+						<InstancedCollectionBlur placements={blurredPlacements} />
+					) : (
+						<CollectionBlur placements={blurredPlacements} />
+					))}
 				{instanced.length > 0 && (
 					<Suspense fallback={null}>
 						<InstancedBooks

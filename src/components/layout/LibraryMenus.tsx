@@ -514,6 +514,7 @@ export default function LibraryMenus({
 										<p>{t.appearance}</p>
 										{toggle("SHOW_HELIX_NAV", t.helix)}
 										{toggle("INSTANCED_SHELF", "Instanced shelf (fast)")}
+										{toggle("FAST_BLUR", "Fast blur (new)")}
 									</div>
 									<div className="nav-flag-group">
 										<p>{t.tour}</p>
