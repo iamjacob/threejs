@@ -19,6 +19,7 @@ import { type FeatureFlag, useFeatureFlags } from "../../lib/featureFlags";
 import { useShelfPlatesStore } from "../../stores/useShelfPlatesStore";
 import { useTourStore } from "../../stores/useTourStore";
 import LanguageFlag from "./LanguageFlag";
+import QuickActions from "./QuickActions";
 import { useReaderPreferences } from "../../stores/useReaderPreferences";
 import { useLevelStore } from "../../stores/useLevelStore";
 import { progressionConfig } from "../shelves/progressionConfig";
@@ -60,6 +61,12 @@ const words = {
 		captions: "Esittelyn tekstit",
 		appearance: "Hylly ja navigointi",
 		tour: "Demo ja esittely",
+		fullscreen: "Koko näyttö",
+		exitFullscreen: "Poistu koko näytöstä",
+		lightShow: "Toista valoshow uudelleen",
+		scene: "Näkymä",
+		performance: "Suorituskykytila",
+		reloadHint: "Lataa sivu uudelleen",
 		unavailable:
 			"Kirjautuminen ei ole vielä käytettävissä. Hyllysi tallennetaan tähän selaimeen.",
 	},
@@ -85,6 +92,12 @@ const words = {
 		captions: "Kynningartextar",
 		appearance: "Hilla og leiðsögn",
 		tour: "Sýning og kynning",
+		fullscreen: "Fullur skjár",
+		exitFullscreen: "Hætta í fullum skjá",
+		lightShow: "Spila ljósasýningu aftur",
+		scene: "Sviðsmynd",
+		performance: "Afkastahamur",
+		reloadHint: "Endurhlaða til að virkja",
 		unavailable:
 			"Innskráning er ekki enn í boði. Hillan þín er vistuð í þessum vafra.",
 	},
@@ -110,6 +123,12 @@ const words = {
 		captions: "Tour captions",
 		appearance: "Shelf & navigation",
 		tour: "Demo & tour",
+		fullscreen: "Fullscreen",
+		exitFullscreen: "Exit fullscreen",
+		lightShow: "Replay light show",
+		scene: "Scene",
+		performance: "Performance mode",
+		reloadHint: "Reload to apply",
 		unavailable:
 			"Sign-in is not available yet. Your shelf is saved in this browser.",
 	},
@@ -135,6 +154,12 @@ const words = {
 		captions: "Turtekster",
 		appearance: "Hylde og navigation",
 		tour: "Demo og tur",
+		fullscreen: "Fuld skærm",
+		exitFullscreen: "Afslut fuld skærm",
+		lightShow: "Afspil lysshow igen",
+		scene: "Scene",
+		performance: "Ydelsestilstand",
+		reloadHint: "Genindlæs for at anvende",
 		unavailable:
 			"Login er ikke tilgængeligt endnu. Din hylde gemmes i denne browser.",
 	},
@@ -160,6 +185,12 @@ const words = {
 		captions: "Tourtexte",
 		appearance: "Regal und Navigation",
 		tour: "Demo und Tour",
+		fullscreen: "Vollbild",
+		exitFullscreen: "Vollbild beenden",
+		lightShow: "Lichtshow wiederholen",
+		scene: "Szene",
+		performance: "Leistungsmodus",
+		reloadHint: "Neu laden zum Anwenden",
 		unavailable:
 			"Die Anmeldung ist noch nicht verfügbar. Dein Regal wird in diesem Browser gespeichert.",
 	},
@@ -185,6 +216,12 @@ const words = {
 		captions: "Turtexter",
 		appearance: "Hylla och navigering",
 		tour: "Demo och tur",
+		fullscreen: "Helskärm",
+		exitFullscreen: "Avsluta helskärm",
+		lightShow: "Spela upp ljusshow igen",
+		scene: "Scen",
+		performance: "Prestandaläge",
+		reloadHint: "Ladda om för att tillämpa",
 		unavailable:
 			"Inloggning är inte tillgänglig ännu. Din hylla sparas i den här webbläsaren.",
 	},
@@ -210,6 +247,12 @@ const words = {
 		captions: "Turtekster",
 		appearance: "Hylle og navigasjon",
 		tour: "Demo og tur",
+		fullscreen: "Fullskjerm",
+		exitFullscreen: "Avslutt fullskjerm",
+		lightShow: "Spill lysshow på nytt",
+		scene: "Scene",
+		performance: "Ytelsesmodus",
+		reloadHint: "Last inn på nytt for å bruke",
 		unavailable:
 			"Innlogging er ikke tilgjengelig ennå. Hyllen din lagres i denne nettleseren.",
 	},
@@ -407,6 +450,16 @@ export default function LibraryMenus({
 								<span>{t.menu}</span>
 								<Settings2 size={18} />
 							</div>
+							<QuickActions
+								labels={{
+									fullscreen: t.fullscreen,
+									exitFullscreen: t.exitFullscreen,
+									lightShow: t.lightShow,
+									scene: t.scene,
+									performance: t.performance,
+									reloadHint: t.reloadHint,
+								}}
+							/>
 							{showActions && (
 								<>
 									<button

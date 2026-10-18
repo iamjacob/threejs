@@ -391,3 +391,51 @@
 	opacity: 0.5;
 	font-size: 12px;
 }
+
+/* Quick actions: one-tap row under the menu heading. */
+.nav-quick {
+	padding: 0 12px 10px;
+}
+.nav-quick-row {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 8px;
+}
+.nav-quick-button {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	gap: 3px;
+	min-height: 52px;
+	border: 0;
+	border-radius: 12px;
+	background: #ffffff14;
+	color: inherit;
+	transition: background 0.2s;
+}
+.nav-quick-button:hover {
+	background: #ffffff22;
+}
+.nav-quick-button[aria-pressed="true"],
+.nav-quick-button[aria-checked="true"] {
+	background: #f5d6a033;
+	color: #f5d6a0;
+}
+.nav-quick-caption {
+	font-size: 10px;
+	line-height: 1;
+	text-transform: capitalize;
+	opacity: 0.8;
+}
+.nav-quick-reload {
+	margin-top: 8px;
+	width: 100%;
+	padding: 8px;
+	border: 0;
+	border-radius: 10px;
+	background: #f5d6a0;
+	color: #302414;
+	font-size: 13px !important;
+	font-weight: 600;
+}

@@ -48,8 +48,20 @@ export function detectRenderQuality(hints: DeviceHints): RenderQuality {
 			};
 }
 
+export const PERFORMANCE_MODE_KEY = "boooks-performance-mode";
+
+/** Manual override from the menu; a page reload applies it. */
+export function performanceModeEnabled() {
+	try {
+		return localStorage.getItem(PERFORMANCE_MODE_KEY) === "true";
+	} catch {
+		return false;
+	}
+}
+
 export function currentRenderQuality(): RenderQuality {
 	if (typeof navigator === "undefined") return detectRenderQuality({});
+	if (performanceModeEnabled()) return detectRenderQuality({ saveData: true });
 	const nav = navigator as Navigator & {
 		deviceMemory?: number;
 		connection?: { saveData?: boolean };
