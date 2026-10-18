@@ -174,7 +174,7 @@ export default function TourCamera() {
 	const centered =
 		reader === "closed" &&
 		!userAddition &&
-		libraryLevel <= 10 &&
+		libraryLevel === 10 &&
 		["library", "pick", "end", "grow"].includes(stage);
 	const centeredRef = useRef(centered);
 	centeredRef.current = centered;

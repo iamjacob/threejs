@@ -38,20 +38,6 @@ const Shelf = ({
 	radius,
 }: ShelfProps) => {
 	const meshRef = useRef<THREE.Mesh>(null);
-	useEffect(() => {
-		const mesh = meshRef.current;
-		if (!mesh || window.matchMedia("(prefers-reduced-motion: reduce)").matches)
-			return;
-		const tween = gsap.fromTo(
-			mesh.position,
-			{ z: -0.5 },
-			{ z: 0, duration: 1.3, delay: index * 0.12, ease: "power3.out" },
-		);
-		return () => {
-			tween.kill();
-			mesh.position.z = 0;
-		};
-	}, [index, radius]);
 	// const { zoomToShelf } = useShelfZoomStore();
 
 	const textures = useLoader(
@@ -95,7 +81,7 @@ const Shelf = ({
 			depth: SHELF_THICKNESS,
 			bevelEnabled: false,
 			steps: 1,
-			curveSegments: 128,
+			curveSegments: 32,
 		});
 	}, [fraction, radius]);
 
