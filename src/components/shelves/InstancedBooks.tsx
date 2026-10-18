@@ -14,6 +14,7 @@ import {
 	MeshStandardMaterial,
 	Quaternion,
 	SRGBColorSpace,
+	type Texture,
 	TextureLoader,
 	Vector3,
 } from "three";
@@ -21,9 +22,11 @@ import {
 	type AtlasRect,
 	COVER_ATLAS_PATH,
 	coverAtlasRect,
+	coverFacesOutsideAtlas,
 	FULL_RECT,
 } from "../../lib/coverAtlas";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
+import { runtimeAtlasRect, useRuntimeAtlas } from "../../lib/runtimeAtlas";
 import { BOOK_MATERIAL } from "../book/bookAppearance";
 import { getBookTextureUrls } from "../book/bookTextures";
 import type { ArrangedBook } from "./shelfArrangement";
@@ -53,10 +56,18 @@ const unitBox = new BoxGeometry(1, 1, 1);
 const shadowDistance = 9;
 const atlasLoader = new TextureLoader();
 
+/**
+ * One material samples two atlases: the build-time cover atlas (`map`) and the
+ * runtime atlas of device-only scanned covers (`uRuntimeAtlas`). A negative
+ * rect width marks a face that lives in the runtime atlas.
+ */
 function createAtlasMaterial(anisotropy: number) {
 	const material = new MeshStandardMaterial({ ...BOOK_MATERIAL });
-	material.customProgramCacheKey = () => "shelf-cover-atlas";
+	const uniforms = { uRuntimeAtlas: { value: null as Texture | null } };
+	material.userData.uniforms = uniforms;
+	material.customProgramCacheKey = () => "shelf-cover-atlas-v2";
 	material.onBeforeCompile = (shader) => {
+		shader.uniforms.uRuntimeAtlas = uniforms.uRuntimeAtlas;
 		shader.vertexShader = shader.vertexShader
 			.replace(
 				"#include <common>",
@@ -67,6 +78,7 @@ function createAtlasMaterial(anisotropy: number) {
 				attribute vec4 aRectBottom;
 				attribute vec4 aRectFront;
 				attribute vec4 aRectBack;
+				varying float vRuntimeAtlas;
 				vec4 bookFaceRect() {
 					vec3 n = abs(normal);
 					if (n.x > 0.5) return normal.x > 0.0 ? aRectEdge : aRectSpine;
@@ -80,7 +92,29 @@ function createAtlasMaterial(anisotropy: number) {
 				#ifdef USE_MAP
 				{
 					vec4 rect = bookFaceRect();
-					vMapUv = rect.xy + uv * rect.zw;
+					vRuntimeAtlas = rect.z < 0.0 ? 1.0 : 0.0;
+					vMapUv = rect.xy + uv * vec2(abs(rect.z), rect.w);
+				}
+				#endif`,
+			);
+		shader.fragmentShader = shader.fragmentShader
+			.replace(
+				"#include <common>",
+				`#include <common>
+				uniform sampler2D uRuntimeAtlas;
+				varying float vRuntimeAtlas;`,
+			)
+			.replace(
+				"#include <map_fragment>",
+				`#ifdef USE_MAP
+				{
+					vec4 sampledDiffuseColor = vRuntimeAtlas > 0.5
+						? texture2D( uRuntimeAtlas, vMapUv )
+						: texture2D( map, vMapUv );
+					#ifdef DECODE_VIDEO_TEXTURE
+						sampledDiffuseColor = sRGBTransferEOTF( sampledDiffuseColor );
+					#endif
+					diffuseColor *= sampledDiffuseColor;
 				}
 				#endif`,
 			);
@@ -90,8 +124,24 @@ function createAtlasMaterial(anisotropy: number) {
 }
 
 function rectsFor(placement: ArrangedBook): AtlasRect[] {
-	return getBookTextureUrls(placement.book.cover).map(
-		(url) => coverAtlasRect(url) ?? FULL_RECT,
+	return getBookTextureUrls(placement.book.cover).map((url) => {
+		const built = coverAtlasRect(url);
+		if (built) return built;
+		const runtime = runtimeAtlasRect(url);
+		// Negative width flags the runtime atlas for the shader.
+		if (runtime) return [runtime[0], runtime[1], -runtime[2], runtime[3]];
+		return FULL_RECT;
+	});
+}
+
+/** Instanced when every face is in either atlas. */
+export function coverInstanceable(cover: {
+	front: string;
+	back: string;
+	spine: string;
+}) {
+	return coverFacesOutsideAtlas(cover).every(
+		(face) => runtimeAtlasRect(face) !== undefined,
 	);
 }
 
@@ -107,6 +157,9 @@ function SectorBatch({
 	material: MeshStandardMaterial;
 }) {
 	const mesh = useRef<InstancedMesh>(null);
+	// Rects move when the runtime atlas is repacked, so rebuild on its version.
+	const atlasVersion = useRuntimeAtlas((state) => state.version);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: atlasVersion invalidates rectsFor() results.
 	const geometry = useMemo(() => {
 		const clone = unitBox.clone();
 		const count = items.length;
@@ -118,7 +171,7 @@ function SectorBatch({
 			clone.setAttribute(name, new InstancedBufferAttribute(data, 4));
 		});
 		return clone;
-	}, [items]);
+	}, [items, atlasVersion]);
 	useEffect(() => () => geometry.dispose(), [geometry]);
 	useLayoutEffect(() => {
 		const instanced = mesh.current;
@@ -203,6 +256,16 @@ export default function InstancedBooks({ placements, ...handlers }: Props) {
 		material.needsUpdate = true;
 	}, [atlas, material, anisotropy]);
 	useEffect(() => () => material.dispose(), [material]);
+	const runtimeTexture = useRuntimeAtlas((state) => state.texture);
+	useEffect(() => {
+		// Bind the runtime atlas (or the main atlas as a harmless placeholder so
+		// the sampler is never empty).
+		const uniforms = material.userData.uniforms as {
+			uRuntimeAtlas: { value: Texture | null };
+		};
+		if (runtimeTexture) runtimeTexture.anisotropy = anisotropy;
+		uniforms.uRuntimeAtlas.value = runtimeTexture ?? atlas;
+	}, [runtimeTexture, atlas, material, anisotropy]);
 	const sectors = useMemo(
 		() => groupBySector(placements.map((placement) => ({ placement }))),
 		[placements],

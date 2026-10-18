@@ -42,10 +42,11 @@ import { useTourStore } from "../../stores/useTourStore";
 import { BOOK_MATERIAL } from "../book/bookAppearance";
 import { getBookTextureUrls } from "../book/bookTextures";
 import type { BookPose } from "../tour/tourStages";
-import { coverInAtlas } from "../../lib/coverAtlas";
+import { coverFacesOutsideAtlas } from "../../lib/coverAtlas";
+import { ensureRuntimeAtlas, useRuntimeAtlas } from "../../lib/runtimeAtlas";
 import { useFeatureFlags } from "../../lib/featureFlags";
 import CollectionBlur from "./CollectionBlur";
-import InstancedBooks from "./InstancedBooks";
+import InstancedBooks, { coverInstanceable } from "./InstancedBooks";
 import InstancedCollectionBlur from "./InstancedCollectionBlur";
 import PictureFrame from "./PictureFrame";
 import { progressionConfig } from "./progressionConfig";
@@ -406,12 +407,21 @@ export default function Bookshelves({
 	// Keep receivers still while dragging so the drop target does not move away.
 	// Static books share one instanced draw per sector; anything interactive,
 	// highlighted, or animating keeps its own mesh so existing behaviour holds.
+	// Scanned covers live only on this device; pack them into a runtime atlas so
+	// they can join the instanced batches instead of costing 6 textures each.
+	useRuntimeAtlas((state) => state.version);
+	useEffect(() => {
+		if (!instancedShelf) return;
+		void ensureRuntimeAtlas(
+			shelfBooks.flatMap((book) => coverFacesOutsideAtlas(book.cover)),
+		);
+	}, [instancedShelf, shelfBooks]);
+	// Blurred books stay instanced: the glass overlay is a separate draw.
 	const isInstanced = (placement: ArrangedBook) =>
 		instancedShelf &&
 		!editing &&
-		!blurredBookIds.includes(placement.book.id) &&
 		deletingBooks[placement.book.id] === undefined &&
-		coverInAtlas(placement.book.cover);
+		coverInstanceable(placement.book.cover);
 	const shown = placements.filter(
 		({ book }) =>
 			book.id !== hiddenBookId &&
@@ -419,9 +429,22 @@ export default function Bookshelves({
 			!hiddenBookIds.includes(book.id),
 	);
 	const instanced = shown.filter(isInstanced);
+	// While the runtime atlas is still packing, hold scanned books back instead
+	// of briefly mounting six-texture meshes that would then be thrown away.
+	const runtimeRejected = useRuntimeAtlas((state) => state.rejected);
+	const awaitingAtlas = (placement: ArrangedBook) =>
+		instancedShelf &&
+		!editing &&
+		coverFacesOutsideAtlas(placement.book.cover).some(
+			(face) =>
+				(face.startsWith("data:") || face.startsWith("blob:")) &&
+				!runtimeRejected.has(face),
+		) &&
+		!coverInstanceable(placement.book.cover);
 	const visible = shown.filter(
 		(placement) =>
 			!isInstanced(placement) &&
+			!awaitingAtlas(placement) &&
 			(placements.length < 500 ||
 				inView.has(placement.book.id) ||
 				selectedIds.includes(placement.book.id) ||
@@ -482,7 +505,7 @@ export default function Bookshelves({
 			globalThis.document.removeEventListener("visibilitychange", cancelWhenHidden);
 		};
 	}, [canEdit, instanced.length, instanceLongPress]);
-	const blurredPlacements = visible.filter(
+	const blurredPlacements = [...instanced, ...visible].filter(
 		({ book }) =>
 			blurredBookIds.includes(book.id) &&
 			deletingBooks[book.id] === undefined,

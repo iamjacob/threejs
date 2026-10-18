@@ -17,7 +17,7 @@ export function coverAtlasRect(path: string): AtlasRect | undefined {
 	return [u, v, w, h];
 }
 
-/** True when every face of a cover can be drawn from the atlas. */
+/** True when every face of a cover can be drawn from the build-time atlas. */
 export function coverInAtlas(cover: {
 	front: string;
 	back: string;
@@ -25,5 +25,16 @@ export function coverInAtlas(cover: {
 }) {
 	return (
 		cover.front in regions && cover.back in regions && cover.spine in regions
+	);
+}
+
+/** Source paths that are not in the build-time atlas. */
+export function coverFacesOutsideAtlas(cover: {
+	front: string;
+	back: string;
+	spine: string;
+}) {
+	return [cover.front, cover.back, cover.spine].filter(
+		(path) => !(path in regions),
 	);
 }
