@@ -36,6 +36,11 @@ import {
 } from "../../lib/bookImages";
 import { createBookLongPress, vibrateBookEdit } from "../../lib/bookLongPress";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
+import {
+	currentRenderQuality,
+	MAX_SHELF_IMAGE_LEVEL,
+	shelfAnisotropy,
+} from "../../lib/renderQuality";
 import { moveShelfBooks } from "../../lib/shelfDrag";
 import { useBookStore } from "../../stores/useBookStore";
 import { useTourStore } from "../../stores/useTourStore";
@@ -178,22 +183,11 @@ function CollectionBook({
 			return;
 		const pixels = halfHeight * size.height * gl.getPixelRatio();
 		const lowHeight = bookImageHeight(book.cover.front, "low");
-		const detailHeight = bookImageHeight(book.cover.front, "detail");
 		const level: BookImageLevel =
-			pixels > detailHeight * 1.15
-				? "original"
-				: pixels > lowHeight * 1.15
-					? "detail"
-					: "low";
+			pixels > lowHeight * 1.15 ? MAX_SHELF_IMAGE_LEVEL : "low";
 		if (level === requestedLevel.current) return;
 		// Hysteresis prevents repeated swaps near a resolution boundary.
 		if (level === "low" && pixels > lowHeight * 0.8) return;
-		if (
-			requestedLevel.current === "original" &&
-			level === "detail" &&
-			pixels > detailHeight * 0.8
-		)
-			return;
 		requestedLevel.current = level;
 		startTransition(() => setImageLevel(level));
 	});
@@ -223,7 +217,10 @@ function CollectionBook({
 		}
 	}, [textures]);
 	const anisotropy = useThree((state) =>
-		Math.min(4, state.gl.capabilities.getMaxAnisotropy()),
+		Math.min(
+			shelfAnisotropy(currentRenderQuality()),
+			state.gl.capabilities.getMaxAnisotropy(),
+		),
 	);
 	return (
 		<group>

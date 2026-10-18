@@ -1,6 +1,16 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { detectRenderQuality } from "../src/lib/renderQuality.ts";
+import {
+	detectRenderQuality,
+	MAX_SHELF_IMAGE_LEVEL,
+	shelfAnisotropy,
+} from "../src/lib/renderQuality.ts";
+
+test("shelf covers stop at the detail variant and low tiers halve anisotropy", () => {
+	assert.equal(MAX_SHELF_IMAGE_LEVEL, "detail");
+	assert.equal(shelfAnisotropy(detectRenderQuality({})), 4);
+	assert.equal(shelfAnisotropy(detectRenderQuality({ saveData: true })), 2);
+});
 
 test("desktops render at up to 1.5x with full shadows", () => {
 	const quality = detectRenderQuality({
