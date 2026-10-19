@@ -18,6 +18,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { bookCatalog } from "../../lib/bookCatalog";
 import {
 	DEFAULT_BOOK_SIZE_CM,
+	formatMeasurement,
 	useBookSizeStore,
 } from "../../stores/useBookSizeStore";
 import type { EnrichmentValues } from "./bookEnrichment";
@@ -28,11 +29,10 @@ import { createCameraTorch } from "./cameraTorch";
 import { cropPerspective, imageCanvas, rotatePhoto } from "./cropImage";
 import { detectPhotoCorners } from "./detectPhotoCorners";
 import type { Point } from "./perspective";
-import ScanDraftRoll from "./ScanDraftRoll";
 import ScannerBookForm from "./ScannerBookForm";
 import ScannerModelSelect from "./ScannerModelSelect";
 import ScannerPortal from "./ScannerPortal";
-import SideProgress from "./SideProgress";
+import ScanProgress from "./ScanProgress";
 import {
 	loadDrafts,
 	newScanDraft,
@@ -200,7 +200,7 @@ export default function BookScanner({
 	};
 
 	// Read title/author from the front cover in the background; only fills
-	// fields the user left empty. Progress shows up in SideProgress.
+	// fields the user left empty. Progress shows up in ScanProgress.
 	const frontImage = faces.front?.image;
 	// biome-ignore lint/correctness/useExhaustiveDependencies: re-run only when the cover or draft changes, not on every keystroke.
 	useEffect(() => {
@@ -767,6 +767,20 @@ export default function BookScanner({
 		},
 		...history.filter((draft) => draft.id !== draftId),
 	];
+	const handlePart = (tag: PhotoTag) => {
+		if (activePhoto) {
+			tagPhoto(tag);
+			return;
+		}
+		const photo = photos.find((p) => p.tag === tag);
+		if (photo) {
+			void selectPhoto(photo);
+			return;
+		}
+		uploadPart.current = tag;
+		if (tag === "front" || tag === "spine" || tag === "back") setFace(tag);
+		fileInput.current?.click();
+	};
 
 	return (
 		<section
@@ -798,20 +812,21 @@ export default function BookScanner({
 					if (files.length) void importPhotos(files);
 				}}
 			/>
-			<aside className="scan-progress-list" aria-label="Progress for each book">
-				<SideProgress
-					key={draftId}
-					draft={progressDrafts[0]}
-					enrichment={enrichment}
-				/>
-				{progressDrafts.length > 1 && (
-					<ScanDraftRoll
-						drafts={progressDrafts.slice(1)}
-						onSelect={switchDraft}
-						disabled={busy}
-					/>
-				)}
-			</aside>
+			<ScanProgress
+				key={draftId}
+				draft={progressDrafts[0]}
+				enrichment={enrichment}
+				dimensions={
+					sizeEntry
+						? `${formatMeasurement(size.height, unit)} × ${formatMeasurement(size.width, unit)} × ${formatMeasurement(size.thickness, unit)}`
+						: undefined
+				}
+				earlier={progressDrafts.slice(1)}
+				busy={busy || !draftsReady}
+				onSelectDraft={switchDraft}
+				onNewDraft={() => switchDraft(newScanDraft())}
+				onPart={handlePart}
+			/>
 			<ScannerBookForm
 				preview={liveCrop}
 				title={title}
@@ -827,21 +842,7 @@ export default function BookScanner({
 				sizeSource={sizeEntry?.source ?? "Default estimate"}
 				sizeOverridden={sizeEntry?.overridden ?? false}
 				onResetSize={() => resetSize(draftId)}
-				onPart={(tag) => {
-					if (activePhoto) {
-						tagPhoto(tag);
-						return;
-					}
-					const photo = photos.find((p) => p.tag === tag);
-					if (photo) {
-						void selectPhoto(photo);
-						return;
-					}
-					uploadPart.current = tag;
-					if (tag === "front" || tag === "spine" || tag === "back")
-						setFace(tag);
-					fileInput.current?.click();
-				}}
+				onPart={handlePart}
 			>
 				<label className="scan-book-name">
 					Subtitle
@@ -861,27 +862,6 @@ export default function BookScanner({
 						onChange={(event) => setAuthor(event.target.value)}
 					/>
 				</label>
-				<nav className="scan-draft-tabs" aria-label="Book scan history">
-					<button
-						type="button"
-						disabled={busy || !draftsReady}
-						onClick={() => switchDraft(newScanDraft())}
-					>
-						＋ New book
-					</button>
-					{history.map((draft, i) => (
-						<button
-							type="button"
-							key={draft.id}
-							disabled={busy}
-							aria-pressed={draftId === draft.id}
-							onClick={() => switchDraft(draft)}
-						>
-							{draft.title || `Untitled book ${history.length - i}`}{" "}
-							<small>{draft.photos.length} photos</small>
-						</button>
-					))}
-				</nav>
 				<section className="scan-camera-roll" aria-label="Camera roll">
 					<button
 						type="button"
