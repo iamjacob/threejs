@@ -312,26 +312,85 @@
 	transform: scale(0.97);
 }
 
-/* camera roll of earlier books (hidden when there are none) */
-.spx-roll {
+/* bottom dock: this book + earlier books + new */
+.spx-dock {
+	--spx-ink: #f3eee3;
+	--spx-muted: #8a93a6;
+	--spx-line: rgb(243 238 227 / 10%);
+	--spx-track: rgb(243 238 227 / 14%);
+	--spx-accent: #e5484d;
+	--spx-ok: #4fd18b;
+	--spx-ease: cubic-bezier(0.22, 1, 0.36, 1);
 	display: flex;
+	flex-shrink: 0;
 	align-items: center;
-	gap: 8px;
-	padding-top: 8px;
-	border-top: 1px solid var(--spx-line);
+	gap: 10px;
+	width: min(100%, 660px);
+	margin: 4px auto 0;
+	padding: 8px 10px;
+	border: 1px solid rgb(255 255 255 / 9%);
+	border-radius: 999px;
+	background: rgb(18 22 34 / 72%);
+	box-shadow: 0 14px 40px rgb(0 0 0 / 40%);
+	backdrop-filter: blur(22px) saturate(150%);
+	-webkit-backdrop-filter: blur(22px) saturate(150%);
+	color: var(--spx-ink);
+	font-family: Geist, ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
-.spx-roll ol {
+.spx-dock button {
+	font: inherit;
+	color: inherit;
+	cursor: pointer;
+}
+.spx-dock button:focus-visible {
+	outline: 2px solid var(--spx-accent);
+	outline-offset: 3px;
+}
+.spx-dock ol {
 	display: flex;
 	flex: 1;
-	gap: 6px;
+	gap: 8px;
 	margin: 0;
 	padding: 2px;
 	overflow-x: auto;
 	list-style: none;
 	scrollbar-width: none;
 }
-.spx-roll ol::-webkit-scrollbar {
+.spx-dock ol::-webkit-scrollbar {
 	display: none;
+}
+.spx-dock li {
+	display: grid;
+	flex-shrink: 0;
+	justify-items: center;
+	gap: 2px;
+}
+.spx-dock li small {
+	color: var(--spx-muted);
+	font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: 8.5px;
+	letter-spacing: 0.6px;
+}
+.spx-dock .spx-new {
+	display: inline-flex;
+	flex-direction: column;
+	gap: 1px;
+	width: 46px;
+	height: 46px;
+	font-size: 8.5px;
+	font-weight: 600;
+	letter-spacing: 0.6px;
+	text-transform: uppercase;
+}
+.spx-item.is-active {
+	background: rgb(229 72 77 / 14%);
+	cursor: default;
+}
+.spx-item.is-active:disabled {
+	opacity: 1;
+}
+.spx-item.is-active .t {
+	stroke: rgb(229 72 77 / 30%);
 }
 .spx-new,
 .spx-item {

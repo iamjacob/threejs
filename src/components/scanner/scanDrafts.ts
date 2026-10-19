@@ -20,6 +20,8 @@ export type ScanPhoto = {
 	tag: PhotoTag;
 	crop?: CroppedFace;
 	points?: Point[];
+	/** 0-based page index this photo was scanned for (page-type tags only). */
+	page?: number;
 };
 export type ScanDraft = {
 	id: string;

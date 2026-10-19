@@ -14,6 +14,8 @@ export type EnrichmentValues = {
 	};
 	/** True when this draft's size has been changed in the shared configurator. */
 	dimensionsOverridden?: boolean;
+	/** Number of pages in the edition, when a source lists it. */
+	pageCount?: number;
 	year?: string;
 	language?: string;
 	publication?: string;
@@ -373,6 +375,7 @@ export async function enrichBookMetadata(
 				result.dimensions ??
 				(catalogSize ? formatPhysicalSize(catalogSize) : undefined),
 			physicalSize: catalogSize ?? result.physicalSize,
+			pageCount: catalogMatch.pages || undefined,
 		});
 	}
 
@@ -413,6 +416,7 @@ export async function enrichBookMetadata(
 				format: text(doc.number_of_pages_median)
 					? `About ${text(doc.number_of_pages_median)} pages`
 					: undefined,
+				pageCount: Number(doc.number_of_pages_median) || undefined,
 				isbn:
 					result.isbn ??
 					isbns.find((value) => value.replace(/\D/g, "").length === 13) ??
@@ -502,6 +506,7 @@ export async function enrichBookMetadata(
 									.filter(Boolean)
 									.join(" · ") ||
 									undefined),
+							pageCount: Number(pages) || result.pageCount,
 							isbn:
 								result.isbn ?? list(data.isbn_13)[0] ?? list(data.isbn_10)[0],
 						});
@@ -584,6 +589,8 @@ export async function enrichBookMetadata(
 							.filter(Boolean)
 							.join(" · ") ||
 							undefined),
+					pageCount:
+						result.pageCount ?? (Number(volume.pageCount) || undefined),
 					isbn:
 						result.isbn ??
 						(text(

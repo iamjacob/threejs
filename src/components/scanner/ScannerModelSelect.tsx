@@ -1,14 +1,39 @@
-import { Check, ChevronDown, Crop, ScanLine } from "lucide-react";
+import {
+	Check,
+	ChevronDown,
+	Crop,
+	Globe,
+	Lock,
+	ScanLine,
+	Sparkles,
+	WifiOff,
+} from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
-import { type ScannerModel, scannerModels } from "./scannerModels";
+import {
+	type ScannerDataMode,
+	type ScannerModel,
+	scannerDataModes,
+	scannerModels,
+} from "./scannerModels";
+
+const MODEL_ICONS = {
+	manual: Crop,
+	corners: ScanLine,
+	enrich: Sparkles,
+} as const;
+const MODE_ICONS = { online: Globe, offline: WifiOff, private: Lock } as const;
 
 export default function ScannerModelSelect({
 	value,
 	onChange,
+	mode,
+	onModeChange,
 	disabled,
 }: {
 	value: ScannerModel;
 	onChange: (model: ScannerModel) => void;
+	mode: ScannerDataMode;
+	onModeChange: (mode: ScannerDataMode) => void;
 	disabled: boolean;
 }) {
 	const [open, setOpen] = useState(false);
@@ -18,7 +43,10 @@ export default function ScannerModelSelect({
 	const menuId = useId();
 	const selected =
 		scannerModels.find((model) => model.id === value) ?? scannerModels[0];
-	const Icon = value === "corners" ? ScanLine : Crop;
+	const selectedMode =
+		scannerDataModes.find((item) => item.id === mode) ?? scannerDataModes[0];
+	const Icon = MODEL_ICONS[value];
+	const ModeIcon = MODE_ICONS[mode];
 
 	useEffect(() => {
 		if (!open) return;
@@ -74,7 +102,13 @@ export default function ScannerModelSelect({
 					<span>
 						{selected.name}
 						<span className="scan-model-divider">·</span>
-						{selected.label}
+						{selected.enrich ? (
+							<>
+								<ModeIcon size={11} aria-hidden="true" /> {selectedMode.label}
+							</>
+						) : (
+							selected.label
+						)}
 					</span>
 				</span>
 				<ChevronDown size={15} className="scan-model-chevron" />
@@ -88,7 +122,7 @@ export default function ScannerModelSelect({
 				>
 					<div className="scan-model-menu-title">Choose your scanner</div>
 					{scannerModels.map((model, index) => {
-						const OptionIcon = model.id === "corners" ? ScanLine : Crop;
+						const OptionIcon = MODEL_ICONS[model.id];
 						return (
 							<button
 								key={model.id}
@@ -141,6 +175,37 @@ export default function ScannerModelSelect({
 							</button>
 						);
 					})}
+					<div className="scan-model-menu-title scan-model-menu-title-mode">
+						Book details
+					</div>
+					<div className="scan-model-modes">
+						{scannerDataModes.map((item) => {
+							const OptionIcon = MODE_ICONS[item.id];
+							const locked = !selected.enrich;
+							return (
+								<button
+									key={item.id}
+									type="button"
+									aria-pressed={mode === item.id}
+									disabled={disabled || locked}
+									title={
+										locked
+											? `Switch to Gutenberg 0.3 to look up details`
+											: item.description
+									}
+									onClick={() => onModeChange(item.id)}
+								>
+									<OptionIcon size={14} aria-hidden="true" />
+									<span>{item.label}</span>
+								</button>
+							);
+						})}
+					</div>
+					<p className="scan-model-mode-note">
+						{selected.enrich
+							? selectedMode.description
+							: "Gutenberg 0.3 adds details, size and page count."}
+					</p>
 				</div>
 			)}
 		</fieldset>

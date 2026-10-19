@@ -159,7 +159,11 @@ export async function scannedBook(scan: BookScan): Promise<LibraryBook> {
 		title: resolvedTitle,
 		author: resolvedAuthor,
 		subtitle: resolvedSubtitle,
-		pages: scanPages?.length || catalogMatch?.pages || 180,
+		pages:
+			Math.max(
+				scanPages?.length ?? 0,
+				scan.enrichment?.pageCount || catalogMatch?.pages || 0,
+			) || 180,
 		readDate: new Date().toISOString().slice(0, 10),
 		demoPages: 120,
 		cover,

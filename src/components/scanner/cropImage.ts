@@ -1,8 +1,8 @@
 import {
 	isValidQuadrilateral,
 	outputDimensions,
-	squareToQuad,
 	type Point,
+	squareToQuad,
 } from "./perspective";
 
 export async function decodePhoto(file: Blob): Promise<HTMLCanvasElement> {

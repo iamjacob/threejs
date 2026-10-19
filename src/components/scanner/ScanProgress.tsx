@@ -282,10 +282,7 @@ export default function ScanProgress({
 	draft,
 	enrichment,
 	dimensions,
-	earlier,
 	busy,
-	onSelectDraft,
-	onNewDraft,
 	onPart,
 	onOpenAll,
 }: {
@@ -293,10 +290,7 @@ export default function ScanProgress({
 	enrichment?: EnrichmentValues;
 	/** Formatted physical size from the size store (wins over enrichment). */
 	dimensions?: string;
-	earlier: ScanDraft[];
 	busy: boolean;
-	onSelectDraft: (draft: ScanDraft) => void;
-	onNewDraft: () => void;
 	onPart: (tag: PhotoTag) => void;
 	onOpenAll?: () => void;
 }) {
@@ -433,18 +427,6 @@ export default function ScanProgress({
 						<ListTree size={15} aria-hidden="true" />
 					</button>
 				)}
-				{earlier.length === 0 && (
-					<button
-						type="button"
-						className="spx-all"
-						disabled={busy}
-						aria-label="Start a new book"
-						title="New book"
-						onClick={onNewDraft}
-					>
-						<Plus size={15} aria-hidden="true" />
-					</button>
-				)}
 			</div>
 
 			<div className="spx-bar">
@@ -520,61 +502,93 @@ export default function ScanProgress({
 				)}
 			</div>
 
-			{earlier.length > 0 && (
-				<div className="spx-roll">
-					<button
-						type="button"
-						className="spx-new"
-						disabled={busy}
-						aria-label="Start a new book"
-						title="New book"
-						onClick={onNewDraft}
-					>
-						<Plus size={16} aria-hidden="true" />
-					</button>
-					<ol aria-label="Earlier books">
-						{earlier.map((item, index) => {
-							const progress = draftCompletion(item, item.enrichment);
-							const percent = Math.round(progress * 100);
-							const name =
-								item.title || `Untitled book ${earlier.length - index}`;
-							return (
-								<li key={item.id}>
-									<button
-										type="button"
-										className={`spx-item${progress >= 1 ? " is-complete" : ""}`}
-										disabled={busy}
-										aria-label={`${name}, ${percent}% complete`}
-										title={`${name} · ${percent}%`}
-										onClick={() => onSelectDraft(item)}
-									>
-										<svg viewBox="0 0 40 40" aria-hidden="true">
-											<circle cx="20" cy="20" r={RING_R} className="t" />
-											<circle
-												cx="20"
-												cy="20"
-												r={RING_R}
-												className="f"
-												strokeDasharray={RING_C}
-												strokeDashoffset={RING_C * (1 - progress)}
-												transform="rotate(-90 20 20)"
-											/>
-										</svg>
-										<MiniBook draft={item} />
-									</button>
-								</li>
-							);
-						})}
-					</ol>
-				</div>
-			)}
-
 			<output className={`spx-toast${toast ? " show" : ""}`}>
 				<i>
 					<Check size={13} strokeWidth={3.2} aria-hidden="true" />
 				</i>
 				<span>{toast?.text}</span>
 			</output>
+		</nav>
+	);
+}
+
+/**
+ * Bottom dock: the current book plus every earlier draft as mini 3D books
+ * inside completion rings, and a "new book" button. Lives at the foot of the
+ * scanner, separate from the progress card at the top.
+ */
+export function ScanHistoryDock({
+	current,
+	currentEnrichment,
+	earlier,
+	busy,
+	onSelectDraft,
+	onNewDraft,
+}: {
+	current: ScanDraft;
+	currentEnrichment?: EnrichmentValues;
+	earlier: ScanDraft[];
+	busy: boolean;
+	onSelectDraft: (draft: ScanDraft) => void;
+	onNewDraft: () => void;
+}) {
+	const items = [
+		{ draft: current, enrichment: currentEnrichment, active: true },
+		...earlier.map((draft) => ({
+			draft,
+			enrichment: draft.enrichment,
+			active: false,
+		})),
+	];
+	return (
+		<nav className="spx-dock" aria-label="Your books in this session">
+			<button
+				type="button"
+				className="spx-new"
+				disabled={busy}
+				aria-label="Start a new book"
+				title="New book"
+				onClick={onNewDraft}
+			>
+				<Plus size={16} aria-hidden="true" />
+				<span>New</span>
+			</button>
+			<ol>
+				{items.map(({ draft, enrichment, active }, index) => {
+					const progress = draftCompletion(draft, enrichment);
+					const percent = Math.round(progress * 100);
+					const name =
+						draft.title || (active ? "This book" : `Untitled book ${index}`);
+					return (
+						<li key={draft.id}>
+							<button
+								type="button"
+								className={`spx-item${progress >= 1 ? " is-complete" : ""}${active ? " is-active" : ""}`}
+								disabled={busy || active}
+								aria-current={active ? "true" : undefined}
+								aria-label={`${name}, ${percent}% complete`}
+								title={`${name} · ${percent}%`}
+								onClick={() => onSelectDraft(draft)}
+							>
+								<svg viewBox="0 0 40 40" aria-hidden="true">
+									<circle cx="20" cy="20" r={RING_R} className="t" />
+									<circle
+										cx="20"
+										cy="20"
+										r={RING_R}
+										className="f"
+										strokeDasharray={RING_C}
+										strokeDashoffset={RING_C * (1 - progress)}
+										transform="rotate(-90 20 20)"
+									/>
+								</svg>
+								<MiniBook draft={draft} />
+							</button>
+							<small>{active ? "Now" : `${percent}%`}</small>
+						</li>
+					);
+				})}
+			</ol>
 		</nav>
 	);
 }

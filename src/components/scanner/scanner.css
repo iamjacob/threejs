@@ -121,7 +121,9 @@
 	background: #ffffff08;
 	color: #c6cbd7;
 }
-.book-scanner[data-model="corners"] .scan-model-trigger .scan-model-icon,
+.book-scanner:is([data-model="corners"], [data-model="enrich"])
+	.scan-model-trigger
+	.scan-model-icon,
 .scan-model-menu button[aria-checked="true"] .scan-model-icon {
 	color: #ffb1b4;
 	background: linear-gradient(135deg, #7c141466, #e2242429);
@@ -193,6 +195,47 @@
 .scan-model-option-copy {
 	display: grid;
 	gap: 7px;
+}
+.scan-model-menu-title-mode {
+	margin-top: 8px;
+	padding-top: 10px;
+	border-top: 1px solid #ffffff12;
+}
+.scan-model-modes {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(0, 1fr));
+	gap: 4px;
+	padding: 6px 7px 2px;
+}
+.scan-model-menu .scan-model-modes > button {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	width: auto;
+	min-height: 34px;
+	padding: 6px 8px;
+	border: 1px solid #ffffff14;
+	border-radius: 10px;
+	background: #ffffff06;
+	color: #c6ccda;
+	font-size: 11px;
+	font-weight: 600;
+}
+.scan-model-menu .scan-model-modes > button[aria-pressed="true"] {
+	border-color: #ffb1b466;
+	background: linear-gradient(135deg, #7c141444, #e2242422);
+	color: #ffd7d9;
+}
+.scan-model-menu .scan-model-modes > button:disabled {
+	opacity: 0.4;
+}
+.scan-model-mode-note {
+	margin: 4px 0 2px;
+	padding: 0 9px 4px;
+	color: var(--scan-muted);
+	font-size: 10px;
+	line-height: 1.45;
 }
 .scan-model-option-title {
 	display: flex;

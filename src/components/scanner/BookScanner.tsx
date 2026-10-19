@@ -32,8 +32,9 @@ import type { Point } from "./perspective";
 import ScanDetailsSheet from "./ScanDetailsSheet";
 import ScannerBookForm from "./ScannerBookForm";
 import ScannerModelSelect from "./ScannerModelSelect";
+import ScannerOpenBook from "./ScannerOpenBook";
 import ScannerPortal from "./ScannerPortal";
-import ScanProgress from "./ScanProgress";
+import ScanProgress, { ScanHistoryDock } from "./ScanProgress";
 import ScanReveal from "./ScanReveal";
 import {
 	loadDrafts,
@@ -48,8 +49,13 @@ import {
 import { requestScanMetadata, SCAN_TIMEOUT_MS } from "./scanMetadata";
 import type { BookScan, CroppedFace } from "./scannedBook";
 import {
+	detectsCorners,
+	enriches,
+	readScannerDataMode,
 	readScannerModel,
+	type ScannerDataMode,
 	type ScannerModel,
+	saveScannerDataMode,
 	saveScannerModel,
 } from "./scannerModels";
 import "./scanner.css";
@@ -71,6 +77,11 @@ export default function BookScanner({
 	const [history, setHistory] = useState<ScanDraft[]>([]);
 	const [enrichment, setEnrichment] = useState<EnrichmentValues>({});
 	const [detailsOpen, setDetailsOpen] = useState(false);
+	const [view, setView] = useState<"cover" | "pages">("cover");
+	const [model, setModel] = useState(readScannerModel);
+	const [dataMode, setDataMode] = useState(readScannerDataMode);
+	const lookups = enriches(model, dataMode);
+	const privateOnly = dataMode === "private";
 	const unit = useBookSizeStore((state) => state.unit);
 	const sizeEntry = useBookSizeStore((state) => state.entries[draftId]);
 	const applyEnrichmentSize = useBookSizeStore(
@@ -128,7 +139,7 @@ export default function BookScanner({
 
 	useEffect(() => {
 		const cleanTitle = title.trim();
-		if (!cleanTitle || !draftsReady) return;
+		if (!cleanTitle || !draftsReady || !lookups) return;
 		const controller = new AbortController();
 		setEnrichment((current) => ({
 			...current,
@@ -141,6 +152,10 @@ export default function BookScanner({
 				coverImage: faces.back?.image ?? faces.front?.image,
 				catalog: bookCatalog,
 				isbn: enrichment.isbn,
+				// Private mode: local catalog + on-device barcode only; no network.
+				fetcher: privateOnly
+					? () => Promise.reject(new Error("Private mode: lookups disabled"))
+					: undefined,
 				onUpdate: (update) => {
 					setEnrichment((current) => ({ ...current, ...update }));
 					if (update.physicalSize && !update.physicalSize.estimated) {
@@ -192,6 +207,8 @@ export default function BookScanner({
 		draftsReady,
 		applyEnrichmentSize,
 		draftId,
+		lookups,
+		privateOnly,
 	]);
 
 	const writeSize = (
@@ -207,7 +224,7 @@ export default function BookScanner({
 	const frontImage = faces.front?.image;
 	// biome-ignore lint/correctness/useExhaustiveDependencies: re-run only when the cover or draft changes, not on every keystroke.
 	useEffect(() => {
-		if (!frontImage || !draftsReady) return;
+		if (!frontImage || !draftsReady || !lookups || privateOnly) return;
 		const controller = new AbortController();
 		let timeout: ReturnType<typeof setTimeout> | undefined;
 		const timer = setTimeout(() => {
@@ -242,11 +259,10 @@ export default function BookScanner({
 			if (timeout) clearTimeout(timeout);
 			controller.abort();
 		};
-	}, [frontImage, draftId, draftsReady]);
+	}, [frontImage, draftId, draftsReady, lookups, privateOnly]);
 
 	const [error, setError] = useState("");
 	const [busy, setBusy] = useState(false);
-	const [model, setModel] = useState(readScannerModel);
 	const [detection, setDetection] = useState<
 		"idle" | "detecting" | "found" | "missed"
 	>("idle");
@@ -294,6 +310,9 @@ export default function BookScanner({
 	]);
 	const fileInput = useRef<HTMLInputElement>(null);
 	const uploadPart = useRef<PhotoTag | null>(null);
+	const uploadPage = useRef<number | null>(null);
+	/** Tag for the next camera capture when it isn't a cover face (e.g. a page). */
+	const captureTag = useRef<PhotoTag | null>(null);
 	const heading = useRef<HTMLHeadingElement>(null);
 	const mounted = useRef(true);
 	const loadingRevision = useRef(0);
@@ -348,15 +367,19 @@ export default function BookScanner({
 		setSource(image);
 		setPoints([]);
 		setStep("crop");
-		if (model === "corners") void findCorners(image);
+		if (detectsCorners(model)) void findCorners(image);
 	};
 	const changeModel = (next: ScannerModel) => {
 		if (next === model) return;
 		cancelDetection();
 		setModel(next);
 		saveScannerModel(next);
-		if (next === "corners" && step === "crop" && source)
+		if (detectsCorners(next) && step === "crop" && source)
 			void findCorners(source);
+	};
+	const changeDataMode = (next: ScannerDataMode) => {
+		setDataMode(next);
+		saveScannerDataMode(next);
 	};
 	useEffect(() => {
 		mounted.current = true;
@@ -519,6 +542,8 @@ export default function BookScanner({
 	const importPhotos = async (files: File[]) => {
 		const targetPart = uploadPart.current;
 		uploadPart.current = null;
+		const targetPage = uploadPage.current;
+		uploadPage.current = null;
 		const images = files.filter((file) => file.type.startsWith("image/"));
 		if (!images.length) {
 			setError("Choose images of your book.");
@@ -538,6 +563,10 @@ export default function BookScanner({
 							: photos.length + added.length === 0
 								? "front"
 								: "page",
+					page:
+						targetPage !== null && targetPart === "page"
+							? targetPage + added.length
+							: undefined,
 				});
 			if (!mounted.current) return;
 			setPhotos((current) => [...current, ...added]);
@@ -645,7 +674,8 @@ export default function BookScanner({
 		try {
 			const result = cropPerspective(source, points);
 			const photo = photos.find((p) => p.id === activePhoto);
-			const tag = photo?.tag ?? face;
+			const tag = photo?.tag ?? captureTag.current ?? face;
+			captureTag.current = null;
 			if (tag === "front" || tag === "spine" || tag === "back") {
 				crops.current[tag] = { source, points };
 				setFaces((current) => ({ ...current, [tag]: result }));
@@ -665,6 +695,8 @@ export default function BookScanner({
 				);
 			else {
 				const id = crypto.randomUUID();
+				const pageIndex = tag === "page" ? uploadPage.current : null;
+				uploadPage.current = null;
 				setPhotos((current) => [
 					...current,
 					{
@@ -674,6 +706,7 @@ export default function BookScanner({
 						tag,
 						crop: result,
 						points,
+						page: pageIndex ?? undefined,
 					},
 				]);
 				setActivePhoto(id);
@@ -790,6 +823,26 @@ export default function BookScanner({
 		else if (key === "author") setAuthor(value);
 		setEnrichment((current) => ({ ...current, [key]: value }));
 	};
+	const pageCount = Math.max(
+		enrichment.pageCount ?? 0,
+		...photos.map((photo) => (photo.page ?? -1) + 1),
+		photos.filter((photo) => photo.tag === "page").length,
+	);
+	const pagePhotoCount = photos.filter(
+		(photo) => !["front", "spine", "back", "dustjacket"].includes(photo.tag),
+	).length;
+	/** Scan one inside page: camera when possible, otherwise the photo picker. */
+	const scanPage = (index: number) => {
+		uploadPart.current = "page";
+		uploadPage.current = index;
+		captureTag.current = "page";
+		setActivePhoto(null);
+		if (step === "unavailable") {
+			fileInput.current?.click();
+			return;
+		}
+		void startCamera();
+	};
 	const revealEnrichment: EnrichmentValues = {
 		...enrichment,
 		title: title.trim() || enrichment.title,
@@ -844,6 +897,8 @@ export default function BookScanner({
 				<ScannerModelSelect
 					value={model}
 					onChange={changeModel}
+					mode={dataMode}
+					onModeChange={changeDataMode}
 					disabled={busy}
 				/>
 				<button
@@ -865,10 +920,7 @@ export default function BookScanner({
 						? `${formatMeasurement(size.height, unit)} × ${formatMeasurement(size.width, unit)} × ${formatMeasurement(size.thickness, unit)}`
 						: undefined
 				}
-				earlier={progressDrafts.slice(1)}
 				busy={busy || !draftsReady}
-				onSelectDraft={switchDraft}
-				onNewDraft={() => switchDraft(newScanDraft())}
 				onPart={handlePart}
 				onOpenAll={() => setDetailsOpen(true)}
 			/>
@@ -887,82 +939,125 @@ export default function BookScanner({
 					onClose={() => setDetailsOpen(false)}
 				/>
 			)}
-			<ScannerBookForm
-				preview={liveCrop}
-				title={title}
-				onTitle={setTitle}
-				photos={photos}
-				faces={faces}
-				activePhoto={activePhoto}
-				busy={busy}
-				size={size}
-				unit={unit}
-				onSize={writeSize}
-				setUnit={setUnit}
-				sizeSource={sizeEntry?.source ?? "Default estimate"}
-				sizeOverridden={sizeEntry?.overridden ?? false}
-				onResetSize={() => resetSize(draftId)}
-				onPart={handlePart}
-			>
-				<label className="scan-book-name">
-					Subtitle
-					<input
-						value={subtitle}
-						maxLength={300}
-						disabled={busy}
-						onChange={(event) => setSubtitle(event.target.value)}
-					/>
-				</label>
-				<label className="scan-book-name">
-					Author
-					<input
-						value={author}
-						maxLength={300}
-						disabled={busy}
-						onChange={(event) => setAuthor(event.target.value)}
-					/>
-				</label>
-				<details className="scan-roll-details" open={photos.length <= 3}>
-					<summary>
-						<ImagePlus size={15} aria-hidden="true" />
-						Camera roll
+			{step === "review" && faces.front && (
+				<div className="scan-view-switch" role="tablist" aria-label="Book view">
+					<button
+						type="button"
+						role="tab"
+						aria-selected={view === "cover"}
+						onClick={() => setView("cover")}
+					>
+						Cover &amp; size
+					</button>
+					<button
+						type="button"
+						role="tab"
+						aria-selected={view === "pages"}
+						onClick={() => setView("pages")}
+					>
+						Pages
 						<small>
-							{photos.length} photo{photos.length === 1 ? "" : "s"}
+							{pagePhotoCount}/{pageCount || "?"}
 						</small>
-					</summary>
-					<section className="scan-camera-roll" aria-label="Camera roll">
-						<button
-							type="button"
+					</button>
+				</div>
+			)}
+			{step === "review" && faces.front && view === "pages" ? (
+				<ScannerOpenBook
+					key={draftId}
+					size={size}
+					pages={pageCount || 180}
+					photos={photos}
+					faces={{
+						front: faces.front?.image,
+						back: faces.back?.image,
+						spine: faces.spine?.image,
+					}}
+					busy={busy}
+					onScanPage={scanPage}
+					onSelectPhoto={(photo) => void selectPhoto(photo)}
+				/>
+			) : (
+				<ScannerBookForm
+					preview={liveCrop}
+					title={title}
+					onTitle={setTitle}
+					photos={photos}
+					faces={faces}
+					activePhoto={activePhoto}
+					busy={busy}
+					size={size}
+					unit={unit}
+					onSize={writeSize}
+					setUnit={setUnit}
+					sizeSource={sizeEntry?.source ?? "Default estimate"}
+					sizeOverridden={sizeEntry?.overridden ?? false}
+					onResetSize={() => resetSize(draftId)}
+					onPart={handlePart}
+				>
+					<label className="scan-book-name">
+						Subtitle
+						<input
+							value={subtitle}
+							maxLength={300}
 							disabled={busy}
-							onClick={() => fileInput.current?.click()}
-						>
-							<ImagePlus size={20} /> Add photos
-						</button>
-						{photos.map((photo, i) => (
+							onChange={(event) => setSubtitle(event.target.value)}
+						/>
+					</label>
+					<label className="scan-book-name">
+						Author
+						<input
+							value={author}
+							maxLength={300}
+							disabled={busy}
+							onChange={(event) => setAuthor(event.target.value)}
+						/>
+					</label>
+					<details className="scan-roll-details" open={photos.length <= 3}>
+						<summary>
+							<ImagePlus size={15} aria-hidden="true" />
+							Camera roll
+							<small>
+								{photos.length} photo{photos.length === 1 ? "" : "s"}
+							</small>
+						</summary>
+						<section className="scan-camera-roll" aria-label="Camera roll">
 							<button
 								type="button"
-								key={photo.id}
 								disabled={busy}
-								aria-pressed={activePhoto === photo.id}
-								onClick={() => void selectPhoto(photo)}
+								onClick={() => fileInput.current?.click()}
 							>
-								<img src={photo.crop?.image ?? photo.image} alt={photo.name} />
-								<span>
-									{i + 1} · {photoTags[photo.tag]}
-								</span>
-								{photo.crop && <Check size={12} />}
+								<ImagePlus size={20} /> Add photos
 							</button>
-						))}
-					</section>
-				</details>
+							{photos.map((photo, i) => (
+								<button
+									type="button"
+									key={photo.id}
+									disabled={busy}
+									aria-pressed={activePhoto === photo.id}
+									onClick={() => void selectPhoto(photo)}
+								>
+									<img
+										src={photo.crop?.image ?? photo.image}
+										alt={photo.name}
+									/>
+									<span>
+										{i + 1} · {photoTags[photo.tag]}
+									</span>
+									{photo.crop && <Check size={12} />}
+								</button>
+							))}
+						</section>
+					</details>
 
-				{storageError && (
-					<output>
-						Device storage unavailable. Keep this scanner open to retain your
-						drafts.
-					</output>
-				)}
-			</ScannerBookForm>
+					{storageError && (
+						<output>
+							Device storage unavailable. Keep this scanner open to retain your
+							drafts.
+						</output>
+					)}
+				</ScannerBookForm>
+			)}
 			{(step === "camera" ||
 				step === "requesting" ||
 				step === "unavailable") && (
@@ -980,7 +1075,7 @@ export default function BookScanner({
 								? "Allow camera access in your browser if asked."
 								: step === "unavailable"
 									? "Try the camera again or choose a photo below."
-									: model === "corners"
+									: detectsCorners(model)
 										? "Keep all four corners visible. We’ll find them after capture."
 										: "Keep all four corners inside the light. Hold steady and capture."}
 						</p>
@@ -1090,7 +1185,7 @@ export default function BookScanner({
 											? "Drag the corners to fine-tune your crop."
 											: `Tap corner ${points.length + 1}: ${cornerNames[points.length].toLowerCase()}. Continue clockwise.`}
 						</p>
-						{model === "corners" && (
+						{detectsCorners(model) && (
 							<button
 								type="button"
 								className="scan-detect-button"
@@ -1245,6 +1340,14 @@ export default function BookScanner({
 					</div>
 				</div>
 			)}
+			<ScanHistoryDock
+				current={progressDrafts[0]}
+				currentEnrichment={enrichment}
+				earlier={progressDrafts.slice(1)}
+				busy={busy || !draftsReady}
+				onSelectDraft={switchDraft}
+				onNewDraft={() => switchDraft(newScanDraft())}
+			/>
 			{error && (
 				<div className="scan-error" role="alert">
 					{error}
