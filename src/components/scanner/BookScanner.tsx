@@ -39,6 +39,7 @@ import ScannerOpenBook from "./ScannerOpenBook";
 import ScannerPortal from "./ScannerPortal";
 import ScanProgress, { ScanHistoryDock } from "./ScanProgress";
 import ScanReveal from "./ScanReveal";
+import ShelfScanQueue from "./ShelfScanQueue";
 import {
 	loadDrafts,
 	newScanDraft,
@@ -49,7 +50,12 @@ import {
 	type ScanPhoto,
 	saveDraft,
 } from "./scanDrafts";
-import { requestScanMetadata, SCAN_TIMEOUT_MS } from "./scanMetadata";
+import {
+	requestScanMetadata,
+	requestShelfScan,
+	SCAN_TIMEOUT_MS,
+	type ShelfBook,
+} from "./scanMetadata";
 import type { BookScan, CroppedFace } from "./scannedBook";
 import {
 	detectsCorners,
@@ -81,6 +87,15 @@ export default function BookScanner({
 	const [enrichment, setEnrichment] = useState<EnrichmentValues>({});
 	const [detailsOpen, setDetailsOpen] = useState(false);
 	const [view, setView] = useState<"cover" | "pages">("cover");
+	const [shelf, setShelf] = useState<{
+		image: string;
+		books: ShelfBook[];
+		index: number;
+		loading: boolean;
+		error?: string;
+	} | null>(null);
+	const shelfAbort = useRef<AbortController | null>(null);
+	const shelfInput = useRef<HTMLInputElement>(null);
 	const [model, setModel] = useState(readScannerModel);
 	const [dataMode, setDataMode] = useState(readScannerDataMode);
 	const lookups = enriches(model, dataMode);
@@ -685,6 +700,11 @@ export default function BookScanner({
 			if (tag === "front" || tag === "spine" || tag === "back") {
 				crops.current[tag] = { source, points };
 				setFaces((current) => ({ ...current, [tag]: result }));
+				// Line up the next capture: front → spine → back.
+				const next = (["front", "spine", "back"] as const).find(
+					(candidate) => candidate !== tag && !faces[candidate],
+				);
+				if (next) setFace(next);
 			}
 			if (photo)
 				setPhotos((current) =>
@@ -838,6 +858,65 @@ export default function BookScanner({
 		(photo) => !["front", "spine", "back", "dustjacket"].includes(photo.tag),
 	).length;
 	const [sizeToolsRequest, setSizeToolsRequest] = useState(0);
+	// The 3D book starts micro after the first cover and grows once all three
+	// covers are in (or the user skips the rest).
+	const [coversSkipped, setCoversSkipped] = useState(false);
+	const coverCount = [faces.front, faces.spine, faces.back].filter(
+		Boolean,
+	).length;
+	const bookPreviewSize: "micro" | "full" =
+		coverCount >= 3 || coversSkipped ? "full" : "micro";
+	// biome-ignore lint/correctness/useExhaustiveDependencies: a new book starts micro again.
+	useEffect(() => setCoversSkipped(false), [draftId]);
+	/** Shelf scan: one photo → the AI lists the books → we walk them one at a time. */
+	const startShelfScan = async (file: File) => {
+		shelfAbort.current?.abort();
+		const controller = new AbortController();
+		shelfAbort.current = controller;
+		stopCamera();
+		const image = await photoData(file);
+		if (!mounted.current) return;
+		setShelf({ image, books: [], index: 0, loading: true });
+		try {
+			const books = await requestShelfScan(image, controller.signal);
+			if (!mounted.current || controller.signal.aborted) return;
+			setShelf({ image, books, index: 0, loading: false });
+		} catch (cause) {
+			if (!mounted.current || controller.signal.aborted) return;
+			setShelf({
+				image,
+				books: [],
+				index: 0,
+				loading: false,
+				error:
+					cause instanceof Error && cause.name === "ScanMetadataError"
+						? cause.message
+						: "The shelf reader is unavailable right now.",
+			});
+		}
+	};
+	const acceptShelfBook = (book: ShelfBook) => {
+		// Each accepted book becomes its own draft, prefilled from the shelf.
+		const draft = newScanDraft();
+		switchDraft({
+			...draft,
+			title: book.title,
+			subtitle: book.subtitle,
+			author: book.author,
+		});
+		setShelf((current) =>
+			current ? { ...current, index: current.index + 1 } : current,
+		);
+	};
+	const skipShelfBook = () =>
+		setShelf((current) =>
+			current ? { ...current, index: current.index + 1 } : current,
+		);
+	const closeShelfScan = () => {
+		shelfAbort.current?.abort();
+		setShelf(null);
+	};
+	useEffect(() => () => shelfAbort.current?.abort(), []);
 	const controllerAction = (id: ScannerControllerAction) => {
 		switch (id) {
 			case "capture":
@@ -905,6 +984,7 @@ export default function BookScanner({
 			id="book-scanner"
 			data-step={step}
 			data-model={model}
+			data-face={face}
 			className="book-scanner"
 			aria-label="Add a book"
 			onKeyDown={(event) => {
@@ -928,6 +1008,18 @@ export default function BookScanner({
 					const files = Array.from(event.target.files ?? []);
 					event.target.value = "";
 					if (files.length) void importPhotos(files);
+				}}
+			/>
+			<input
+				ref={shelfInput}
+				type="file"
+				accept="image/*"
+				capture="environment"
+				hidden
+				onChange={(event) => {
+					const file = event.target.files?.[0];
+					event.target.value = "";
+					if (file) void startShelfScan(file);
 				}}
 			/>
 			<header className="scan-header">
@@ -1017,7 +1109,18 @@ export default function BookScanner({
 						</button>
 					</div>
 				)}
-				{step === "review" && faces.front && view === "pages" ? (
+				{shelf ? (
+					<ShelfScanQueue
+						image={shelf.image}
+						books={shelf.books}
+						index={shelf.index}
+						loading={shelf.loading}
+						error={shelf.error}
+						onAccept={acceptShelfBook}
+						onSkip={skipShelfBook}
+						onClose={closeShelfScan}
+					/>
+				) : step === "review" && faces.front && view === "pages" ? (
 					<ScannerOpenBook
 						key={draftId}
 						size={size}
@@ -1052,6 +1155,8 @@ export default function BookScanner({
 						sizeToolsRequest={sizeToolsRequest}
 						onResetSize={() => resetSize(draftId)}
 						onPart={handlePart}
+						bookSize={bookPreviewSize}
+						onSkipCovers={() => setCoversSkipped(true)}
 					>
 						<label className="scan-book-name">
 							Subtitle
@@ -1126,16 +1231,24 @@ export default function BookScanner({
 									? "Opening camera…"
 									: step === "unavailable"
 										? "Let’s get your camera ready."
-										: "Place your cover inside the portal."}
+										: captureTag.current === "page"
+											? "Lay the page flat in the frame."
+											: face === "spine"
+												? "Turn the book on its side."
+												: face === "back"
+													? "Flip to the back cover."
+													: "Place the front cover in the frame."}
 							</h1>
 							<p>
 								{step === "requesting"
 									? "Allow camera access in your browser if asked."
 									: step === "unavailable"
 										? "Try the camera again or choose a photo below."
-										: detectsCorners(model)
-											? "Keep all four corners visible. We’ll find them after capture."
-											: "Keep all four corners inside the light. Hold steady and capture."}
+										: face === "spine" && captureTag.current !== "page"
+											? "Line the spine up with the slot."
+											: detectsCorners(model)
+												? "Keep all four corners visible. We’ll find them after capture."
+												: "Keep all four corners inside the light. Hold steady and capture."}
 							</p>
 						</div>
 						<div
@@ -1152,6 +1265,7 @@ export default function BookScanner({
 							<ScannerPortal
 								video={video}
 								live={cameraReady}
+								face={captureTag.current === "page" ? "page" : face}
 								onFallbackChange={setPortalFallback}
 							/>
 							<span className="scan-live">
@@ -1418,6 +1532,7 @@ export default function BookScanner({
 							onChange={changeModel}
 							mode={dataMode}
 							onModeChange={changeDataMode}
+							onScanShelf={() => shelfInput.current?.click()}
 							disabled={busy}
 						/>
 					}

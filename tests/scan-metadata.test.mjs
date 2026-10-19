@@ -1,6 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseScanMetadata, requestScanMetadata } from '../src/components/scanner/scanMetadata.ts';
+import { parseScanMetadata, parseShelfBooks, requestScanMetadata } from '../src/components/scanner/scanMetadata.ts';
+test('shelf scan accepts {books:[...]} or a bare array, keeps order, drops unreadable entries and clamps boxes', () => {
+ const books = parseShelfBooks({books:[
+  {title:'First',author:'A',box:{x:-0.2,y:0.1,width:0.3,height:1.4}},
+  {title:'',author:''},
+  'junk',
+  {title:'Third',subtitle:null,author:'C',box:{x:'no'}},
+ ]});
+ assert.deepEqual(books,[
+  {title:'First',subtitle:'',author:'A',box:{x:0,y:0.1,width:0.3,height:1}},
+  {title:'Third',subtitle:'',author:'C'},
+ ]);
+ assert.deepEqual(parseShelfBooks([{title:'Only'}]),[{title:'Only',subtitle:'',author:''}]);
+ for(const value of [null,'x',{}]) assert.throws(()=>parseShelfBooks(value));
+});
 test('metadata accepts _meta, nulls and missing fields, rejects malformed data', () => {
  assert.deepEqual(parseScanMetadata({title:' Book ',subtitle:null,author:' A, B ',_meta:{model:'m',ms:1}}),{title:'Book',subtitle:'',author:'A, B'});
  assert.deepEqual(parseScanMetadata({title:'Book'}),{title:'Book',subtitle:'',author:''});

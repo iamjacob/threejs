@@ -15,19 +15,27 @@ varying vec2 uv;
 uniform vec2 res;
 uniform vec2 vr;
 uniform float time, live, portalScale;
+uniform vec2 shape;
 uniform sampler2D cam;
+// Signed distance to a rounded rectangle with half-extents b and radius r.
+float roundBox(vec2 p, vec2 b, float r) {
+	vec2 d = abs(p) - b + r;
+	return length(max(d, 0.)) + min(max(d.x, d.y), 0.) - r;
+}
 void main() {
 	if (portalScale < .001) { gl_FragColor = vec4(0.); return; }
 	vec2 p = (uv - .5) * vec2(res.x / res.y, 1.);
 	p.y += .015;
 	p /= portalScale * min(1., res.x / res.y / .8);
 	float a = atan(p.y, p.x);
-	vec2 q = p / vec2(.315, .34);
-	float r = length(q);
+	// Rounded rectangle sized per face (front / spine / back), not a circle.
+	float dist = roundBox(p, shape, .045);
+	vec2 q = p / shape;
+	float r = max(abs(q.x), abs(q.y));
 	float wave = .023 * sin(a * 5. + time * .8)
 		+ .014 * sin(a * 9. - time * 1.1)
 		+ .012 * sin(a * 3. + time * .4);
-	float edge = r - 1. - wave;
+	float edge = dist / min(shape.x, shape.y) - wave * .6;
 	float core = 1. - smoothstep(-.018, .008, edge);
 	float glow = exp(-abs(edge) * 19.);
 	float strand = exp(-abs(edge + .012 * sin(a * 14. + time * 2.)) * 105.);
@@ -36,7 +44,8 @@ void main() {
 	vec3 col = mix(vec3(124., 20., 20.) / 255., vec3(226., 36., 36.) / 255.,
 		clamp(q.x * .5 + .5, 0., 1.));
 	vec2 t = q * .5 + .5;
-	float portalAspect = .63 / .68;
+	// Fill the window with the camera feed, cropping rather than stretching.
+	float portalAspect = shape.x / shape.y;
 	float va = vr.x / max(vr.y, 1.);
 	if (va > portalAspect) t.x = (t.x - .5) * portalAspect / va + .5;
 	else t.y = (t.y - .5) * va / portalAspect + .5;
@@ -103,6 +112,18 @@ export type PortalFrame = {
 	live: boolean;
 	video?: HTMLVideoElement | null;
 	pixelRatio?: number;
+	/** Half-extents of the window in portal units (x, y). */
+	shape?: [number, number];
+};
+
+export type PortalFace = "front" | "spine" | "back" | "page" | "shelf";
+/** Window per face: covers are tall, the spine is a narrow slot, a shelf is wide. */
+export const PORTAL_SHAPES: Record<PortalFace, [number, number]> = {
+	front: [0.3, 0.4],
+	back: [0.3, 0.4],
+	page: [0.3, 0.4],
+	spine: [0.085, 0.42],
+	shelf: [0.44, 0.26],
 };
 
 export function createScannerPortalRenderer(canvas: HTMLCanvasElement) {
@@ -173,10 +194,9 @@ export function createScannerPortalRenderer(canvas: HTMLCanvasElement) {
 		gl.enableVertexAttribArray(position);
 		gl.vertexAttribPointer(position, 2, gl.FLOAT, false, 0, 0);
 		const uniforms = Object.fromEntries(
-			["res", "vr", "time", "live", "portalScale", "cam"].map((name) => [
-				name,
-				gl.getUniformLocation(program!, name),
-			]),
+			["res", "vr", "time", "live", "portalScale", "cam", "shape"].map(
+				(name) => [name, gl.getUniformLocation(program!, name)],
+			),
 		);
 		gl.activeTexture(gl.TEXTURE0);
 		gl.bindTexture(gl.TEXTURE_2D, texture);
@@ -198,7 +218,14 @@ export function createScannerPortalRenderer(canvas: HTMLCanvasElement) {
 		gl.uniform1i(uniforms.cam, 0);
 		return {
 			dispose,
-			draw({ time, scale, live, video, pixelRatio = 1 }: PortalFrame) {
+			draw({
+				time,
+				scale,
+				live,
+				video,
+				pixelRatio = 1,
+				shape = PORTAL_SHAPES.front,
+			}: PortalFrame) {
 				if (disposed || gl.isContextLost()) return;
 				const size = portalCanvasSize(
 					canvas.clientWidth,
@@ -271,6 +298,7 @@ export function createScannerPortalRenderer(canvas: HTMLCanvasElement) {
 				);
 				gl.uniform1f(uniforms.time, time);
 				gl.uniform1f(uniforms.portalScale, scale);
+				gl.uniform2f(uniforms.shape, shape[0], shape[1]);
 				gl.uniform1f(uniforms.live, live && hasFrame ? 1 : 0);
 				gl.drawArrays(gl.TRIANGLES, 0, 6);
 			},

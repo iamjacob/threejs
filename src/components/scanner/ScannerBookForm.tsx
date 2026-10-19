@@ -26,6 +26,9 @@ type Props = {
 	/** Bump to open the size tools from outside (controller "Size"). */
 	sizeToolsRequest?: number;
 	onResetSize: () => void;
+	/** micro right after the first cover; full once all covers are in or skipped. */
+	bookSize?: "micro" | "full";
+	onSkipCovers?: () => void;
 };
 export default function ScannerBookForm({
 	title,
@@ -47,6 +50,8 @@ export default function ScannerBookForm({
 	onConfirmSize,
 	sizeToolsRequest,
 	onResetSize,
+	bookSize = "full",
+	onSkipCovers,
 }: Props) {
 	const [side, setSide] = useState<PreviewSide>("front");
 	const [open, setOpen] = useState(false);
@@ -65,7 +70,11 @@ export default function ScannerBookForm({
 			);
 	}, [previewTag]);
 	return (
-		<section className="scan-live-book" aria-label="Live book preview">
+		<section
+			className="scan-live-book"
+			data-book-size={bookSize}
+			aria-label="Live book preview"
+		>
 			<div className="scan-live-toolbar">
 				<button
 					type="button"
@@ -141,6 +150,17 @@ export default function ScannerBookForm({
 				>
 					{selected ? "Assign" : "Add"} · {photoTags[side]}
 				</button>
+				{bookSize === "micro" && onSkipCovers && (
+					<button
+						type="button"
+						className="scan-skip-covers"
+						disabled={busy}
+						title="Continue with the covers you have"
+						onClick={onSkipCovers}
+					>
+						Skip remaining covers
+					</button>
+				)}
 			</nav>
 			{open && (
 				<section

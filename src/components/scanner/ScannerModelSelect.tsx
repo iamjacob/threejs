@@ -3,6 +3,7 @@ import {
 	ChevronDown,
 	Crop,
 	Globe,
+	Library,
 	Lock,
 	ScanLine,
 	Sparkles,
@@ -28,12 +29,15 @@ export default function ScannerModelSelect({
 	onChange,
 	mode,
 	onModeChange,
+	onScanShelf,
 	disabled,
 }: {
 	value: ScannerModel;
 	onChange: (model: ScannerModel) => void;
 	mode: ScannerDataMode;
 	onModeChange: (mode: ScannerDataMode) => void;
+	/** Optional: offer "Scan full shelf" under the models. */
+	onScanShelf?: () => void;
 	disabled: boolean;
 }) {
 	const [open, setOpen] = useState(false);
@@ -206,6 +210,43 @@ export default function ScannerModelSelect({
 							? selectedMode.description
 							: "Gutenberg 0.3 adds details, size and page count."}
 					</p>
+					{onScanShelf && (
+						<>
+							<div className="scan-model-menu-title scan-model-menu-title-mode">
+								Many books
+							</div>
+							<button
+								type="button"
+								role="menuitem"
+								className="scan-model-shelf"
+								tabIndex={-1}
+								disabled={disabled || mode === "offline"}
+								title={
+									mode === "offline"
+										? "Needs Online mode: the AI reads the shelf photo"
+										: "Photograph a whole shelf; we list the books and walk through them one at a time"
+								}
+								onClick={() => {
+									setOpen(false);
+									onScanShelf();
+								}}
+							>
+								<span className="scan-model-icon">
+									<Library size={19} />
+								</span>
+								<span className="scan-model-option-copy">
+									<span className="scan-model-option-title">
+										Scan full shelf
+										<span className="scan-model-badge">beta</span>
+									</span>
+									<span className="scan-model-description">
+										One photo of the shelf. The AI lists every book; you confirm
+										them one by one.
+									</span>
+								</span>
+							</button>
+						</>
+					)}
 				</div>
 			)}
 		</fieldset>

@@ -265,6 +265,9 @@
 	font-size: 10px;
 	line-height: 1.45;
 }
+.scan-model-menu > .scan-model-shelf {
+	border-color: #e5484d33;
+}
 .scan-model-option-title {
 	display: flex;
 	align-items: center;
@@ -1098,27 +1101,36 @@
 }
 .scan-portal-viewfinder[data-fallback="true"] > video {
 	opacity: 1;
-	width: 63%;
-	height: 68%;
-	left: 18.5%;
-	top: 17.5%;
+	width: 60%;
+	height: 80%;
+	left: 20%;
+	top: 10%;
 	object-fit: cover;
-	border-radius: 50%;
+	border-radius: 18px;
 }
 .scanner-portal[data-fallback="true"]::before {
 	content: "";
 	position: absolute;
-	width: 63%;
-	height: 68%;
-	left: 18.5%;
-	top: 17.5%;
+	width: 60%;
+	height: 80%;
+	left: 20%;
+	top: 10%;
 	border: 2px solid #e22424;
 	border-left-color: #7c1414;
 	border-top-color: #aa1c1c;
-	border-radius: 50%;
+	border-radius: 18px;
 	box-shadow:
 		0 0 26px #9a66dd66,
 		inset 0 0 18px #78ccef33;
+}
+.book-scanner[data-face="spine"]
+	.scan-portal-viewfinder[data-fallback="true"]
+	> video,
+.book-scanner[data-face="spine"] .scanner-portal[data-fallback="true"]::before {
+	width: 17%;
+	left: 41.5%;
+	height: 84%;
+	top: 8%;
 }
 .scan-portal-viewfinder .scan-live,
 .scan-portal-viewfinder .scan-camera-loading {
@@ -1483,6 +1495,35 @@
 	min-height: 150px;
 	max-height: 40vh;
 	margin-bottom: 6px;
+	transition:
+		max-height 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+		min-height 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* Micro: a small glimpse of the book until all three covers are in. */
+.scan-live-book[data-book-size="micro"] .scan-three-book-sized {
+	flex: 0 0 auto;
+	min-height: 120px;
+	max-height: 150px;
+	max-width: 260px;
+}
+.scan-live-book[data-book-size="micro"] .scan-size-toggle,
+.scan-live-book[data-book-size="micro"] .scan-size-prompt,
+.scan-live-book[data-book-size="micro"] .scan-size-controls {
+	display: none;
+}
+/* Book-size block hidden for now; the pill on the book still opens the tools. */
+.scan-live-book .scan-size-controls > summary {
+	display: none;
+}
+.scan-skip-covers {
+	margin-left: 6px;
+	min-height: 32px;
+	padding: 6px 12px;
+	border: 1px dashed #ffffff33;
+	border-radius: 20px;
+	background: transparent;
+	color: #aab4c6;
+	font-size: 11px;
 }
 .scan-live-toolbar {
 	flex-shrink: 0;

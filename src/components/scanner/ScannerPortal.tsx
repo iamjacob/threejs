@@ -1,12 +1,16 @@
 import { type RefObject, useEffect, useRef, useState } from "react";
 import {
 	createScannerPortalRenderer,
+	PORTAL_SHAPES,
+	type PortalFace,
 	portalOpeningScale,
 } from "./scannerPortalRenderer";
 
 type ScannerPortalProps = {
 	video?: RefObject<HTMLVideoElement | null>;
 	live?: boolean;
+	/** Which part of the book we're framing; sets the window shape. */
+	face?: PortalFace;
 	className?: string;
 	onFallbackChange?: (fallback: boolean) => void;
 };
@@ -14,15 +18,19 @@ type ScannerPortalProps = {
 export default function ScannerPortal({
 	video,
 	live = false,
+	face = "front",
 	className,
 	onFallbackChange,
 }: ScannerPortalProps) {
 	const canvas = useRef<HTMLCanvasElement>(null);
 	const liveRef = useRef(live);
+	const shapeRef = useRef<[number, number]>(PORTAL_SHAPES[face]);
+	const shapeTarget = useRef<[number, number]>(PORTAL_SHAPES[face]);
 	const fallbackCallback = useRef(onFallbackChange);
 	const wake = useRef<(() => void) | null>(null);
 	const [fallback, setFallback] = useState(false);
 	liveRef.current = live;
+	shapeTarget.current = PORTAL_SHAPES[face];
 	fallbackCallback.current = onFallbackChange;
 
 	useEffect(() => {
@@ -60,12 +68,21 @@ export default function ScannerPortal({
 			if (!active || !renderer || document.hidden) return;
 			if (now - lastFrame >= 1000 / 30) {
 				try {
+					// Ease the window toward the face's shape so switching feels alive.
+					const target = shapeTarget.current;
+					const current = shapeRef.current;
+					const k = reducedMotion ? 1 : 0.18;
+					shapeRef.current = [
+						current[0] + (target[0] - current[0]) * k,
+						current[1] + (target[1] - current[1]) * k,
+					];
 					renderer.draw({
 						time: reducedMotion ? 0 : now / 1000,
 						scale: portalOpeningScale(now - openedAt, reducedMotion),
 						live: liveRef.current,
 						video: video?.current,
 						pixelRatio: window.devicePixelRatio,
+						shape: shapeRef.current,
 					});
 					lastFrame = now;
 				} catch {
@@ -73,7 +90,10 @@ export default function ScannerPortal({
 					return;
 				}
 			}
-			if (!reducedMotion || liveRef.current) requestFrame();
+			const settling =
+				Math.abs(shapeRef.current[0] - shapeTarget.current[0]) > 0.0005 ||
+				Math.abs(shapeRef.current[1] - shapeTarget.current[1]) > 0.0005;
+			if (!reducedMotion || liveRef.current || settling) requestFrame();
 		};
 		const initialize = () => {
 			stop();
@@ -136,7 +156,7 @@ export default function ScannerPortal({
 
 	useEffect(() => {
 		wake.current?.();
-	}, [live]);
+	}, [live, face]);
 
 	return (
 		<div
