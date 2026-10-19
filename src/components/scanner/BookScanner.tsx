@@ -827,6 +827,35 @@ export default function BookScanner({
 					if (files.length) void importPhotos(files);
 				}}
 			/>
+			<header className="scan-header">
+				<button
+					type="button"
+					className="scan-brand"
+					aria-label="Close scanner and go to the shelf"
+					disabled={busy}
+					onClick={close}
+				>
+					<img
+						src={`${import.meta.env.BASE_URL}icons/wordmark-gradient.svg`}
+						alt="Boooks"
+					/>
+					<small>Scanner</small>
+				</button>
+				<ScannerModelSelect
+					value={model}
+					onChange={changeModel}
+					disabled={busy}
+				/>
+				<button
+					type="button"
+					className="scan-icon scan-close"
+					aria-label="Close scanner and explore shelf"
+					disabled={busy}
+					onClick={close}
+				>
+					<X size={19} />
+				</button>
+			</header>
 			<ScanProgress
 				key={draftId}
 				draft={progressDrafts[0]}
@@ -934,24 +963,6 @@ export default function BookScanner({
 					</output>
 				)}
 			</ScannerBookForm>
-			<header className="scan-header">
-				<ScannerModelSelect
-					value={model}
-					onChange={changeModel}
-					disabled={busy}
-				/>
-				<button
-					type="button"
-					className="scan-icon"
-					style={{ marginLeft: "auto" }}
-					aria-label="Close scanner and explore shelf"
-					disabled={busy}
-					onClick={close}
-				>
-					<X size={19} />
-				</button>
-			</header>
-
 			{(step === "camera" ||
 				step === "requesting" ||
 				step === "unavailable") && (

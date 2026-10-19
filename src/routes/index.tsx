@@ -251,29 +251,31 @@ function Home() {
 					: undefined
 			}
 		>
-			<button
-				type="button"
-				className="menu-logo fixed left-3 top-[calc(0.5rem+env(safe-area-inset-top))] z-[1600]"
-				data-scanning={scanning}
-				onClick={toggleScanner}
-				aria-label={scanning ? "Go to shelf" : "Scan a book"}
-				title={scanning ? "Go to shelf" : "Scan a book"}
-			>
-				<span className="menu-logo-icon">
-					<img
-						src={`${import.meta.env.BASE_URL}icons/logo.svg`}
-						alt=""
-						className="h-6 w-6"
-					/>
-				</span>
-				<span className="menu-logo-wordmark">
-					<img
-						src={`${import.meta.env.BASE_URL}icons/wordmark-gradient.svg`}
-						alt="Boooks"
-						className="h-auto w-[90px]"
-					/>
-				</span>
-			</button>
+			{!scanning && (
+				<button
+					type="button"
+					className="menu-logo fixed left-3 top-[calc(0.5rem+env(safe-area-inset-top))] z-[1600]"
+					data-scanning={scanning}
+					onClick={toggleScanner}
+					aria-label="Scan a book"
+					title="Scan a book"
+				>
+					<span className="menu-logo-icon">
+						<img
+							src={`${import.meta.env.BASE_URL}icons/logo.svg`}
+							alt=""
+							className="h-6 w-6"
+						/>
+					</span>
+					<span className="menu-logo-wordmark">
+						<img
+							src={`${import.meta.env.BASE_URL}icons/wordmark-gradient.svg`}
+							alt="Boooks"
+							className="h-auto w-[90px]"
+						/>
+					</span>
+				</button>
+			)}
 			{SHOW_DEMO_UI &&
 				!scanning &&
 				!showShelfControls &&
@@ -316,7 +318,7 @@ function Home() {
 			{scanning && <BookScanner onClose={closeScanner} onAdd={addBook} />}
 			{showShelfControls && <ShelfControls />}
 			{platesOpen && !scanning && <ShelfPlateEditor />}
-			{reader === "closed" && (
+			{reader === "closed" && !scanning && (
 				<LibraryMenus
 					scanning={scanning}
 					showActions={!scanning && editableStage}

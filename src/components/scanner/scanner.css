@@ -10,9 +10,10 @@
 	color: var(--scan-ink);
 	background: transparent;
 	font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-	overflow: auto;
+	overflow: hidden;
 	overscroll-behavior: contain;
-	padding: env(safe-area-inset-top) 20px max(20px, env(safe-area-inset-bottom));
+	gap: 6px;
+	padding: env(safe-area-inset-top) 14px max(12px, env(safe-area-inset-bottom));
 	-webkit-tap-highlight-color: transparent;
 }
 .book-scanner *,
@@ -51,14 +52,43 @@
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	height: 78px;
+	gap: 10px;
+	height: 56px;
 	flex-shrink: 0;
+}
+.scan-brand {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+	padding: 6px 4px;
+	border: 0;
+	background: none;
+	color: var(--scan-ink);
+}
+.scan-brand img {
+	display: block;
+	width: 84px;
+	height: auto;
+}
+.scan-brand small {
+	padding: 3px 7px;
+	border: 1px solid #ffffff22;
+	border-radius: 999px;
+	color: var(--scan-muted);
+	font-size: 9px;
+	font-weight: 600;
+	letter-spacing: 1.2px;
+	text-transform: uppercase;
+}
+.scan-close {
+	margin-left: auto;
 }
 .scan-model-select {
 	position: relative;
 	z-index: 3;
 	min-width: 0;
-	margin: 0 12px 0 0;
+	margin: 0 0 0 auto;
 	padding: 0;
 	border: 0;
 	text-align: left;
@@ -66,12 +96,12 @@
 .scan-model-trigger {
 	display: flex;
 	align-items: center;
-	gap: 10px;
-	min-height: 52px;
-	padding: 8px 13px 8px 9px;
+	gap: 8px;
+	min-height: 38px;
+	padding: 4px 10px 4px 5px;
 	border: 1px solid #ffffff24;
-	border-radius: 17px;
-	background: #151b2df5;
+	border-radius: 999px;
+	background: #151b2dcc;
 	color: var(--scan-ink);
 	box-shadow: 0 4px 18px #0002;
 	text-align: left;
@@ -84,10 +114,10 @@
 .scan-model-icon {
 	display: grid;
 	place-items: center;
-	width: 34px;
-	height: 34px;
+	width: 28px;
+	height: 28px;
 	flex-shrink: 0;
-	border-radius: 11px;
+	border-radius: 50%;
 	background: #ffffff08;
 	color: #c6cbd7;
 }
@@ -98,9 +128,12 @@
 }
 .scan-model-current {
 	display: grid;
-	gap: 4px;
-	font-size: 12px;
+	gap: 1px;
+	font-size: 11px;
 	font-weight: 550;
+}
+.scan-model-trigger .scan-model-caption {
+	display: none;
 }
 .scan-model-caption,
 .scan-model-menu-title {
@@ -125,7 +158,7 @@
 .scan-model-menu {
 	position: absolute;
 	top: calc(100% + 9px);
-	left: 0;
+	right: 0;
 	width: min(350px, calc(100vw - 40px));
 	padding: 7px;
 	border: 1px solid #ffffff25;
@@ -1031,13 +1064,6 @@
 	}
 }
 
-/* Keep scanner Close below the persistent top-right navigation. */
-.book-scanner .scan-header {
-	height: 112px;
-	align-items: flex-end;
-	padding-bottom: 12px;
-}
-
 .library-scan-button {
 	position: fixed;
 	top: 50%;
@@ -1365,12 +1391,43 @@
 
 .scan-live-book {
 	position: relative;
-	flex-shrink: 0;
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
 	width: min(100%, 660px);
 	margin: 0 auto;
-	padding: 10px 14px 8px;
+	padding: 0 4px;
 	color: #e7edf6;
 	z-index: 6;
+}
+.scan-live-book .scan-size-configurator {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
+}
+.scan-live-book .scan-three-book-sized {
+	flex: 1 1 auto;
+	height: auto;
+	min-height: 150px;
+	max-height: 40vh;
+	margin-bottom: 6px;
+}
+.scan-live-toolbar {
+	flex-shrink: 0;
+}
+.scan-live-book .scan-size-controls,
+.scan-live-book .scan-book-side-picker,
+.scan-live-book .scan-preview-assign,
+.scan-live-book .scan-live-hint {
+	flex-shrink: 0;
+}
+.scan-live-book .scan-preview-assign {
+	margin-top: 4px;
+}
+.scan-live-book .scan-live-hint {
+	margin-top: 3px;
 }
 /* On the camera and crop steps the viewfinder is the hero; collapse the
    live preview to its toolbar so the step never needs to scroll. */
@@ -1386,13 +1443,23 @@
 	flex: 0 0 auto;
 }
 .scan-review-screen .scan-section-title {
-	padding-bottom: 8px;
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	padding: 0;
 }
-.scan-review-screen .scan-section-title h1 {
-	font-size: 20px;
+.scan-review-screen .scan-review-controls {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: center;
+	gap: 6px 14px;
+	padding-top: 4px;
 }
-.scan-review-screen .scan-section-title p {
-	display: none;
+.scan-review-screen .scan-review-controls > .scan-button {
+	flex: 1 1 100%;
 }
 .scan-live-toolbar {
 	display: flex;
