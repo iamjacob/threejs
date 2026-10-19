@@ -26,7 +26,10 @@ import {
 	useShelfArcFraction,
 } from "../shelves/useShelfArc";
 import { pointerTurnSpeed, stepCenterTurn } from "./centerCamera";
-import { getControllerJoystick } from "./controllerJoystick";
+import {
+	getControllerJoystick,
+	getControllerJoystickMode,
+} from "./controllerJoystick";
 import {
 	LIBRARY_ENTRANCE_SECONDS,
 	libraryEntrancePose,
@@ -328,6 +331,7 @@ export default function TourCamera() {
 		if (!drag) dragView.current = null;
 		if (!orbit || !tour.ready || tour.reader === "open") return;
 		const controller = getControllerJoystick();
+		const joystickMode = getControllerJoystickMode();
 		if (
 			!centered &&
 			controller.mag > 0 &&
@@ -339,18 +343,43 @@ export default function TourCamera() {
 			useTourStore.setState({ paused: true });
 			const offset = camera.position.sub(orbit.target);
 			offset.applyAxisAngle(new Vector3(0, 1, 0), -controller.x * delta * 1.8);
-			const right = new Vector3().crossVectors(offset, camera.up).normalize();
-			offset.applyAxisAngle(right, controller.y * delta * 1.2);
+			if (joystickMode === "zoom") {
+				// Push forward to move in, pull back to move out.
+				const length = MathUtils.clamp(
+					offset.length() * (1 - controller.y * delta * 1.4),
+					orbit.minDistance,
+					orbit.maxDistance,
+				);
+				offset.setLength(length);
+			} else {
+				const right = new Vector3().crossVectors(offset, camera.up).normalize();
+				offset.applyAxisAngle(right, controller.y * delta * 1.2);
+			}
 			camera.position.copy(orbit.target).add(offset);
 			orbit.update();
 			return;
 		}
 		if (centered) {
 			const state = centerTurn.current;
-			if (controller.mag > 0) state.wanted = controller.x * 0.65;
-			else if (!state.dragging) state.wanted = 0;
-			const pitchTarget = controller.mag > 0 ? controller.y * 0.35 : 0;
-			state.pitch = MathUtils.damp(state.pitch, pitchTarget, 5, delta);
+			if (controller.mag > 0) {
+				useTourStore.setState({ paused: true });
+				// Point the camera: x spins the room, y tilts it (look) or
+				// zooms the lens (zoom) — both accumulate so the view stays put.
+				state.wanted = controller.x * 0.65;
+				if (joystickMode === "zoom") {
+					state.fov = MathUtils.clamp(
+						state.fov - controller.y * delta * 38,
+						24,
+						70,
+					);
+				} else {
+					state.pitch = MathUtils.clamp(
+						state.pitch + controller.y * delta * 0.9,
+						-0.4,
+						0.4,
+					);
+				}
+			} else if (!state.dragging) state.wanted = 0;
 			const frozen =
 				Boolean(drag) ||
 				state.dragging ||

@@ -29,10 +29,12 @@ import { createCameraTorch } from "./cameraTorch";
 import { cropPerspective, imageCanvas, rotatePhoto } from "./cropImage";
 import { detectPhotoCorners } from "./detectPhotoCorners";
 import type { Point } from "./perspective";
+import ScanDetailsSheet from "./ScanDetailsSheet";
 import ScannerBookForm from "./ScannerBookForm";
 import ScannerModelSelect from "./ScannerModelSelect";
 import ScannerPortal from "./ScannerPortal";
 import ScanProgress from "./ScanProgress";
+import ScanReveal from "./ScanReveal";
 import {
 	loadDrafts,
 	newScanDraft,
@@ -68,6 +70,7 @@ export default function BookScanner({
 	const [activePhoto, setActivePhoto] = useState<string | null>(null);
 	const [history, setHistory] = useState<ScanDraft[]>([]);
 	const [enrichment, setEnrichment] = useState<EnrichmentValues>({});
+	const [detailsOpen, setDetailsOpen] = useState(false);
 	const unit = useBookSizeStore((state) => state.unit);
 	const sizeEntry = useBookSizeStore((state) => state.entries[draftId]);
 	const applyEnrichmentSize = useBookSizeStore(
@@ -781,6 +784,18 @@ export default function BookScanner({
 		if (tag === "front" || tag === "spine" || tag === "back") setFace(tag);
 		fileInput.current?.click();
 	};
+	const editField = (key: keyof EnrichmentValues, value: string) => {
+		if (key === "title") setTitle(value);
+		else if (key === "subtitle") setSubtitle(value);
+		else if (key === "author") setAuthor(value);
+		setEnrichment((current) => ({ ...current, [key]: value }));
+	};
+	const revealEnrichment: EnrichmentValues = {
+		...enrichment,
+		title: title.trim() || enrichment.title,
+		subtitle: subtitle.trim() || enrichment.subtitle,
+		author: author.trim() || enrichment.author,
+	};
 
 	return (
 		<section
@@ -826,7 +841,23 @@ export default function BookScanner({
 				onSelectDraft={switchDraft}
 				onNewDraft={() => switchDraft(newScanDraft())}
 				onPart={handlePart}
+				onOpenAll={() => setDetailsOpen(true)}
 			/>
+			{!detailsOpen && (
+				<ScanReveal
+					draftId={draftId}
+					enrichment={revealEnrichment}
+					onEdit={editField}
+					onOpenAll={() => setDetailsOpen(true)}
+				/>
+			)}
+			{detailsOpen && (
+				<ScanDetailsSheet
+					enrichment={revealEnrichment}
+					onEdit={editField}
+					onClose={() => setDetailsOpen(false)}
+				/>
+			)}
 			<ScannerBookForm
 				preview={liveCrop}
 				title={title}
@@ -862,30 +893,39 @@ export default function BookScanner({
 						onChange={(event) => setAuthor(event.target.value)}
 					/>
 				</label>
-				<section className="scan-camera-roll" aria-label="Camera roll">
-					<button
-						type="button"
-						disabled={busy}
-						onClick={() => fileInput.current?.click()}
-					>
-						<ImagePlus size={20} /> Add photos
-					</button>
-					{photos.map((photo, i) => (
+				<details className="scan-roll-details" open={photos.length <= 3}>
+					<summary>
+						<ImagePlus size={15} aria-hidden="true" />
+						Camera roll
+						<small>
+							{photos.length} photo{photos.length === 1 ? "" : "s"}
+						</small>
+					</summary>
+					<section className="scan-camera-roll" aria-label="Camera roll">
 						<button
 							type="button"
-							key={photo.id}
 							disabled={busy}
-							aria-pressed={activePhoto === photo.id}
-							onClick={() => void selectPhoto(photo)}
+							onClick={() => fileInput.current?.click()}
 						>
-							<img src={photo.crop?.image ?? photo.image} alt={photo.name} />
-							<span>
-								{i + 1} · {photoTags[photo.tag]}
-							</span>
-							{photo.crop && <Check size={12} />}
+							<ImagePlus size={20} /> Add photos
 						</button>
-					))}
-				</section>
+						{photos.map((photo, i) => (
+							<button
+								type="button"
+								key={photo.id}
+								disabled={busy}
+								aria-pressed={activePhoto === photo.id}
+								onClick={() => void selectPhoto(photo)}
+							>
+								<img src={photo.crop?.image ?? photo.image} alt={photo.name} />
+								<span>
+									{i + 1} · {photoTags[photo.tag]}
+								</span>
+								{photo.crop && <Check size={12} />}
+							</button>
+						))}
+					</section>
+				</details>
 
 				{storageError && (
 					<output>

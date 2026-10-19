@@ -1,4 +1,4 @@
-import { Camera, Check, Plus } from "lucide-react";
+import { Camera, Check, ListTree, Plus } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { EnrichmentValues } from "./bookEnrichment";
 import type { PhotoTag, ScanDraft } from "./scanDrafts";
@@ -287,6 +287,7 @@ export default function ScanProgress({
 	onSelectDraft,
 	onNewDraft,
 	onPart,
+	onOpenAll,
 }: {
 	draft: ScanDraft;
 	enrichment?: EnrichmentValues;
@@ -297,6 +298,7 @@ export default function ScanProgress({
 	onSelectDraft: (draft: ScanDraft) => void;
 	onNewDraft: () => void;
 	onPart: (tag: PhotoTag) => void;
+	onOpenAll?: () => void;
 }) {
 	const values = stepValues(draft, enrichment, dimensions);
 	const doneCount = values.flat().filter(Boolean).length;
@@ -420,6 +422,17 @@ export default function ScanProgress({
 					{doneCount}
 					<span>/{TOTAL}</span>
 				</div>
+				{onOpenAll && (
+					<button
+						type="button"
+						className="spx-all"
+						aria-label="Show everything found about this book"
+						title="All details"
+						onClick={onOpenAll}
+					>
+						<ListTree size={15} aria-hidden="true" />
+					</button>
+				)}
 			</div>
 
 			<div className="spx-bar">

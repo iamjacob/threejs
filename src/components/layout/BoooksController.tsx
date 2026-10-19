@@ -27,6 +27,7 @@ const LOGO_D =
 
 export const DEFAULT_ACTIONS = [
   { id: "jump", label: "Jump", icon: <path d="M12 19V7M7 11l5-5 5 5M6 21h12" /> },
+  { id: "zoom", label: "Zoom stick", toggle: true, icon: <><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3M11 8v6M8 11h6" /></> },
   { id: "cam", label: "Overview", toggle: true, icon: <><path d="M3 8h3l2-3h8l2 3h3v11H3z" /><circle cx="12" cy="13" r="3.5" /></> },
   { id: "lamp", label: "Lamplight", toggle: true, icon: <path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z" /> },
   { id: "home", label: "Re-dock", icon: <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="2.5" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></> },

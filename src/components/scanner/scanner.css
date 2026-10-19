@@ -1372,6 +1372,28 @@
 	color: #e7edf6;
 	z-index: 6;
 }
+/* On the camera and crop steps the viewfinder is the hero; collapse the
+   live preview to its toolbar so the step never needs to scroll. */
+.book-scanner:is(
+		[data-step="camera"],
+		[data-step="requesting"],
+		[data-step="crop"]
+	) .scan-live-book
+	> :not(.scan-live-toolbar, .scan-book-drawer) {
+	display: none;
+}
+.scan-review-screen {
+	flex: 0 0 auto;
+}
+.scan-review-screen .scan-section-title {
+	padding-bottom: 8px;
+}
+.scan-review-screen .scan-section-title h1 {
+	font-size: 20px;
+}
+.scan-review-screen .scan-section-title p {
+	display: none;
+}
 .scan-live-toolbar {
 	display: flex;
 	align-items: center;
@@ -1554,9 +1576,9 @@
 	border-radius: 20px;
 }
 .scan-three-book-sized {
-	height: 300px;
+	height: clamp(170px, 34vh, 300px);
 	max-width: 560px;
-	margin: 0 auto 14px;
+	margin: 0 auto 8px;
 	background: radial-gradient(ellipse at center, #d9c89d15, transparent 69%);
 	overflow: visible;
 }
@@ -1615,12 +1637,74 @@
 }
 .scan-size-controls {
 	display: grid;
-	gap: 13px;
-	padding: 14px;
+	gap: 11px;
+	padding: 0 14px;
 	border: 1px solid #ffffff20;
 	border-radius: 16px;
 	background: #121a28e8;
 	color: #e8e1d1;
+}
+.scan-size-controls > summary {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin: 0 -14px;
+	padding: 11px 14px;
+	list-style: none;
+	cursor: pointer;
+	border-radius: 16px;
+}
+.scan-size-controls > summary::-webkit-details-marker {
+	display: none;
+}
+.scan-size-controls > summary > span {
+	display: grid;
+	min-width: 0;
+	gap: 2px;
+}
+.scan-size-controls > summary strong {
+	font:
+		600 14px / 1.2 system-ui,
+		sans-serif;
+}
+.scan-size-controls > summary small {
+	overflow: hidden;
+	color: #a9a18e;
+	font-size: 10.5px;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+}
+.scan-size-controls > summary svg {
+	transition: transform 0.25s ease;
+}
+.scan-size-controls[open] > summary svg {
+	transform: rotate(180deg);
+}
+.scan-size-controls[open] {
+	padding-bottom: 14px;
+}
+.scan-roll-details {
+	border-top: 1px solid #ffffff14;
+}
+.scan-roll-details > summary {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 10px 2px;
+	list-style: none;
+	cursor: pointer;
+	color: #dfe6f1;
+	font-size: 12px;
+	font-weight: 600;
+}
+.scan-roll-details > summary::-webkit-details-marker {
+	display: none;
+}
+.scan-roll-details > summary small {
+	margin-left: auto;
+	color: #8f9eb4;
+	font-weight: 400;
 }
 .scan-size-controls header {
 	display: flex;

@@ -30,6 +30,7 @@ import {
 	scannedBook,
 } from "../components/scanner/scannedBook";
 import { BOOKS_SHELF_LEVEL } from "../components/shelves/shelfBooks";
+import { setControllerJoystickMode } from "../components/tour/controllerJoystick";
 import TourCamera from "../components/tour/TourCamera";
 import TourDirector from "../components/tour/TourDirector";
 import TourOverlay from "../components/tour/TourOverlay";
@@ -185,6 +186,9 @@ function Home() {
 		switch (id) {
 			case "scan":
 				openScanner();
+				break;
+			case "zoom":
+				setControllerJoystickMode(on ? "zoom" : "look");
 				break;
 			case "jump": {
 				const books = useBookStore.getState().books;

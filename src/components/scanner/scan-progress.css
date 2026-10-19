@@ -128,6 +128,25 @@
 	font-size: 13px;
 	color: var(--spx-muted);
 }
+.spx-all {
+	display: grid;
+	flex-shrink: 0;
+	place-items: center;
+	width: 30px;
+	height: 30px;
+	padding: 0;
+	border: 1px solid var(--spx-line);
+	border-radius: 50%;
+	background: rgb(255 255 255 / 4%);
+	color: var(--spx-muted);
+	transition:
+		color 0.2s,
+		background 0.2s;
+}
+.spx-all:hover {
+	color: var(--spx-ink);
+	background: rgb(255 255 255 / 10%);
+}
 
 /* segmented bar */
 .spx-bar {

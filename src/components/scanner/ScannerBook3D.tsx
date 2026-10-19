@@ -1,5 +1,6 @@
 import { Edges, Html, OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
+import { ChevronDown } from "lucide-react";
 import {
 	type PointerEvent as ReactPointerEvent,
 	useEffect,
@@ -515,12 +516,20 @@ function Controls({
 	const toDisplay = (cm: number) => (unit === "cm" ? cm : cm / 2.54);
 	const fromDisplay = (value: number) => (unit === "cm" ? value : value * 2.54);
 	return (
-		<section className="scan-size-controls" aria-label="Book size adjuster">
+		<details className="scan-size-controls">
+			<summary>
+				<span>
+					<strong>Book size</strong>
+					<small>
+						{formatMeasurement(size.height, unit)} ×{" "}
+						{formatMeasurement(size.width, unit)} ×{" "}
+						{formatMeasurement(size.thickness, unit)} ·{" "}
+						{overridden ? "adjusted" : source}
+					</small>
+				</span>
+				<ChevronDown size={16} aria-hidden="true" />
+			</summary>
 			<header>
-				<div>
-					<h3>Book size</h3>
-					<small>{overridden ? "Manually adjusted" : source}</small>
-				</div>
 				<fieldset className="scan-size-unit">
 					<legend className="sr-only">Units</legend>
 					{(["cm", "in"] as const).map((choice) => (
@@ -534,6 +543,11 @@ function Controls({
 						</button>
 					))}
 				</fieldset>
+				{overridden && (
+					<button type="button" className="scan-size-reset" onClick={reset}>
+						Reset to enriched size
+					</button>
+				)}
 			</header>
 			<div className="scan-size-presets">
 				{presets.map((preset) => (
@@ -571,12 +585,7 @@ function Controls({
 					/>
 				</label>
 			))}
-			{overridden && (
-				<button type="button" className="scan-size-reset" onClick={reset}>
-					Reset to enriched size
-				</button>
-			)}
-		</section>
+		</details>
 	);
 }
 
