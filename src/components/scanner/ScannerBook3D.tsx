@@ -1,6 +1,6 @@
 import { Edges, Html, OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Ruler } from "lucide-react";
 import {
 	type PointerEvent as ReactPointerEvent,
 	useEffect,
@@ -25,6 +25,7 @@ import {
 	CM_PER_WORLD_UNIT,
 	formatMeasurement,
 } from "../../stores/useBookSizeStore";
+import { getControllerJoystick } from "../tour/controllerJoystick";
 import type { PhotoTag } from "./scanDrafts";
 import type { CroppedFace } from "./scannedBook";
 
@@ -237,6 +238,7 @@ function BookModel({
 	side,
 	size,
 	unit,
+	editable,
 	onPart,
 	onSize,
 }: {
@@ -244,6 +246,7 @@ function BookModel({
 	side: PreviewSide;
 	size: BookSizeCm;
 	unit: Unit;
+	editable: boolean;
 	onPart: (tag: PhotoTag) => void;
 	onSize: (axis: Axis, value: number) => void;
 }) {
@@ -360,17 +363,25 @@ function BookModel({
 		};
 	});
 
+	const spin = useRef(0);
 	useFrame((_, delta) => {
 		if (!group.current) return;
 		const ease = 1 - Math.exp(-Math.min(delta, 0.06) * 8);
+		// Scanner joystick: x spins the book, y tilts it a little.
+		const stick = getControllerJoystick();
+		if (stick.mag > 0.05) spin.current += stick.x * delta * 2.4;
+		else spin.current *= 1 - Math.min(1, delta * 1.5);
+		const tiltTarget = stick.mag > 0.05 ? -stick.y * 0.35 : 0;
+		group.current.rotation.x += (tiltTarget - group.current.rotation.x) * ease;
 		const targetY =
-			side === "back"
+			spin.current +
+			(side === "back"
 				? Math.PI
 				: side === "spine"
 					? Math.PI / 2
 					: side === "page"
 						? 0.15
-						: -0.38;
+						: -0.38);
 		group.current.rotation.y += (targetY - group.current.rotation.y) * ease;
 	});
 
@@ -440,49 +451,63 @@ function BookModel({
 						/>
 					</group>
 				)}
-				<Rulers
-					width={width}
-					height={height}
-					depth={depth}
-					unit={unit}
-					day={day}
-				/>
-				<SizeHandle
-					axis="height"
-					position={[coverCenter, height + 0.09, depth / 2 + 0.07]}
-					active={hovered === "height" || drag.current?.axis === "height"}
-					onHover={setHovered}
-					onDown={handleDown}
-				/>
-				<SizeHandle
-					axis="width"
-					position={[width / 2 + 0.1, height * 0.47, depth / 2 + 0.07]}
-					active={hovered === "width" || drag.current?.axis === "width"}
-					onHover={setHovered}
-					onDown={handleDown}
-				/>
-				<SizeHandle
-					axis="thickness"
-					position={[coverCenter, height * 0.43, depth / 2 + 0.09]}
-					active={hovered === "thickness" || drag.current?.axis === "thickness"}
-					onHover={setHovered}
-					onDown={handleDown}
-				/>
+				{editable && (
+					<>
+						<Rulers
+							width={width}
+							height={height}
+							depth={depth}
+							unit={unit}
+							day={day}
+						/>
+						<SizeHandle
+							axis="height"
+							position={[coverCenter, height + 0.09, depth / 2 + 0.07]}
+							active={hovered === "height" || drag.current?.axis === "height"}
+							onHover={setHovered}
+							onDown={handleDown}
+						/>
+						<SizeHandle
+							axis="width"
+							position={[width / 2 + 0.1, height * 0.47, depth / 2 + 0.07]}
+							active={hovered === "width" || drag.current?.axis === "width"}
+							onHover={setHovered}
+							onDown={handleDown}
+						/>
+						<SizeHandle
+							axis="thickness"
+							position={[coverCenter, height * 0.43, depth / 2 + 0.09]}
+							active={
+								hovered === "thickness" || drag.current?.axis === "thickness"
+							}
+							onHover={setHovered}
+							onDown={handleDown}
+						/>
+					</>
+				)}
 			</group>
+			{/* Rotate only. No zoom: the camera distance is fixed so every book
+			    renders at the same scale (a 30 cm book is 1.5× a 20 cm one). */}
 			<OrbitControls
 				enabled={!dragging}
 				enablePan={false}
+				enableZoom={false}
 				enableDamping
 				dampingFactor={0.08}
-				minDistance={0.75}
-				maxDistance={4.8}
 				minPolarAngle={0.6}
 				maxPolarAngle={2.3}
-				target={[0, height / 2, 0]}
+				target={[0, SCENE_TARGET_Y, 0]}
 			/>
 		</>
 	);
 }
+
+/**
+ * The camera frames the largest allowed book (40 cm tall); smaller books
+ * simply appear smaller, so sizes are comparable 1:1 across books.
+ */
+const SCENE_TARGET_Y = (BOOK_SIZE_LIMITS_CM.height[1] * CM) / 2;
+const SCENE_DISTANCE = BOOK_SIZE_LIMITS_CM.height[1] * CM * 1.55;
 
 function Controls({
 	size,
@@ -516,7 +541,7 @@ function Controls({
 	const toDisplay = (cm: number) => (unit === "cm" ? cm : cm / 2.54);
 	const fromDisplay = (value: number) => (unit === "cm" ? value : value * 2.54);
 	return (
-		<details className="scan-size-controls">
+		<details className="scan-size-controls" open>
 			<summary>
 				<span>
 					<strong>Book size</strong>
@@ -599,6 +624,9 @@ export default function ScannerBook3D({
 	onSize,
 	source,
 	overridden,
+	confident,
+	onConfirm,
+	toolsRequest,
 	reset,
 }: {
 	faces: Partial<Record<"front" | "spine" | "back", CroppedFace>>;
@@ -610,13 +638,30 @@ export default function ScannerBook3D({
 	onSize: (axis: Axis, value: number) => void;
 	source: string;
 	overridden: boolean;
+	/** False when the size is a guess; we then ask the user to check it. */
+	confident: boolean;
+	onConfirm: () => void;
+	toolsRequest?: number;
 	reset: () => void;
 }) {
+	const [editing, setEditing] = useState(false);
+	// biome-ignore lint/correctness/useExhaustiveDependencies: each bump toggles the tools once.
+	useEffect(() => {
+		if (toolsRequest) setEditing((value) => !value);
+	}, [toolsRequest]);
+	const editable = editing || !confident;
 	return (
 		<div className="scan-size-configurator">
 			<div className="scan-three-book scan-three-book-sized">
 				<Canvas
-					camera={{ position: [0.3, 0.55, 2.4], fov: 38 }}
+					camera={{
+						position: [
+							SCENE_DISTANCE * 0.18,
+							SCENE_TARGET_Y + 0.35,
+							SCENE_DISTANCE,
+						],
+						fov: 34,
+					}}
 					dpr={[1, 1.5]}
 					fallback={<span>3D preview unavailable. Use the sliders below.</span>}
 				>
@@ -625,20 +670,54 @@ export default function ScannerBook3D({
 						side={side}
 						size={size}
 						unit={unit}
+						editable={editable}
 						onPart={onPart}
 						onSize={onSize}
 					/>
 				</Canvas>
+				<button
+					type="button"
+					className={`scan-size-toggle${editable ? " is-on" : ""}`}
+					aria-pressed={editable}
+					title={editable ? "Hide size tools" : "Adjust size"}
+					onClick={() => {
+						if (editable && !confident) onConfirm();
+						setEditing((value) => !value);
+					}}
+				>
+					<Ruler size={14} aria-hidden="true" />
+					<span>
+						{formatMeasurement(size.height, unit)} ×{" "}
+						{formatMeasurement(size.width, unit)} ×{" "}
+						{formatMeasurement(size.thickness, unit)}
+					</span>
+				</button>
 			</div>
-			<Controls
-				size={size}
-				unit={unit}
-				setUnit={setUnit}
-				onSize={onSize}
-				source={source}
-				overridden={overridden}
-				reset={reset}
-			/>
+			{!confident && (
+				<output className="scan-size-prompt">
+					<strong>Is this the right size?</strong>
+					<span>
+						{source === "Default estimate"
+							? "We couldn’t find the size for this edition."
+							: `Thickness wasn’t listed (${source}).`}{" "}
+						Drag the handles or use the sliders, then confirm.
+					</span>
+					<button type="button" onClick={onConfirm}>
+						Looks right
+					</button>
+				</output>
+			)}
+			{editable && (
+				<Controls
+					size={size}
+					unit={unit}
+					setUnit={setUnit}
+					onSize={onSize}
+					source={source}
+					overridden={overridden}
+					reset={reset}
+				/>
+			)}
 		</div>
 	);
 }

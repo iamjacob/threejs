@@ -31,6 +31,9 @@ import { detectPhotoCorners } from "./detectPhotoCorners";
 import type { Point } from "./perspective";
 import ScanDetailsSheet from "./ScanDetailsSheet";
 import ScannerBookForm from "./ScannerBookForm";
+import ScannerController, {
+	type ScannerControllerAction,
+} from "./ScannerController";
 import ScannerModelSelect from "./ScannerModelSelect";
 import ScannerOpenBook from "./ScannerOpenBook";
 import ScannerPortal from "./ScannerPortal";
@@ -89,6 +92,7 @@ export default function BookScanner({
 	);
 	const editSize = useBookSizeStore((state) => state.setSize);
 	const resetSize = useBookSizeStore((state) => state.reset);
+	const confirmSize = useBookSizeStore((state) => state.confirm);
 	const setUnit = useBookSizeStore((state) => state.setUnit);
 	const size = sizeEntry?.size ?? DEFAULT_BOOK_SIZE_CM;
 	const [draftsReady, setDraftsReady] = useState(false);
@@ -167,6 +171,7 @@ export default function BookScanner({
 								thickness: update.physicalSize.thicknessCm ?? 2.4,
 							},
 							update.physicalSize.source,
+							update.physicalSize.thicknessCm !== undefined,
 						);
 					} else if (update.physicalSize?.estimated) {
 						applyEnrichmentSize(
@@ -177,6 +182,7 @@ export default function BookScanner({
 								thickness: 2.4,
 							},
 							update.physicalSize.source,
+							false,
 						);
 					}
 				},
@@ -831,6 +837,50 @@ export default function BookScanner({
 	const pagePhotoCount = photos.filter(
 		(photo) => !["front", "spine", "back", "dustjacket"].includes(photo.tag),
 	).length;
+	const [sizeToolsRequest, setSizeToolsRequest] = useState(0);
+	const controllerAction = (id: ScannerControllerAction) => {
+		switch (id) {
+			case "capture":
+				if (step === "camera" && cameraReady) capture();
+				else if (step === "unavailable") fileInput.current?.click();
+				else void startCamera();
+				break;
+			case "roll":
+				fileInput.current?.click();
+				break;
+			case "cover":
+				setView("cover");
+				if (step !== "review" && faces.front) {
+					stopCamera();
+					setStep("review");
+				}
+				break;
+			case "pages":
+				setView("pages");
+				if (step !== "review" && faces.front) {
+					stopCamera();
+					setStep("review");
+				}
+				break;
+			case "details":
+				setDetailsOpen((value) => !value);
+				break;
+			case "size":
+				setView("cover");
+				if (step !== "review" && faces.front) {
+					stopCamera();
+					setStep("review");
+				}
+				setSizeToolsRequest((value) => value + 1);
+				break;
+			case "new":
+				switchDraft(newScanDraft());
+				break;
+			case "shelf":
+				close();
+				break;
+		}
+	};
 	/** Scan one inside page: camera when possible, otherwise the photo picker. */
 	const scanPage = (index: number) => {
 		uploadPart.current = "page";
@@ -894,13 +944,6 @@ export default function BookScanner({
 					/>
 					<small>Scanner</small>
 				</button>
-				<ScannerModelSelect
-					value={model}
-					onChange={changeModel}
-					mode={dataMode}
-					onModeChange={changeDataMode}
-					disabled={busy}
-				/>
 				<button
 					type="button"
 					className="scan-icon scan-close"
@@ -911,443 +954,6 @@ export default function BookScanner({
 					<X size={19} />
 				</button>
 			</header>
-			<ScanProgress
-				key={draftId}
-				draft={progressDrafts[0]}
-				enrichment={enrichment}
-				dimensions={
-					sizeEntry
-						? `${formatMeasurement(size.height, unit)} × ${formatMeasurement(size.width, unit)} × ${formatMeasurement(size.thickness, unit)}`
-						: undefined
-				}
-				busy={busy || !draftsReady}
-				onPart={handlePart}
-				onOpenAll={() => setDetailsOpen(true)}
-			/>
-			{!detailsOpen && (
-				<ScanReveal
-					draftId={draftId}
-					enrichment={revealEnrichment}
-					onEdit={editField}
-					onOpenAll={() => setDetailsOpen(true)}
-				/>
-			)}
-			{detailsOpen && (
-				<ScanDetailsSheet
-					enrichment={revealEnrichment}
-					onEdit={editField}
-					onClose={() => setDetailsOpen(false)}
-				/>
-			)}
-			{step === "review" && faces.front && (
-				<div className="scan-view-switch" role="tablist" aria-label="Book view">
-					<button
-						type="button"
-						role="tab"
-						aria-selected={view === "cover"}
-						onClick={() => setView("cover")}
-					>
-						Cover &amp; size
-					</button>
-					<button
-						type="button"
-						role="tab"
-						aria-selected={view === "pages"}
-						onClick={() => setView("pages")}
-					>
-						Pages
-						<small>
-							{pagePhotoCount}/{pageCount || "?"}
-						</small>
-					</button>
-				</div>
-			)}
-			{step === "review" && faces.front && view === "pages" ? (
-				<ScannerOpenBook
-					key={draftId}
-					size={size}
-					pages={pageCount || 180}
-					photos={photos}
-					faces={{
-						front: faces.front?.image,
-						back: faces.back?.image,
-						spine: faces.spine?.image,
-					}}
-					busy={busy}
-					onScanPage={scanPage}
-					onSelectPhoto={(photo) => void selectPhoto(photo)}
-				/>
-			) : (
-				<ScannerBookForm
-					preview={liveCrop}
-					title={title}
-					onTitle={setTitle}
-					photos={photos}
-					faces={faces}
-					activePhoto={activePhoto}
-					busy={busy}
-					size={size}
-					unit={unit}
-					onSize={writeSize}
-					setUnit={setUnit}
-					sizeSource={sizeEntry?.source ?? "Default estimate"}
-					sizeOverridden={sizeEntry?.overridden ?? false}
-					onResetSize={() => resetSize(draftId)}
-					onPart={handlePart}
-				>
-					<label className="scan-book-name">
-						Subtitle
-						<input
-							value={subtitle}
-							maxLength={300}
-							disabled={busy}
-							onChange={(event) => setSubtitle(event.target.value)}
-						/>
-					</label>
-					<label className="scan-book-name">
-						Author
-						<input
-							value={author}
-							maxLength={300}
-							disabled={busy}
-							onChange={(event) => setAuthor(event.target.value)}
-						/>
-					</label>
-					<details className="scan-roll-details" open={photos.length <= 3}>
-						<summary>
-							<ImagePlus size={15} aria-hidden="true" />
-							Camera roll
-							<small>
-								{photos.length} photo{photos.length === 1 ? "" : "s"}
-							</small>
-						</summary>
-						<section className="scan-camera-roll" aria-label="Camera roll">
-							<button
-								type="button"
-								disabled={busy}
-								onClick={() => fileInput.current?.click()}
-							>
-								<ImagePlus size={20} /> Add photos
-							</button>
-							{photos.map((photo, i) => (
-								<button
-									type="button"
-									key={photo.id}
-									disabled={busy}
-									aria-pressed={activePhoto === photo.id}
-									onClick={() => void selectPhoto(photo)}
-								>
-									<img
-										src={photo.crop?.image ?? photo.image}
-										alt={photo.name}
-									/>
-									<span>
-										{i + 1} · {photoTags[photo.tag]}
-									</span>
-									{photo.crop && <Check size={12} />}
-								</button>
-							))}
-						</section>
-					</details>
-
-					{storageError && (
-						<output>
-							Device storage unavailable. Keep this scanner open to retain your
-							drafts.
-						</output>
-					)}
-				</ScannerBookForm>
-			)}
-			{(step === "camera" ||
-				step === "requesting" ||
-				step === "unavailable") && (
-				<div className="scan-camera-screen">
-					<div className="scan-section-title">
-						<h1 ref={heading} tabIndex={-1}>
-							{step === "requesting"
-								? "Opening camera…"
-								: step === "unavailable"
-									? "Let’s get your camera ready."
-									: "Place your cover inside the portal."}
-						</h1>
-						<p>
-							{step === "requesting"
-								? "Allow camera access in your browser if asked."
-								: step === "unavailable"
-									? "Try the camera again or choose a photo below."
-									: detectsCorners(model)
-										? "Keep all four corners visible. We’ll find them after capture."
-										: "Keep all four corners inside the light. Hold steady and capture."}
-						</p>
-					</div>
-					<div
-						className="scan-viewfinder scan-portal-viewfinder"
-						data-fallback={portalFallback}
-					>
-						<video
-							ref={video}
-							autoPlay
-							muted
-							playsInline
-							onLoadedData={() => setCameraReady(true)}
-						/>
-						<ScannerPortal
-							video={video}
-							live={cameraReady}
-							onFallbackChange={setPortalFallback}
-						/>
-						<span className="scan-live">
-							<i />{" "}
-							{step === "camera"
-								? "Camera on"
-								: step === "requesting"
-									? "Waiting for camera"
-									: "Camera off"}
-						</span>
-						{step !== "unavailable" && !cameraReady && (
-							<LoaderCircle className="scan-camera-loading scan-spin" />
-						)}
-					</div>
-					<div className="scan-camera-actions">
-						{upload}
-						{step === "unavailable" ? (
-							<button
-								type="button"
-								className="scan-button scan-primary"
-								onClick={() => void startCamera()}
-							>
-								<Camera size={18} /> Try camera again
-							</button>
-						) : (
-							<button
-								className="scan-shutter"
-								type="button"
-								aria-label="Capture book cover"
-								disabled={!cameraReady}
-								onClick={capture}
-							>
-								<span />
-							</button>
-						)}
-						<div className="scan-torch">
-							<button
-								type="button"
-								className="scan-icon"
-								aria-label={
-									torchSupported
-										? torchEnabled
-											? "Turn flashlight off"
-											: "Turn flashlight on"
-										: "Flashlight unavailable for this camera"
-								}
-								title={
-									torchSupported
-										? torchEnabled
-											? "Turn flashlight off"
-											: "Turn flashlight on"
-										: "Flashlight unavailable for this camera"
-								}
-								aria-pressed={torchEnabled}
-								disabled={
-									!cameraReady || !torchSupported || torchPending || busy
-								}
-								onClick={() => void toggleTorch()}
-							>
-								{torchPending ? (
-									<LoaderCircle size={20} className="scan-spin" />
-								) : torchEnabled ? (
-									<Flashlight size={20} />
-								) : (
-									<FlashlightOff size={20} />
-								)}
-							</button>
-							<span>{torchSupported ? "Flashlight" : "No flashlight"}</span>
-						</div>
-					</div>
-				</div>
-			)}
-			{step === "crop" && source && (
-				<div className="scan-crop-screen">
-					<div className="scan-section-title">
-						<h1 ref={heading} tabIndex={-1}>
-							Just the {face === "front" ? "cover" : face}.
-						</h1>
-						<p aria-live="polite">
-							{detection === "detecting"
-								? "Finding the four corners of your book…"
-								: detection === "found"
-									? "Corners detected. Drag the dots to fine-tune your crop."
-									: detection === "missed"
-										? points.length === 4
-											? "No clear outline found. Your crop is kept — adjust the dots as needed."
-											: "No clear outline found. Tap the corners clockwise from the top left."
-										: points.length === 4
-											? "Drag the corners to fine-tune your crop."
-											: `Tap corner ${points.length + 1}: ${cornerNames[points.length].toLowerCase()}. Continue clockwise.`}
-						</p>
-						{detectsCorners(model) && (
-							<button
-								type="button"
-								className="scan-detect-button"
-								disabled={busy || detection === "detecting"}
-								onClick={() => void findCorners(source)}
-							>
-								{detection === "detecting" ? (
-									<LoaderCircle size={13} className="scan-spin" />
-								) : (
-									<ScanLine size={13} />
-								)}
-								{detection === "detecting"
-									? "Finding corners…"
-									: "Detect corners again"}
-							</button>
-						)}
-					</div>
-					<div className="scan-crop-workspace">
-						<CropCanvas
-							source={source}
-							points={points}
-							onChange={changePoints}
-							onInteractionChange={setCropDragging}
-							disabled={busy}
-						/>
-						<span className="scan-crop-count">{points.length} / 4 corners</span>
-					</div>
-					<div className="scan-crop-tools">
-						<button
-							type="button"
-							className="scan-icon"
-							aria-label="Rotate photo left"
-							disabled={busy}
-							onClick={() => {
-								prepareCrop(rotatePhoto(source, false));
-							}}
-						>
-							<RotateCcw size={18} />
-						</button>
-						<button
-							type="button"
-							className="scan-text-button"
-							disabled={busy}
-							onClick={() => changePoints([])}
-						>
-							Reset
-						</button>
-						<button
-							type="button"
-							className="scan-text-button"
-							disabled={busy}
-							onClick={() =>
-								changePoints([
-									{ x: 0, y: 0 },
-									{ x: source.width, y: 0 },
-									{ x: source.width, y: source.height },
-									{ x: 0, y: source.height },
-								])
-							}
-						>
-							Full image
-						</button>
-						<button
-							type="button"
-							className="scan-icon"
-							aria-label="Rotate photo right"
-							disabled={busy}
-							onClick={() => {
-								prepareCrop(rotatePhoto(source, true));
-							}}
-						>
-							<RotateCw size={18} />
-						</button>
-					</div>
-					<div className="scan-crop-actions">
-						<button
-							type="button"
-							className="scan-button scan-secondary"
-							disabled={busy}
-							onClick={() => {
-								void startCamera();
-							}}
-						>
-							Retake
-						</button>
-						<button
-							type="button"
-							className="scan-button scan-primary"
-							disabled={
-								busy || detection === "detecting" || points.length !== 4
-							}
-							onClick={crop}
-						>
-							{busy ? (
-								<LoaderCircle className="scan-spin" size={17} />
-							) : (
-								<Crop size={17} />
-							)}{" "}
-							{busy ? "Cropping…" : "Crop & preview"}
-						</button>
-					</div>
-				</div>
-			)}
-			{step === "review" && faces.front && (
-				<div className="scan-review-screen">
-					<div className="scan-section-title">
-						<h1 ref={heading} tabIndex={-1}>
-							Ready for your shelf.
-						</h1>
-						<p>A real cover. A little particle magic.</p>
-					</div>
-					<div className="scan-review-controls">
-						<button
-							type="button"
-							className="scan-button scan-primary"
-							disabled={busy || !title.trim()}
-							onClick={add}
-						>
-							{busy ? (
-								<LoaderCircle className="scan-spin" size={18} />
-							) : (
-								<Plus size={18} />
-							)}
-							{busy ? "Creating your book…" : "Add to shelf"}
-							<ArrowRight size={17} />
-						</button>
-						<div className="scan-review-links">
-							<button
-								type="button"
-								className="scan-text-button"
-								disabled={busy}
-								onClick={() => {
-									const photo =
-										photos.find((p) => p.id === activePhoto) ??
-										photos.find((p) => p.tag === face);
-									if (photo) void selectPhoto(photo);
-									else if (source) setStep("crop");
-								}}
-							>
-								<Crop size={14} /> Adjust crop
-							</button>
-							<button
-								type="button"
-								className="scan-text-button"
-								disabled={busy}
-								onClick={download}
-							>
-								<Download size={14} /> Download{" "}
-								{face === "front" ? "cover" : face}
-							</button>
-						</div>
-					</div>
-				</div>
-			)}
-			<ScanHistoryDock
-				current={progressDrafts[0]}
-				currentEnrichment={enrichment}
-				earlier={progressDrafts.slice(1)}
-				busy={busy || !draftsReady}
-				onSelectDraft={switchDraft}
-				onNewDraft={() => switchDraft(newScanDraft())}
-			/>
 			{error && (
 				<div className="scan-error" role="alert">
 					{error}
@@ -1360,11 +966,469 @@ export default function BookScanner({
 					</button>
 				</div>
 			)}
+			<ScanHistoryDock
+				current={progressDrafts[0]}
+				currentEnrichment={enrichment}
+				earlier={progressDrafts.slice(1)}
+				busy={busy || !draftsReady}
+				onSelectDraft={switchDraft}
+				onNewDraft={() => switchDraft(newScanDraft())}
+			/>
+			<div className="scan-main">
+				{!detailsOpen && (
+					<ScanReveal
+						draftId={draftId}
+						enrichment={revealEnrichment}
+						onEdit={editField}
+						onOpenAll={() => setDetailsOpen(true)}
+					/>
+				)}
+				{detailsOpen && (
+					<ScanDetailsSheet
+						enrichment={revealEnrichment}
+						onEdit={editField}
+						onClose={() => setDetailsOpen(false)}
+					/>
+				)}
+				{step === "review" && faces.front && (
+					<div
+						className="scan-view-switch"
+						role="tablist"
+						aria-label="Book view"
+					>
+						<button
+							type="button"
+							role="tab"
+							aria-selected={view === "cover"}
+							onClick={() => setView("cover")}
+						>
+							Cover &amp; size
+						</button>
+						<button
+							type="button"
+							role="tab"
+							aria-selected={view === "pages"}
+							onClick={() => setView("pages")}
+						>
+							Pages
+							<small>
+								{pagePhotoCount}/{pageCount || "?"}
+							</small>
+						</button>
+					</div>
+				)}
+				{step === "review" && faces.front && view === "pages" ? (
+					<ScannerOpenBook
+						key={draftId}
+						size={size}
+						pages={pageCount || 180}
+						photos={photos}
+						faces={{
+							front: faces.front?.image,
+							back: faces.back?.image,
+							spine: faces.spine?.image,
+						}}
+						busy={busy}
+						onScanPage={scanPage}
+						onSelectPhoto={(photo) => void selectPhoto(photo)}
+					/>
+				) : (
+					<ScannerBookForm
+						preview={liveCrop}
+						title={title}
+						onTitle={setTitle}
+						photos={photos}
+						faces={faces}
+						activePhoto={activePhoto}
+						busy={busy}
+						size={size}
+						unit={unit}
+						onSize={writeSize}
+						setUnit={setUnit}
+						sizeSource={sizeEntry?.source ?? "Default estimate"}
+						sizeOverridden={sizeEntry?.overridden ?? false}
+						sizeConfident={sizeEntry?.confident ?? false}
+						onConfirmSize={() => confirmSize(draftId)}
+						sizeToolsRequest={sizeToolsRequest}
+						onResetSize={() => resetSize(draftId)}
+						onPart={handlePart}
+					>
+						<label className="scan-book-name">
+							Subtitle
+							<input
+								value={subtitle}
+								maxLength={300}
+								disabled={busy}
+								onChange={(event) => setSubtitle(event.target.value)}
+							/>
+						</label>
+						<label className="scan-book-name">
+							Author
+							<input
+								value={author}
+								maxLength={300}
+								disabled={busy}
+								onChange={(event) => setAuthor(event.target.value)}
+							/>
+						</label>
+						<details className="scan-roll-details" open={photos.length <= 3}>
+							<summary>
+								<ImagePlus size={15} aria-hidden="true" />
+								Camera roll
+								<small>
+									{photos.length} photo{photos.length === 1 ? "" : "s"}
+								</small>
+							</summary>
+							<section className="scan-camera-roll" aria-label="Camera roll">
+								<button
+									type="button"
+									disabled={busy}
+									onClick={() => fileInput.current?.click()}
+								>
+									<ImagePlus size={20} /> Add photos
+								</button>
+								{photos.map((photo, i) => (
+									<button
+										type="button"
+										key={photo.id}
+										disabled={busy}
+										aria-pressed={activePhoto === photo.id}
+										onClick={() => void selectPhoto(photo)}
+									>
+										<img
+											src={photo.crop?.image ?? photo.image}
+											alt={photo.name}
+										/>
+										<span>
+											{i + 1} · {photoTags[photo.tag]}
+										</span>
+										{photo.crop && <Check size={12} />}
+									</button>
+								))}
+							</section>
+						</details>
+
+						{storageError && (
+							<output>
+								Device storage unavailable. Keep this scanner open to retain
+								your drafts.
+							</output>
+						)}
+					</ScannerBookForm>
+				)}
+				{(step === "camera" ||
+					step === "requesting" ||
+					step === "unavailable") && (
+					<div className="scan-camera-screen">
+						<div className="scan-section-title">
+							<h1 ref={heading} tabIndex={-1}>
+								{step === "requesting"
+									? "Opening camera…"
+									: step === "unavailable"
+										? "Let’s get your camera ready."
+										: "Place your cover inside the portal."}
+							</h1>
+							<p>
+								{step === "requesting"
+									? "Allow camera access in your browser if asked."
+									: step === "unavailable"
+										? "Try the camera again or choose a photo below."
+										: detectsCorners(model)
+											? "Keep all four corners visible. We’ll find them after capture."
+											: "Keep all four corners inside the light. Hold steady and capture."}
+							</p>
+						</div>
+						<div
+							className="scan-viewfinder scan-portal-viewfinder"
+							data-fallback={portalFallback}
+						>
+							<video
+								ref={video}
+								autoPlay
+								muted
+								playsInline
+								onLoadedData={() => setCameraReady(true)}
+							/>
+							<ScannerPortal
+								video={video}
+								live={cameraReady}
+								onFallbackChange={setPortalFallback}
+							/>
+							<span className="scan-live">
+								<i />{" "}
+								{step === "camera"
+									? "Camera on"
+									: step === "requesting"
+										? "Waiting for camera"
+										: "Camera off"}
+							</span>
+							{step !== "unavailable" && !cameraReady && (
+								<LoaderCircle className="scan-camera-loading scan-spin" />
+							)}
+						</div>
+						<div className="scan-camera-actions">
+							{upload}
+							{step === "unavailable" ? (
+								<button
+									type="button"
+									className="scan-button scan-primary"
+									onClick={() => void startCamera()}
+								>
+									<Camera size={18} /> Try camera again
+								</button>
+							) : (
+								<button
+									className="scan-shutter"
+									type="button"
+									aria-label="Capture book cover"
+									disabled={!cameraReady}
+									onClick={capture}
+								>
+									<span />
+								</button>
+							)}
+							<div className="scan-torch">
+								<button
+									type="button"
+									className="scan-icon"
+									aria-label={
+										torchSupported
+											? torchEnabled
+												? "Turn flashlight off"
+												: "Turn flashlight on"
+											: "Flashlight unavailable for this camera"
+									}
+									title={
+										torchSupported
+											? torchEnabled
+												? "Turn flashlight off"
+												: "Turn flashlight on"
+											: "Flashlight unavailable for this camera"
+									}
+									aria-pressed={torchEnabled}
+									disabled={
+										!cameraReady || !torchSupported || torchPending || busy
+									}
+									onClick={() => void toggleTorch()}
+								>
+									{torchPending ? (
+										<LoaderCircle size={20} className="scan-spin" />
+									) : torchEnabled ? (
+										<Flashlight size={20} />
+									) : (
+										<FlashlightOff size={20} />
+									)}
+								</button>
+								<span>{torchSupported ? "Flashlight" : "No flashlight"}</span>
+							</div>
+						</div>
+					</div>
+				)}
+				{step === "crop" && source && (
+					<div className="scan-crop-screen">
+						<div className="scan-section-title">
+							<h1 ref={heading} tabIndex={-1}>
+								Just the {face === "front" ? "cover" : face}.
+							</h1>
+							<p aria-live="polite">
+								{detection === "detecting"
+									? "Finding the four corners of your book…"
+									: detection === "found"
+										? "Corners detected. Drag the dots to fine-tune your crop."
+										: detection === "missed"
+											? points.length === 4
+												? "No clear outline found. Your crop is kept — adjust the dots as needed."
+												: "No clear outline found. Tap the corners clockwise from the top left."
+											: points.length === 4
+												? "Drag the corners to fine-tune your crop."
+												: `Tap corner ${points.length + 1}: ${cornerNames[points.length].toLowerCase()}. Continue clockwise.`}
+							</p>
+							{detectsCorners(model) && (
+								<button
+									type="button"
+									className="scan-detect-button"
+									disabled={busy || detection === "detecting"}
+									onClick={() => void findCorners(source)}
+								>
+									{detection === "detecting" ? (
+										<LoaderCircle size={13} className="scan-spin" />
+									) : (
+										<ScanLine size={13} />
+									)}
+									{detection === "detecting"
+										? "Finding corners…"
+										: "Detect corners again"}
+								</button>
+							)}
+						</div>
+						<div className="scan-crop-workspace">
+							<CropCanvas
+								source={source}
+								points={points}
+								onChange={changePoints}
+								onInteractionChange={setCropDragging}
+								disabled={busy}
+							/>
+							<span className="scan-crop-count">
+								{points.length} / 4 corners
+							</span>
+						</div>
+						<div className="scan-crop-tools">
+							<button
+								type="button"
+								className="scan-icon"
+								aria-label="Rotate photo left"
+								disabled={busy}
+								onClick={() => {
+									prepareCrop(rotatePhoto(source, false));
+								}}
+							>
+								<RotateCcw size={18} />
+							</button>
+							<button
+								type="button"
+								className="scan-text-button"
+								disabled={busy}
+								onClick={() => changePoints([])}
+							>
+								Reset
+							</button>
+							<button
+								type="button"
+								className="scan-text-button"
+								disabled={busy}
+								onClick={() =>
+									changePoints([
+										{ x: 0, y: 0 },
+										{ x: source.width, y: 0 },
+										{ x: source.width, y: source.height },
+										{ x: 0, y: source.height },
+									])
+								}
+							>
+								Full image
+							</button>
+							<button
+								type="button"
+								className="scan-icon"
+								aria-label="Rotate photo right"
+								disabled={busy}
+								onClick={() => {
+									prepareCrop(rotatePhoto(source, true));
+								}}
+							>
+								<RotateCw size={18} />
+							</button>
+						</div>
+						<div className="scan-crop-actions">
+							<button
+								type="button"
+								className="scan-button scan-secondary"
+								disabled={busy}
+								onClick={() => {
+									void startCamera();
+								}}
+							>
+								Retake
+							</button>
+							<button
+								type="button"
+								className="scan-button scan-primary"
+								disabled={
+									busy || detection === "detecting" || points.length !== 4
+								}
+								onClick={crop}
+							>
+								{busy ? (
+									<LoaderCircle className="scan-spin" size={17} />
+								) : (
+									<Crop size={17} />
+								)}{" "}
+								{busy ? "Cropping…" : "Crop & preview"}
+							</button>
+						</div>
+					</div>
+				)}
+				{step === "review" && faces.front && (
+					<div className="scan-review-screen">
+						<div className="scan-section-title">
+							<h1 ref={heading} tabIndex={-1}>
+								Ready for your shelf.
+							</h1>
+							<p>A real cover. A little particle magic.</p>
+						</div>
+						<div className="scan-review-controls">
+							<button
+								type="button"
+								className="scan-button scan-primary"
+								disabled={busy || !title.trim()}
+								onClick={add}
+							>
+								{busy ? (
+									<LoaderCircle className="scan-spin" size={18} />
+								) : (
+									<Plus size={18} />
+								)}
+								{busy ? "Creating your book…" : "Add to shelf"}
+								<ArrowRight size={17} />
+							</button>
+							<div className="scan-review-links">
+								<button
+									type="button"
+									className="scan-text-button"
+									disabled={busy}
+									onClick={() => {
+										const photo =
+											photos.find((p) => p.id === activePhoto) ??
+											photos.find((p) => p.tag === face);
+										if (photo) void selectPhoto(photo);
+										else if (source) setStep("crop");
+									}}
+								>
+									<Crop size={14} /> Adjust crop
+								</button>
+								<button
+									type="button"
+									className="scan-text-button"
+									disabled={busy}
+									onClick={download}
+								>
+									<Download size={14} /> Download{" "}
+									{face === "front" ? "cover" : face}
+								</button>
+							</div>
+						</div>
+					</div>
+				)}
+				<ScanProgress
+					key={draftId}
+					draft={progressDrafts[0]}
+					enrichment={enrichment}
+					dimensions={
+						sizeEntry
+							? `${formatMeasurement(size.height, unit)} × ${formatMeasurement(size.width, unit)} × ${formatMeasurement(size.thickness, unit)}`
+							: undefined
+					}
+					busy={busy || !draftsReady}
+					onPart={handlePart}
+					onOpenAll={() => setDetailsOpen(true)}
+					tools={
+						<ScannerModelSelect
+							value={model}
+							onChange={changeModel}
+							mode={dataMode}
+							onModeChange={changeDataMode}
+							disabled={busy}
+						/>
+					}
+				/>
+			</div>
 			{busy && !["crop", "review"].includes(step) && (
 				<output className="scan-busy">
 					<LoaderCircle className="scan-spin" size={16} /> Opening photo…
 				</output>
 			)}
+			<ScannerController onAction={controllerAction} />
 		</section>
 	);
 }

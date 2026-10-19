@@ -5,16 +5,44 @@
 	position: fixed;
 	inset: 0;
 	z-index: 1500;
-	display: flex;
-	flex-direction: column;
+	display: grid;
+	grid-template-columns: auto minmax(0, 1fr);
+	grid-template-rows: auto minmax(0, 1fr);
+	grid-template-areas:
+		"head head"
+		"side main";
+	column-gap: 10px;
 	color: var(--scan-ink);
 	background: transparent;
 	font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 	overflow: hidden;
 	overscroll-behavior: contain;
-	gap: 6px;
 	padding: env(safe-area-inset-top) 14px max(12px, env(safe-area-inset-bottom));
 	-webkit-tap-highlight-color: transparent;
+}
+.book-scanner > .scan-header {
+	grid-area: head;
+}
+.book-scanner > .spx-dock {
+	grid-area: side;
+}
+.scan-main {
+	grid-area: main;
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	min-width: 0;
+	min-height: 0;
+}
+.scan-main > .scan-camera-screen,
+.scan-main > .scan-crop-screen,
+.scan-main > .scan-live-book,
+.scan-main > .sob {
+	flex: 1 1 auto;
+	min-height: 0;
+}
+.scan-main > .spx-card {
+	margin-top: auto;
 }
 .book-scanner *,
 .book-scanner *::before,
@@ -838,12 +866,11 @@
 }
 .scan-error {
 	position: fixed;
-	left: 20px;
-	right: 20px;
-	top: max(74px, calc(env(safe-area-inset-top) + 74px));
-	margin: 0 auto;
-	max-width: 480px;
-	z-index: 2;
+	left: 50%;
+	top: calc(62px + env(safe-area-inset-top));
+	z-index: 40;
+	width: min(480px, calc(100vw - 32px));
+	transform: translateX(-50%);
 	display: flex;
 	align-items: center;
 	gap: 12px;
@@ -1617,6 +1644,8 @@
 }
 .scan-book-side-picker {
 	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
 	justify-content: center;
 	gap: 4px;
 }
@@ -1694,6 +1723,59 @@
 }
 .scan-size-configurator {
 	width: 100%;
+}
+.scan-live-book .scan-three-book-sized {
+	position: relative;
+}
+.scan-size-toggle {
+	position: absolute;
+	right: 8px;
+	bottom: 8px;
+	z-index: 3;
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 6px 10px;
+	border: 1px solid #ffffff1e;
+	border-radius: 999px;
+	background: #0e121ccc;
+	color: #cfc6b0;
+	font:
+		500 10.5px / 1 ui-monospace,
+		monospace;
+	backdrop-filter: blur(10px);
+	-webkit-backdrop-filter: blur(10px);
+}
+.scan-size-toggle.is-on {
+	border-color: #d6c9a5aa;
+	background: #e8dcc0;
+	color: #26221a;
+}
+.scan-size-prompt {
+	display: grid;
+	gap: 4px;
+	margin: 0 0 8px;
+	padding: 10px 12px;
+	border: 1px solid #e5484d55;
+	border-radius: 14px;
+	background: #e5484d14;
+	color: #ffe2dc;
+	font-size: 11.5px;
+	line-height: 1.45;
+}
+.scan-size-prompt strong {
+	font-size: 12.5px;
+}
+.scan-size-prompt button {
+	justify-self: start;
+	margin-top: 4px;
+	padding: 6px 12px;
+	border: 0;
+	border-radius: 999px;
+	background: #4fd18b;
+	color: #0a0d16;
+	font-size: 11.5px;
+	font-weight: 600;
 }
 .scan-size-handle {
 	display: flex;
@@ -1907,8 +1989,8 @@
 	color: #dfcfaa;
 }
 .scan-preview-assign {
-	display: block;
-	margin: 8px auto 0;
+	display: inline-block;
+	margin: 0 0 0 6px;
 	min-height: 32px;
 	padding: 6px 14px;
 	border: 1px solid #9bcff544;

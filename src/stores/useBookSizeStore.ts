@@ -10,13 +10,22 @@ type SizeEntry = {
 	initial: BookSizeCm;
 	overridden: boolean;
 	source: string;
+	/** True when the size came from a trusted record (not an estimate). */
+	confident: boolean;
 };
 type BookSizeState = {
 	unit: "cm" | "in";
 	entries: Record<string, SizeEntry>;
 	setUnit: (unit: "cm" | "in") => void;
-	applyEnrichment: (id: string, size: BookSizeCm, source: string) => void;
+	applyEnrichment: (
+		id: string,
+		size: BookSizeCm,
+		source: string,
+		confident?: boolean,
+	) => void;
 	setSize: (id: string, size: Partial<BookSizeCm>) => void;
+	/** User accepted the shown size as-is (hides the prompt). */
+	confirm: (id: string) => void;
 	reset: (id: string) => void;
 	getSize: (id: string) => SizeEntry;
 };
@@ -80,6 +89,7 @@ function defaultEntry(): SizeEntry {
 		initial: { ...DEFAULT_BOOK_SIZE_CM },
 		overridden: false,
 		source: "Default estimate",
+		confident: false,
 	};
 }
 
@@ -102,15 +112,19 @@ export const useBookSizeStore = create<BookSizeState>((set, get) => ({
 	entries: loadEntries(),
 	setUnit: (unit) => set({ unit }),
 	getSize: (id) => get().entries[id] ?? defaultEntry(),
-	applyEnrichment: (id, size, source) => {
+	applyEnrichment: (id, size, source, confident = true) => {
 		if (!validSize(size)) return;
 		set((state) => {
 			const previous = state.entries[id] ?? defaultEntry();
+			// A confident record never gets downgraded by a later estimate.
+			if (previous.confident && !confident && !previous.overridden)
+				return state;
 			const entry: SizeEntry = {
 				size: previous.overridden ? previous.size : { ...size },
 				initial: { ...size },
 				overridden: previous.overridden,
 				source,
+				confident: confident || previous.overridden,
 			};
 			const entries = { ...state.entries, [id]: entry };
 			saveEntries(entries);
@@ -129,7 +143,18 @@ export const useBookSizeStore = create<BookSizeState>((set, get) => ({
 					size,
 					overridden: true,
 					source: "Adjusted manually",
+					confident: true,
 				},
+			};
+			saveEntries(entries);
+			return { entries };
+		}),
+	confirm: (id) =>
+		set((state) => {
+			const current = state.entries[id] ?? defaultEntry();
+			const entries = {
+				...state.entries,
+				[id]: { ...current, confident: true },
 			};
 			saveEntries(entries);
 			return { entries };
@@ -139,7 +164,12 @@ export const useBookSizeStore = create<BookSizeState>((set, get) => ({
 			const current = state.entries[id] ?? defaultEntry();
 			const entries = {
 				...state.entries,
-				[id]: { ...current, size: { ...current.initial }, overridden: false },
+				[id]: {
+					...current,
+					size: { ...current.initial },
+					overridden: false,
+					confident: current.source !== "Default estimate",
+				},
 			};
 			saveEntries(entries);
 			return { entries };

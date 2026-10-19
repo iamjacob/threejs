@@ -1,5 +1,11 @@
 import { Camera, Check, ListTree, Plus } from "lucide-react";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+	type ReactNode,
+	useEffect,
+	useLayoutEffect,
+	useRef,
+	useState,
+} from "react";
 import type { EnrichmentValues } from "./bookEnrichment";
 import type { PhotoTag, ScanDraft } from "./scanDrafts";
 import "./scan-progress.css";
@@ -285,6 +291,7 @@ export default function ScanProgress({
 	busy,
 	onPart,
 	onOpenAll,
+	tools,
 }: {
 	draft: ScanDraft;
 	enrichment?: EnrichmentValues;
@@ -293,6 +300,8 @@ export default function ScanProgress({
 	busy: boolean;
 	onPart: (tag: PhotoTag) => void;
 	onOpenAll?: () => void;
+	/** Extra controls shown in the card footer (e.g. the model picker). */
+	tools?: ReactNode;
 }) {
 	const values = stepValues(draft, enrichment, dimensions);
 	const doneCount = values.flat().filter(Boolean).length;
@@ -501,6 +510,7 @@ export default function ScanProgress({
 					</div>
 				)}
 			</div>
+			{tools && <div className="spx-tools">{tools}</div>}
 
 			<output className={`spx-toast${toast ? " show" : ""}`}>
 				<i>

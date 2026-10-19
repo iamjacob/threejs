@@ -1,0 +1,7 @@
+/* The scanner's controller sits above the scanner layer (z 1500). */
+.scanner-controller .bc-scrim {
+	z-index: 1550;
+}
+.scanner-controller .bc-dock {
+	z-index: 1551;
+}

@@ -21,6 +21,10 @@ type Props = {
 	setUnit: (unit: "cm" | "in") => void;
 	sizeSource: string;
 	sizeOverridden: boolean;
+	sizeConfident: boolean;
+	onConfirmSize: () => void;
+	/** Bump to open the size tools from outside (controller "Size"). */
+	sizeToolsRequest?: number;
 	onResetSize: () => void;
 };
 export default function ScannerBookForm({
@@ -39,6 +43,9 @@ export default function ScannerBookForm({
 	setUnit,
 	sizeSource,
 	sizeOverridden,
+	sizeConfident,
+	onConfirmSize,
+	sizeToolsRequest,
 	onResetSize,
 }: Props) {
 	const [side, setSide] = useState<PreviewSide>("front");
@@ -104,6 +111,9 @@ export default function ScannerBookForm({
 				setUnit={setUnit}
 				source={sizeSource}
 				overridden={sizeOverridden}
+				confident={sizeConfident}
+				onConfirm={onConfirmSize}
+				toolsRequest={sizeToolsRequest}
 				reset={onResetSize}
 			/>
 
@@ -118,20 +128,20 @@ export default function ScannerBookForm({
 						{photoTags[tag]}
 					</button>
 				))}
+				<button
+					type="button"
+					className="scan-preview-assign"
+					disabled={busy}
+					title={
+						selected
+							? "Place the selected photo on this side"
+							: "Add a photo for this side"
+					}
+					onClick={() => onPart(side)}
+				>
+					{selected ? "Assign" : "Add"} · {photoTags[side]}
+				</button>
 			</nav>
-			<button
-				type="button"
-				className="scan-preview-assign"
-				disabled={busy}
-				onClick={() => onPart(side)}
-			>
-				{selected ? "Assign photo" : "Add photo"} · {photoTags[side]}
-			</button>
-			<p className="scan-live-hint">
-				{selected
-					? "Tap the book to place the selected photo."
-					: "Turn the book, then tap a cover to add a photo."}
-			</p>
 			{open && (
 				<section
 					id={menuId}

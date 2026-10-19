@@ -13,13 +13,18 @@ import {
 	Vector3,
 } from "three";
 import {
+	BOOK_SIZE_LIMITS_CM,
 	type BookSizeCm,
 	CM_PER_WORLD_UNIT,
 } from "../../stores/useBookSizeStore";
+import { getControllerJoystick } from "../tour/controllerJoystick";
 import type { ScanPhoto } from "./scanDrafts";
 import "./scanner-open-book.css";
 
 const OPEN = 1; // radians each cover/leaf swings from the spine
+/** Fixed framing for the widest allowed book, so every book is shown 1:1. */
+const VIEW_DISTANCE =
+	(BOOK_SIZE_LIMITS_CM.width[1] * 2 * 1.15) / CM_PER_WORLD_UNIT;
 const WINDOW = 4; // interactive leaves each side of the opening
 
 /** Which scanned photo belongs to which page index (0-based leaf). */
@@ -315,6 +320,23 @@ export default function ScannerOpenBook({
 	});
 	const scanned = map.size;
 	const strip = useRef<HTMLOListElement>(null);
+	// Scanner joystick: push right/left to turn pages (repeats while held).
+	useEffect(() => {
+		let last = 0;
+		let raf = 0;
+		const tick = (time: number) => {
+			const stick = getControllerJoystick();
+			if (Math.abs(stick.x) > 0.45 && time - last > 320 / Math.abs(stick.x)) {
+				last = time;
+				setCurrent((value) =>
+					Math.max(0, Math.min(total - 1, value + (stick.x > 0 ? 1 : -1))),
+				);
+			}
+			raf = requestAnimationFrame(tick);
+		};
+		raf = requestAnimationFrame(tick);
+		return () => cancelAnimationFrame(raf);
+	}, [total]);
 	useEffect(() => {
 		strip.current
 			?.querySelector<HTMLElement>(`[data-page="${current}"]`)
@@ -359,7 +381,10 @@ export default function ScannerOpenBook({
 			</header>
 			<div className="sob-canvas">
 				<Canvas
-					camera={{ position: [0, 1.15, 1.35], fov: 36 }}
+					camera={{
+						position: [0, VIEW_DISTANCE * 0.85, VIEW_DISTANCE],
+						fov: 32,
+					}}
 					dpr={[1, 1.5]}
 					shadows
 				>
