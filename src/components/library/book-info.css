@@ -212,6 +212,75 @@
 	color: #bfc1cc;
 	font-size: 10px;
 }
+.book-size-adjuster {
+	margin-top: 10px;
+	padding: 10px 10px 8px;
+	border-radius: 12px;
+	background: rgb(255 255 255 / 4%);
+	font-size: 12px;
+}
+.book-size-adjuster header {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 8px;
+}
+.book-size-adjuster header > span {
+	flex: 1;
+	min-width: 0;
+	font-weight: 600;
+}
+.book-size-adjuster header small {
+	margin-top: 1px;
+	font-weight: 400;
+}
+.book-size-unit {
+	display: inline-flex;
+	margin: 0;
+	padding: 2px;
+	border: 1px solid rgb(255 255 255 / 12%);
+	border-radius: 999px;
+	background: rgb(0 0 0 / 20%);
+}
+.book-info-details .book-size-unit button {
+	width: auto;
+	min-width: 34px;
+	padding: 3px 8px;
+	justify-content: center;
+	border-radius: 999px;
+	background: transparent;
+	color: #bfc1cc;
+	font-size: 11px;
+	text-align: center;
+}
+.book-info-details .book-size-unit button[aria-pressed="true"] {
+	background: rgb(255 255 255 / 16%);
+	color: #fff;
+}
+.book-size-range {
+	display: block;
+	margin: 6px 0;
+}
+.book-size-range > span {
+	display: flex;
+	justify-content: space-between;
+	color: #bfc1cc;
+	font-size: 11px;
+}
+.book-size-range output {
+	color: #f8f6ef;
+	font-variant-numeric: tabular-nums;
+}
+.book-size-range input[type="range"] {
+	width: 100%;
+	margin: 4px 0 0;
+	accent-color: #e8c97a;
+}
+.book-info-details .book-size-reset {
+	margin-top: 6px;
+	padding: 6px 10px;
+	font-size: 11px;
+}
 .book-info-spinner {
 	animation: book-info-spin 1s linear infinite;
 }

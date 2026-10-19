@@ -1,0 +1,139 @@
+.scan-progress-list {
+	position: fixed;
+	z-index: 6;
+	left: max(12px, env(safe-area-inset-left));
+	top: calc(124px + env(safe-area-inset-top));
+	bottom: max(12px, env(safe-area-inset-bottom));
+	width: min(224px, 24vw);
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+	overflow: auto;
+	overscroll-behavior: contain;
+	padding: 3px;
+}
+.side-progress {
+	flex: 0 0 auto;
+	padding: 10px 11px;
+	border: 1px solid #ffffff1e;
+	border-radius: 15px;
+	background: #101729dc;
+	color: #e9edf5;
+	box-shadow: 0 8px 30px #0003;
+	backdrop-filter: blur(12px);
+	font:
+		11px / 1.35 system-ui,
+		sans-serif;
+}
+.side-progress.is-active {
+	border-color: #ef3d4890;
+	background: #151b2df2;
+}
+.sp-book-title {
+	width: 100%;
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	padding: 0 0 8px;
+	border-bottom: 1px solid #ffffff18;
+}
+.sp-book-title span {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	font-weight: 650;
+}
+.sp-book-title small,
+.sp-group-heading > span {
+	color: #aab4c6;
+	font-size: 9px;
+}
+.sp-group {
+	padding-top: 8px;
+}
+.sp-group-heading {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+}
+.sp-group-heading strong {
+	flex: 1;
+	font-size: 10px;
+}
+.sp-ring {
+	position: relative;
+	width: 19px;
+	height: 19px;
+	color: #ef5b62;
+	overflow: visible;
+}
+.sp-ring-progress {
+	transition: stroke-dashoffset 0.35s ease;
+}
+.sp-check {
+	position: absolute;
+	margin-left: -16px;
+	margin-top: 3px;
+	color: #fff;
+}
+.sp-steps {
+	display: grid;
+	gap: 2px;
+	margin: 3px 0 0 9px;
+	padding: 0 0 0 9px;
+	border-left: 1px solid #ef3d4833;
+	list-style: none;
+}
+.sp-steps li {
+	display: flex;
+	gap: 4px;
+	align-items: baseline;
+	min-width: 0;
+	color: #aab4c6;
+	font-size: 9px;
+}
+.sp-steps li.is-complete {
+	color: #dce2ed;
+}
+.sp-steps li > span {
+	flex: 0 0 auto;
+}
+.sp-steps li small {
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	opacity: 0.72;
+	font-size: 8px;
+}
+.sp-loader {
+	color: #ff7e84;
+	font: 10px monospace;
+}
+.sp-sources {
+	margin: 8px 0 0;
+	padding-top: 6px;
+	border-top: 1px solid #ffffff18;
+	color: #aab4c6;
+	font-size: 8px;
+}
+@media (max-width: 760px) {
+	.scan-progress-list {
+		top: calc(118px + env(safe-area-inset-top));
+		left: 8px;
+		right: 8px;
+		bottom: auto;
+		width: auto;
+		max-height: 23vh;
+		flex-direction: row;
+		align-items: stretch;
+	}
+	.side-progress {
+		flex: 0 0 min(220px, 76vw);
+		overflow: auto;
+	}
+}
+@media (prefers-reduced-motion: reduce) {
+	.sp-ring-progress {
+		transition: none;
+	}
+}

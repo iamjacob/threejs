@@ -1,5 +1,6 @@
-import type { CroppedFace } from "./scannedBook";
+import type { EnrichmentValues } from "./bookEnrichment";
 import type { Point } from "./perspective";
+import type { CroppedFace } from "./scannedBook";
 export const photoTags = {
 	front: "Front cover",
 	spine: "Spine",
@@ -27,6 +28,7 @@ export type ScanDraft = {
 	author?: string;
 	photos: ScanPhoto[];
 	faces: Partial<Record<"front" | "spine" | "back", CroppedFace>>;
+	enrichment?: EnrichmentValues;
 	updated: number;
 };
 export const newScanDraft = (): ScanDraft => ({

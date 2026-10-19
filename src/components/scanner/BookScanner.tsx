@@ -1,15 +1,3 @@
-import ScanMetadataFeedback from "./ScanMetadataFeedback";
-import ScannerBookForm from "./ScannerBookForm";
-import {
-	loadDrafts,
-	saveDraft,
-	newScanDraft,
-	photoData,
-	photoTags,
-	type ScanDraft,
-	type ScanPhoto,
-	type PhotoTag,
-} from "./scanDrafts";
 import {
 	ArrowRight,
 	Camera,
@@ -27,14 +15,35 @@ import {
 	X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { bookCatalog } from "../../lib/bookCatalog";
+import {
+	DEFAULT_BOOK_SIZE_CM,
+	useBookSizeStore,
+} from "../../stores/useBookSizeStore";
+import type { EnrichmentValues } from "./bookEnrichment";
+import { enrichBookMetadata } from "./bookEnrichment";
 import CropCanvas, { cornerNames } from "./CropCanvas";
 import { cameraError, createCameraSession } from "./cameraSession";
 import { createCameraTorch } from "./cameraTorch";
 import { cropPerspective, imageCanvas, rotatePhoto } from "./cropImage";
 import { detectPhotoCorners } from "./detectPhotoCorners";
 import type { Point } from "./perspective";
+import ScanDraftRoll from "./ScanDraftRoll";
+import ScannerBookForm from "./ScannerBookForm";
 import ScannerModelSelect from "./ScannerModelSelect";
 import ScannerPortal from "./ScannerPortal";
+import SideProgress from "./SideProgress";
+import {
+	loadDrafts,
+	newScanDraft,
+	type PhotoTag,
+	photoData,
+	photoTags,
+	type ScanDraft,
+	type ScanPhoto,
+	saveDraft,
+} from "./scanDrafts";
+import { requestScanMetadata, SCAN_TIMEOUT_MS } from "./scanMetadata";
 import type { BookScan, CroppedFace } from "./scannedBook";
 import {
 	readScannerModel,
@@ -58,6 +67,16 @@ export default function BookScanner({
 	const [photos, setPhotos] = useState<ScanPhoto[]>([]);
 	const [activePhoto, setActivePhoto] = useState<string | null>(null);
 	const [history, setHistory] = useState<ScanDraft[]>([]);
+	const [enrichment, setEnrichment] = useState<EnrichmentValues>({});
+	const unit = useBookSizeStore((state) => state.unit);
+	const sizeEntry = useBookSizeStore((state) => state.entries[draftId]);
+	const applyEnrichmentSize = useBookSizeStore(
+		(state) => state.applyEnrichment,
+	);
+	const editSize = useBookSizeStore((state) => state.setSize);
+	const resetSize = useBookSizeStore((state) => state.reset);
+	const setUnit = useBookSizeStore((state) => state.setUnit);
+	const size = sizeEntry?.size ?? DEFAULT_BOOK_SIZE_CM;
 	const [draftsReady, setDraftsReady] = useState(false);
 	const [storageError, setStorageError] = useState(false);
 	useEffect(() => {
@@ -83,6 +102,7 @@ export default function BookScanner({
 			author,
 			photos,
 			faces,
+			enrichment,
 			updated: Date.now(),
 		};
 		setHistory((current) => [
@@ -92,7 +112,134 @@ export default function BookScanner({
 		void saveDraft(draft)
 			.then(() => setStorageError(false))
 			.catch(() => setStorageError(true));
-	}, [draftId, title, subtitle, author, photos, faces, draftsReady]);
+	}, [
+		draftId,
+		title,
+		subtitle,
+		author,
+		photos,
+		faces,
+		enrichment,
+		draftsReady,
+	]);
+
+	useEffect(() => {
+		const cleanTitle = title.trim();
+		if (!cleanTitle || !draftsReady) return;
+		const controller = new AbortController();
+		setEnrichment((current) => ({
+			...current,
+			status: "searching",
+			activeStep: "Year",
+		}));
+		const timer = window.setTimeout(() => {
+			void enrichBookMetadata(cleanTitle, author, {
+				signal: controller.signal,
+				coverImage: faces.back?.image ?? faces.front?.image,
+				catalog: bookCatalog,
+				isbn: enrichment.isbn,
+				onUpdate: (update) => {
+					setEnrichment((current) => ({ ...current, ...update }));
+					if (update.physicalSize && !update.physicalSize.estimated) {
+						applyEnrichmentSize(
+							draftId,
+							{
+								height: update.physicalSize.heightCm,
+								width: update.physicalSize.widthCm,
+								thickness: update.physicalSize.thicknessCm ?? 2.4,
+							},
+							update.physicalSize.source,
+						);
+					} else if (update.physicalSize?.estimated) {
+						applyEnrichmentSize(
+							draftId,
+							{
+								height: update.physicalSize.heightCm,
+								width: update.physicalSize.widthCm,
+								thickness: 2.4,
+							},
+							update.physicalSize.source,
+						);
+					}
+				},
+			})
+				.then((result) => {
+					if (!controller.signal.aborted)
+						setEnrichment((current) => ({ ...current, ...result }));
+				})
+				.catch(() => {
+					if (!controller.signal.aborted)
+						setEnrichment((current) => ({
+							...current,
+							status: "partial",
+							activeStep: null,
+						}));
+				});
+		}, 700);
+		return () => {
+			window.clearTimeout(timer);
+			controller.abort();
+		};
+	}, [
+		title,
+		author,
+		faces.back?.image,
+		faces.front?.image,
+		enrichment.isbn,
+		draftsReady,
+		applyEnrichmentSize,
+		draftId,
+	]);
+
+	const writeSize = (
+		axis: keyof typeof DEFAULT_BOOK_SIZE_CM,
+		value: number,
+	) => {
+		editSize(draftId, { [axis]: value });
+		setEnrichment((current) => ({ ...current, dimensionsOverridden: true }));
+	};
+
+	// Read title/author from the front cover in the background; only fills
+	// fields the user left empty. Progress shows up in SideProgress.
+	const frontImage = faces.front?.image;
+	// biome-ignore lint/correctness/useExhaustiveDependencies: re-run only when the cover or draft changes, not on every keystroke.
+	useEffect(() => {
+		if (!frontImage || !draftsReady) return;
+		const controller = new AbortController();
+		let timeout: ReturnType<typeof setTimeout> | undefined;
+		const timer = setTimeout(() => {
+			setEnrichment((current) => ({
+				...current,
+				status: "searching",
+				activeStep: current.activeStep ?? "Title",
+			}));
+			timeout = setTimeout(() => controller.abort(), SCAN_TIMEOUT_MS);
+			void requestScanMetadata(frontImage, controller.signal)
+				.then((metadata) => {
+					if (controller.signal.aborted) return;
+					if (metadata.title) setTitle((v) => v.trim() || metadata.title);
+					if (metadata.subtitle)
+						setSubtitle((v) => v.trim() || metadata.subtitle);
+					if (metadata.author) setAuthor((v) => v.trim() || metadata.author);
+				})
+				.catch(() => {
+					/* Manual entry still works when the cover reader is unavailable. */
+				})
+				.finally(() => {
+					if (!controller.signal.aborted)
+						setEnrichment((current) => ({
+							...current,
+							activeStep:
+								current.activeStep === "Title" ? null : current.activeStep,
+						}));
+				});
+		}, 600);
+		return () => {
+			clearTimeout(timer);
+			if (timeout) clearTimeout(timeout);
+			controller.abort();
+		};
+	}, [frontImage, draftId, draftsReady]);
 
 	const [error, setError] = useState("");
 	const [busy, setBusy] = useState(false);
@@ -402,12 +549,33 @@ export default function BookScanner({
 		++loadingRevision.current;
 		cancelDetection();
 		stopCamera();
+		const currentDraft: ScanDraft = {
+			id: draftId,
+			title,
+			subtitle,
+			author,
+			photos,
+			faces,
+			enrichment: {
+				...enrichment,
+				status:
+					enrichment.status === "searching" ? "partial" : enrichment.status,
+				activeStep: null,
+			},
+			updated: Date.now(),
+		};
+		setHistory((current) => [
+			currentDraft,
+			...current.filter((item) => item.id !== currentDraft.id),
+		]);
+		void saveDraft(currentDraft).catch(() => setStorageError(true));
 		setDraftId(draft.id);
 		setTitle(draft.title);
 		setSubtitle(draft.subtitle ?? "");
 		setAuthor(draft.author ?? "");
 		setPhotos(draft.photos);
 		setFaces(draft.faces);
+		setEnrichment(draft.enrichment ?? {});
 		setActivePhoto(null);
 		setSource(null);
 		setPoints([]);
@@ -535,6 +703,7 @@ export default function BookScanner({
 				author,
 				photos,
 				faces,
+				enrichment,
 				updated: Date.now(),
 			}).catch(() => setStorageError(true));
 			await onAdd({
@@ -542,10 +711,17 @@ export default function BookScanner({
 				photos,
 				title: title.trim(),
 				subtitle: subtitle.trim(),
-				author: author.trim(),
+				author: author.trim() || enrichment.author || "",
 				front: faces.front,
 				spine: faces.spine,
 				back: faces.back,
+				enrichment,
+				size: {
+					...size,
+					source: sizeEntry?.overridden
+						? "Adjusted in scanner"
+						: (sizeEntry?.source ?? "Default estimate"),
+				},
 			});
 		} catch {
 			if (mounted.current)
@@ -578,6 +754,19 @@ export default function BookScanner({
 			<ImagePlus size={17} /> Camera roll · Add photos
 		</button>
 	);
+	const progressDrafts = [
+		{
+			id: draftId,
+			title,
+			subtitle,
+			author,
+			photos,
+			faces,
+			enrichment,
+			updated: Date.now(),
+		},
+		...history.filter((draft) => draft.id !== draftId),
+	];
 
 	return (
 		<section
@@ -609,22 +798,20 @@ export default function BookScanner({
 					if (files.length) void importPhotos(files);
 				}}
 			/>
-			<ScanMetadataFeedback
-				key={draftId}
-				image={faces.front?.image}
-				busy={busy}
-				onSuggest={(metadata) => {
-					if (metadata.title) setTitle((v) => v.trim() || metadata.title);
-					if (metadata.subtitle)
-						setSubtitle((v) => v.trim() || metadata.subtitle);
-					if (metadata.author) setAuthor((v) => v.trim() || metadata.author);
-				}}
-				onApply={(metadata) => {
-					if (metadata.title) setTitle(metadata.title);
-					if (metadata.subtitle) setSubtitle(metadata.subtitle);
-					if (metadata.author) setAuthor(metadata.author);
-				}}
-			/>
+			<aside className="scan-progress-list" aria-label="Progress for each book">
+				<SideProgress
+					key={draftId}
+					draft={progressDrafts[0]}
+					enrichment={enrichment}
+				/>
+				{progressDrafts.length > 1 && (
+					<ScanDraftRoll
+						drafts={progressDrafts.slice(1)}
+						onSelect={switchDraft}
+						disabled={busy}
+					/>
+				)}
+			</aside>
 			<ScannerBookForm
 				preview={liveCrop}
 				title={title}
@@ -633,6 +820,13 @@ export default function BookScanner({
 				faces={faces}
 				activePhoto={activePhoto}
 				busy={busy}
+				size={size}
+				unit={unit}
+				onSize={writeSize}
+				setUnit={setUnit}
+				sizeSource={sizeEntry?.source ?? "Default estimate"}
+				sizeOverridden={sizeEntry?.overridden ?? false}
+				onResetSize={() => resetSize(draftId)}
 				onPart={(tag) => {
 					if (activePhoto) {
 						tagPhoto(tag);

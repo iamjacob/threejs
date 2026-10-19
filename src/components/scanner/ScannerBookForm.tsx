@@ -1,8 +1,10 @@
-import ScannerBook3D, { type PreviewSide } from "./ScannerBook3D";
 import { FileText, Menu, X } from "lucide-react";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
-import { photoTags, type PhotoTag, type ScanPhoto } from "./scanDrafts";
+import type { BookSizeCm } from "../../stores/useBookSizeStore";
+import ScannerBook3D, { type PreviewSide } from "./ScannerBook3D";
+import { type PhotoTag, photoTags, type ScanPhoto } from "./scanDrafts";
 import type { CroppedFace } from "./scannedBook";
+
 type Props = {
 	title: string;
 	onTitle: (title: string) => void;
@@ -13,6 +15,13 @@ type Props = {
 	onPart: (tag: PhotoTag) => void;
 	children?: ReactNode;
 	preview?: { tag: PhotoTag; crop: CroppedFace } | null;
+	size: BookSizeCm;
+	unit: "cm" | "in";
+	onSize: (axis: keyof BookSizeCm, value: number) => void;
+	setUnit: (unit: "cm" | "in") => void;
+	sizeSource: string;
+	sizeOverridden: boolean;
+	onResetSize: () => void;
 };
 export default function ScannerBookForm({
 	title,
@@ -24,6 +33,13 @@ export default function ScannerBookForm({
 	onPart,
 	children,
 	preview,
+	size,
+	unit,
+	onSize,
+	setUnit,
+	sizeSource,
+	sizeOverridden,
+	onResetSize,
 }: Props) {
 	const [side, setSide] = useState<PreviewSide>("front");
 	const [open, setOpen] = useState(false);
@@ -78,15 +94,17 @@ export default function ScannerBookForm({
 						? { ...faces, [preview.tag]: preview.crop }
 						: faces
 				}
-				pageImage={
-					preview && !["front", "spine", "back"].includes(preview.tag)
-						? preview.crop.image
-						: photos.find((p) => p.tag === "page")?.crop?.image
-				}
 				side={side}
 				onPart={(tag) => {
 					if (!busy) onPart(tag);
 				}}
+				size={size}
+				unit={unit}
+				onSize={onSize}
+				setUnit={setUnit}
+				source={sizeSource}
+				overridden={sizeOverridden}
+				reset={onResetSize}
 			/>
 
 			<nav className="scan-book-side-picker" aria-label="Preview book side">

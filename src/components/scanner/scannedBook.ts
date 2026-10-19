@@ -1,5 +1,11 @@
 import type { LibraryBook } from "../../lib/bookCatalog";
+import { bookCatalog } from "../../lib/bookCatalog";
 import { getBookTextureUrls } from "../book/bookTextures";
+import {
+	findCatalogMatch,
+	formatPhysicalSize,
+	physicalSizeToWorldDimensions,
+} from "./bookEnrichment";
 
 export type CroppedFace = { image: string; width: number; height: number };
 export type BookScan = {
@@ -11,6 +17,9 @@ export type BookScan = {
 	front: CroppedFace;
 	spine?: CroppedFace;
 	back?: CroppedFace;
+	enrichment?: import("./bookEnrichment").EnrichmentValues;
+	/** Size chosen in the scanner's configurator (cm). Wins over enrichment. */
+	size?: { width: number; height: number; thickness: number; source?: string };
 };
 
 export async function scannedBook(scan: BookScan): Promise<LibraryBook> {
@@ -24,6 +33,77 @@ export async function scannedBook(scan: BookScan): Promise<LibraryBook> {
 	context.drawImage(image, 0, 0, 1, 1);
 	const [r, g, b] = context.getImageData(0, 0, 1, 1).data;
 	const title = scan.title.trim();
+	const ratio = scan.front.width / scan.front.height;
+	const catalogMatch = findCatalogMatch(
+		bookCatalog,
+		title,
+		scan.author ?? "",
+		scan.enrichment?.isbn,
+	);
+	const matchedCatalogSize =
+		catalogMatch?.size?.width &&
+		catalogMatch.size.height &&
+		catalogMatch.size.thickness
+			? {
+					widthCm: catalogMatch.size.width,
+					heightCm: catalogMatch.size.height,
+					thicknessCm: catalogMatch.size.thickness,
+					source:
+						scan.enrichment?.isbn &&
+						catalogMatch.isbn &&
+						scan.enrichment.isbn.replace(/\D/g, "") ===
+							catalogMatch.isbn.replace(/\D/g, "")
+							? "Local catalog · ISBN edition"
+							: "Local catalog · title and author match",
+				}
+			: undefined;
+	const chosenSize =
+		scan.size &&
+		scan.size.width > 0 &&
+		scan.size.height > 0 &&
+		scan.size.thickness > 0
+			? {
+					widthCm: scan.size.width,
+					heightCm: scan.size.height,
+					thicknessCm: scan.size.thickness,
+					source: scan.size.source ?? "Set in scanner",
+				}
+			: undefined;
+	const physicalSize =
+		chosenSize ?? scan.enrichment?.physicalSize ?? matchedCatalogSize;
+	const resolvedPhysicalSize =
+		physicalSize ??
+		(catalogMatch?.size?.width && catalogMatch.size.height
+			? {
+					widthCm: catalogMatch.size.width,
+					heightCm: catalogMatch.size.height,
+					source: "Local catalog · estimated thickness",
+					estimated: true,
+				}
+			: undefined);
+	const finalPhysicalSize = resolvedPhysicalSize
+		? {
+				...resolvedPhysicalSize,
+				...(catalogMatch?.weight &&
+				!(
+					"weightGrams" in resolvedPhysicalSize &&
+					resolvedPhysicalSize.weightGrams
+				)
+					? { weightGrams: catalogMatch.weight }
+					: {}),
+			}
+		: undefined;
+	const resolvedTitle = scan.enrichment?.title || catalogMatch?.title || title;
+	const resolvedAuthor =
+		scan.author?.trim() ||
+		scan.enrichment?.author ||
+		catalogMatch?.author ||
+		"";
+	const resolvedSubtitle =
+		scan.subtitle?.trim() ||
+		scan.enrichment?.subtitle ||
+		catalogMatch?.subtitle ||
+		"";
 	const makeFace = (spine: boolean) => {
 		const canvas = document.createElement("canvas");
 		canvas.width = spine ? 128 : 512;
@@ -38,16 +118,17 @@ export async function scannedBook(scan: BookScan): Promise<LibraryBook> {
 		if (spine) {
 			ctx.translate(76, 40);
 			ctx.rotate(Math.PI / 2);
-			ctx.fillText(title, 0, 0, 680);
+			ctx.fillText(resolvedTitle, 0, 0, 680);
 		} else {
-			ctx.fillText(title, 36, 74, 440);
+			ctx.fillText(resolvedTitle, 36, 74, 440);
 		}
 		return canvas.toDataURL("image/webp", 0.9);
 	};
-	const ratio = scan.front.width / scan.front.height;
-	const height = Math.min(0.72, 0.8 / ratio);
-	const width = height * ratio;
-	const thickness = 0.055;
+	const fallbackHeight = Math.min(0.72, 0.8 / ratio);
+	const [width, height, thickness] =
+		finalPhysicalSize && !finalPhysicalSize.estimated
+			? physicalSizeToWorldDimensions(finalPhysicalSize)
+			: [fallbackHeight * ratio, fallbackHeight, 0.055];
 	const cover = {
 		front: scan.front.image,
 		spine: scan.spine?.image ?? makeFace(true),
@@ -66,12 +147,19 @@ export async function scannedBook(scan: BookScan): Promise<LibraryBook> {
 				},
 		);
 	return {
+		enrichment: {
+			...scan.enrichment,
+			physicalSize: finalPhysicalSize,
+			dimensions: finalPhysicalSize
+				? formatPhysicalSize(finalPhysicalSize)
+				: scan.enrichment?.dimensions,
+		},
 		scanPages,
 		id: scan.id ?? `scan-${crypto.randomUUID()}`,
-		title,
-		author: scan.author?.trim() ?? "",
-		subtitle: scan.subtitle?.trim() ?? "",
-		pages: scanPages?.length || 180,
+		title: resolvedTitle,
+		author: resolvedAuthor,
+		subtitle: resolvedSubtitle,
+		pages: scanPages?.length || catalogMatch?.pages || 180,
 		readDate: new Date().toISOString().slice(0, 10),
 		demoPages: 120,
 		cover,

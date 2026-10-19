@@ -1182,17 +1182,27 @@
 @media(prefers-reduced-motion:reduce){.scan-book-object{transition:none}}
 .scan-book-paper-edge{position:absolute;left:34px;top:2px;width:22px;height:126px;transform:rotateY(90deg) translateZ(44px);background:repeating-linear-gradient(90deg,#e9e4d6 0 2px,#c9c5b9 2px 3px)}
 .scan-three-book{height:220px;width:100%;touch-action:none;background:radial-gradient(ellipse at center,#7acbff10,transparent 65%);border-radius:20px}
+.scan-three-book-sized{height:300px;max-width:560px;margin:0 auto 14px;background:radial-gradient(ellipse at center,#d9c89d15,transparent 69%);overflow:visible}
+.scan-size-configurator{width:100%;}
+.scan-size-handle{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;width:24px;height:52px;padding:3px;border:1px solid #d6c9a5;border-radius:999px;background:#191b23ef;color:#f1e8d4;box-shadow:0 3px 12px #0006;cursor:ns-resize;touch-action:none;font:9px/1 system-ui,sans-serif}
+.scan-size-handle i{display:block;width:7px;height:7px;border:2px solid #f1e8d4;border-radius:50%;background:#82765f}
+.scan-size-handle.is-active,.scan-size-handle:hover{background:#e8dcc0;color:#26221a}
+.scan-size-handle.is-active i,.scan-size-handle:hover i{background:#26221a;border-color:#26221a}
+.scan-ruler-label{padding:3px 5px;border-radius:4px;background:#111827d9;color:#e5d7b3;white-space:nowrap;font:500 10px/1.1 ui-monospace,monospace;pointer-events:none;box-shadow:0 2px 6px #0005}
+.scan-size-controls{display:grid;gap:13px;padding:14px;border:1px solid #ffffff20;border-radius:16px;background:#121a28e8;color:#e8e1d1}
+.scan-size-controls header{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.scan-size-controls h3{margin:0;font:600 17px/1.2 system-ui,sans-serif}
+.scan-size-controls header small{display:block;margin-top:4px;color:#a9a18e;font-size:10px}
+.scan-size-unit{display:grid;grid-template-columns:1fr 1fr;gap:2px;padding:3px;border-radius:9px;background:#ffffff12}
+.scan-size-unit button{min-width:44px;min-height:34px;padding:5px;border:0;border-radius:7px;background:transparent;color:#d4cbb9;font:600 12px system-ui,sans-serif}
+.scan-size-unit button[aria-pressed=true]{background:#e8dcc0;color:#28231a;box-shadow:0 2px 5px #0004}
+.scan-size-presets{display:flex;flex-wrap:wrap;gap:6px}
+.scan-size-presets button,.scan-size-reset{padding:6px 10px;border:1px solid #ffffff28;border-radius:999px;background:transparent;color:#e6ddca;font:500 10px system-ui,sans-serif}
+.scan-size-presets button:hover,.scan-size-reset:hover{border-color:#e8dcc0;background:#ffffff0c}
+.scan-size-range{display:grid;gap:5px;color:#d8d0bf;font-size:11px}
+.scan-size-range span{display:flex;justify-content:space-between;align-items:center}
+.scan-size-range output{font:500 11px ui-monospace,monospace;color:#f3e7c9;font-variant-numeric:tabular-nums}
+.scan-size-range input{width:100%;accent-color:#e5d4ac}
+.scan-size-reset{justify-self:start;color:#dfcfaa}
 .scan-preview-assign{display:block;margin:8px auto 0;min-height:32px;padding:6px 14px;border:1px solid #9bcff544;border-radius:20px;background:#6ba6ca12;color:#d1eaff;font-size:11px}
-@media(max-width:480px){.scan-three-book{height:180px}}
-
-.scan-ai-feedback { padding: 12px 16px; border: 1px solid #ffffff20; border-radius: 16px; background: #ffffff08; font-size: 13px; }
-.scan-ai-feedback p { margin: 0 0 8px; }
-.scan-ai-feedback dl { display: grid; gap: 6px; margin: 8px 0; }
-.scan-ai-feedback dl div { display: grid; grid-template-columns: 70px 1fr; gap: 10px; }
-.scan-ai-feedback dt { text-transform: capitalize; opacity: .65; }
-.scan-ai-feedback dd { margin: 0; overflow-wrap: anywhere; }
-.scan-ai-feedback button { padding: 7px 12px; margin: 4px 6px 0 0; border: 1px solid #ffffff30; border-radius: 20px; background: #ffffff10; color: inherit; cursor: pointer; }
-.scan-ai-spinner { display: inline-block; width: 12px; height: 12px; margin-right: 8px; vertical-align: -2px; border: 2px solid #ffffff40; border-top-color: #E22424; border-radius: 50%; animation: scan-ai-spin .8s linear infinite; }
-@keyframes scan-ai-spin { to { transform: rotate(360deg); } }
-@media (prefers-reduced-motion: reduce) { .scan-ai-spinner { animation-duration: 2.4s; } }
-
+@media(max-width:480px){.scan-three-book{height:180px}.scan-three-book-sized{height:245px}}

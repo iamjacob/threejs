@@ -1,22 +1,23 @@
-import {watchLibraryLoops} from "../lib/syncLibraryLoops";
 import { Stats } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { createFileRoute } from "@tanstack/react-router";
 import { Camera, Sparkles } from "lucide-react";
+import BoooksController from "../components/layout/BoooksController";
 import RenderStats from "../components/layout/RenderStats";
 import ShaderWarmup from "../components/layout/ShaderWarmup";
 import { currentRenderQuality } from "../lib/renderQuality";
+import { watchLibraryLoops } from "../lib/syncLibraryLoops";
 
 const renderQuality = currentRenderQuality();
-import ShelfPlateEditor from "../components/layout/ShelfPlateEditor";
-import { useShelfPlatesStore } from "../stores/useShelfPlatesStore";
+
 import { type MouseEvent, Suspense, useEffect, useRef, useState } from "react";
 import { useShelfControlsStore } from "../../stores/useShelfControlsStore";
-import { readBookIds, REMOVED_BOOKS_KEY } from "../lib/bookPreferences";
 import Header from "../components/layout/header/header";
+import LibraryMenus from "../components/layout/LibraryMenus";
 import SceneEnvironment from "../components/layout/SceneEnvironment";
 import SceneToolbar from "../components/layout/SceneToolbar";
 import ShelfControls from "../components/layout/ShelfControls";
+import ShelfPlateEditor from "../components/layout/ShelfPlateEditor";
 import BookInfoCard from "../components/library/BookInfoCard";
 import HelixNav from "../components/library/HelixNav";
 import Lightning from "../components/lightning/Lightning";
@@ -28,13 +29,17 @@ import {
 	saveScannedBook,
 	scannedBook,
 } from "../components/scanner/scannedBook";
+import { BOOKS_SHELF_LEVEL } from "../components/shelves/shelfBooks";
 import TourCamera from "../components/tour/TourCamera";
 import TourDirector from "../components/tour/TourDirector";
 import TourOverlay from "../components/tour/TourOverlay";
 import TourScene from "../components/tour/TourScene";
+import { REMOVED_BOOKS_KEY, readBookIds } from "../lib/bookPreferences";
 import { useFeatureFlags } from "../lib/featureFlags";
-import LibraryMenus from "../components/layout/LibraryMenus";
 import { useBookStore, useSelectedBook } from "../stores/useBookStore";
+import { useLevelStore } from "../stores/useLevelStore";
+import { usePresentationStore } from "../stores/usePresentationStore";
+import { useShelfPlatesStore } from "../stores/useShelfPlatesStore";
 import { useTourStore } from "../stores/useTourStore";
 
 export const Route = createFileRoute("/")({ component: Home });
@@ -56,6 +61,7 @@ function Home() {
 	const wasAdding = useRef(false);
 	const book = useSelectedBook();
 	const editing = useShelfControlsStore((state) => state.editing);
+	const environment = usePresentationStore((state) => state.environment);
 
 	const editableStage = stage === "library" || stage === "pick";
 	const showShelfControls = !scanning && editing && editableStage;
@@ -87,7 +93,7 @@ function Home() {
 	useEffect(() => {
 		const shelf = useShelfControlsStore.getState();
 		shelf.initialize(useBookStore.getState().books);
- const stopLoops=watchLibraryLoops();
+		const stopLoops = watchLibraryLoops();
 		useTourStore.getState().start();
 		useTourStore.setState({ paused: true });
 		let active = true;
@@ -117,7 +123,7 @@ function Home() {
 				/* Scanning still works if private browsing disables storage. */
 			});
 		return () => {
- stopLoops();
+			stopLoops();
 			active = false;
 		};
 	}, []);
@@ -174,6 +180,61 @@ function Home() {
 			saved ? "" : "Added for this visit. Device storage is unavailable.",
 		);
 	};
+	const controllerAction = (id: string, on?: boolean) => {
+		const tour = useTourStore.getState();
+		switch (id) {
+			case "scan":
+				openScanner();
+				break;
+			case "jump": {
+				const books = useBookStore.getState().books;
+				const candidates = books.filter(
+					(item) => item.id !== useBookStore.getState().selectedBookId,
+				);
+				const target =
+					candidates[Math.floor(Math.random() * candidates.length)] ?? books[0];
+				if (target) tour.previewBook(target.id);
+				break;
+			}
+			case "cam":
+				useLevelStore.getState().setLibraryLevel(on ? 10 : BOOKS_SHELF_LEVEL);
+				break;
+			case "lamp":
+				if (on) usePresentationStore.getState().replayLightShow();
+				usePresentationStore.getState().toggleLighting();
+				break;
+			case "home":
+				useTourStore.setState((state) => ({
+					paused: true,
+					focusRevision: state.focusRevision + 1,
+				}));
+				break;
+			case "timer":
+				tour.togglePause();
+				break;
+			case "shelf":
+				if (tour.bookPanel !== "closed") tour.dismissPreview();
+				else
+					useShelfControlsStore
+						.getState()
+						.setEditing(!useShelfControlsStore.getState().editing);
+				break;
+			case "quote":
+				if (tour.bookPanel === "closed")
+					tour.previewBook(useBookStore.getState().selectedBookId);
+				else tour.openReader();
+				break;
+			case "map": {
+				const scenes = ["library", "castle", "forest", "zen"] as const;
+				usePresentationStore
+					.getState()
+					.setEnvironment(
+						scenes[(scenes.indexOf(environment) + 1) % scenes.length],
+					);
+				break;
+			}
+		}
+	};
 	return (
 		<div
 			className="fixed inset-0 bg-[#080d1a]"
@@ -222,6 +283,12 @@ function Home() {
 							/>
 						</Header>
 					</div>
+				)}
+			{!scanning &&
+				!editing &&
+				reader === "closed" &&
+				["library", "pick", "end", "grow"].includes(stage) && (
+					<BoooksController onAction={controllerAction} />
 				)}
 			{!scanning &&
 				!editing &&

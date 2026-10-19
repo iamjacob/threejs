@@ -1,4 +1,3 @@
-import BookmarkRibbon from "../reader/BookmarkRibbon";
 import {
 	ArrowLeft,
 	BookOpen,
@@ -10,12 +9,13 @@ import {
 	SquarePen,
 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
-
 import { bookImagePath } from "../../lib/bookImages";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
 import { useSelectedBook } from "../../stores/useBookStore";
 import { useTourStore } from "../../stores/useTourStore";
 import BookPageSwiper from "../openbook/BookPageSwiper";
+import BookmarkRibbon from "../reader/BookmarkRibbon";
+import BookSizeAdjuster from "./BookSizeAdjuster";
 
 import "./book-info.css";
 
@@ -149,6 +149,7 @@ export default function BookInfoCard() {
 									Edit on shelf<small>Arrange, drag, or stack this book</small>
 								</span>
 							</button>
+							<BookSizeAdjuster book={book} />
 						</div>
 					)}
 				</div>

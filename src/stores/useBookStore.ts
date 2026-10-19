@@ -7,6 +7,10 @@ import { books, type LibraryBook } from "../lib/bookCatalog";
 type BookState = {
 	books: LibraryBook[];
 	addBook: (book: LibraryBook) => void;
+	resizeBook: (
+		id: string,
+		dimensions: [number, number, number],
+	) => LibraryBook | undefined;
 	selectedBookId: string;
 	selectBook: (id: string) => void;
 };
@@ -25,6 +29,34 @@ export const useBookStore = create<BookState>()((set, get) => ({
 		}
 		set((state) => ({ books: [...state.books, book] }));
 		get().selectBook(book.id);
+	},
+	resizeBook: (id, dimensions) => {
+		const [width, height, thickness] = dimensions;
+		const current = get().books.find((entry) => entry.id === id);
+		if (!current) return undefined;
+		const [w, h, t] = current.dimensions;
+		if (
+			Math.abs(w - width) < 1e-6 &&
+			Math.abs(h - height) < 1e-6 &&
+			Math.abs(t - thickness) < 1e-6
+		)
+			return current;
+		const resize = (entry: LibraryBook): LibraryBook => ({
+			...entry,
+			dimensions,
+			scale: { width, height, thickness },
+		});
+		const next = resize(current);
+		set((state) => ({
+			books: state.books.map((entry) =>
+				entry.id === id
+					? next
+					: entry.loopSourceId === id
+						? resize(entry)
+						: entry,
+			),
+		}));
+		return next;
 	},
 	selectedBookId: books[0].id,
 	selectBook: (id) => {

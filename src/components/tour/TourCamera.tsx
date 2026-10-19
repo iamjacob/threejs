@@ -1,4 +1,3 @@
-import { pointerTurnSpeed, stepCenterTurn } from "./centerCamera";
 import { OrbitControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
@@ -26,12 +25,14 @@ import {
 	currentShelfArcFraction,
 	useShelfArcFraction,
 } from "../shelves/useShelfArc";
-import { focusBookPosition } from "./tourBookPose";
-import { tourStages } from "./tourStages";
+import { pointerTurnSpeed, stepCenterTurn } from "./centerCamera";
+import { getControllerJoystick } from "./controllerJoystick";
 import {
 	LIBRARY_ENTRANCE_SECONDS,
 	libraryEntrancePose,
 } from "./libraryEntrance";
+import { focusBookPosition } from "./tourBookPose";
+import { tourStages } from "./tourStages";
 
 export default function TourCamera() {
 	const { SHOW_DEMO_UI } = useFeatureFlags();
@@ -196,7 +197,11 @@ export default function TourCamera() {
 		y: 0,
 		fov: 45,
 	});
- useEffect(()=>{if(editing)centerTurn.current.fov=zoomMode==='book'?28:zoomMode==='shelf'?42:55;},[editing,zoomMode]);
+	useEffect(() => {
+		if (editing)
+			centerTurn.current.fov =
+				zoomMode === "book" ? 28 : zoomMode === "shelf" ? 42 : 55;
+	}, [editing, zoomMode]);
 
 	useEffect(() => {
 		const canvas = gl.domElement;
@@ -322,8 +327,30 @@ export default function TourCamera() {
 		const tour = useTourStore.getState();
 		if (!drag) dragView.current = null;
 		if (!orbit || !tour.ready || tour.reader === "open") return;
+		const controller = getControllerJoystick();
+		if (
+			!centered &&
+			controller.mag > 0 &&
+			reader === "closed" &&
+			!editing &&
+			!drag &&
+			["library", "pick", "end"].includes(stage)
+		) {
+			useTourStore.setState({ paused: true });
+			const offset = camera.position.sub(orbit.target);
+			offset.applyAxisAngle(new Vector3(0, 1, 0), -controller.x * delta * 1.8);
+			const right = new Vector3().crossVectors(offset, camera.up).normalize();
+			offset.applyAxisAngle(right, controller.y * delta * 1.2);
+			camera.position.copy(orbit.target).add(offset);
+			orbit.update();
+			return;
+		}
 		if (centered) {
 			const state = centerTurn.current;
+			if (controller.mag > 0) state.wanted = controller.x * 0.65;
+			else if (!state.dragging) state.wanted = 0;
+			const pitchTarget = controller.mag > 0 ? controller.y * 0.35 : 0;
+			state.pitch = MathUtils.damp(state.pitch, pitchTarget, 5, delta);
 			const frozen =
 				Boolean(drag) ||
 				state.dragging ||
