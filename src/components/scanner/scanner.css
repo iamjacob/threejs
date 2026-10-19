@@ -6,12 +6,11 @@
 	inset: 0;
 	z-index: 1500;
 	display: grid;
-	grid-template-columns: auto minmax(0, 1fr);
+	grid-template-columns: minmax(0, 1fr);
 	grid-template-rows: auto minmax(0, 1fr);
 	grid-template-areas:
-		"head head"
-		"side main";
-	column-gap: 10px;
+		"head"
+		"main";
 	color: var(--scan-ink);
 	background: transparent;
 	font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -23,8 +22,14 @@
 .book-scanner > .scan-header {
 	grid-area: head;
 }
+/* The dock floats on its own layer at the centre-left, so the portal, image
+   and the rest of the content stay centred on the full width. */
 .book-scanner > .spx-dock {
-	grid-area: side;
+	position: absolute;
+	top: 50%;
+	left: max(14px, env(safe-area-inset-left));
+	z-index: 8;
+	transform: translateY(-50%);
 }
 .scan-main {
 	grid-area: main;
@@ -112,74 +117,53 @@
 .scan-close {
 	margin-left: auto;
 }
+.scan-brand-group {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	min-width: 0;
+}
 .scan-model-select {
 	position: relative;
 	z-index: 3;
 	min-width: 0;
-	margin: 0 0 0 auto;
+	margin: 0;
 	padding: 0;
 	border: 0;
 	text-align: left;
 }
+/* The "Scanner 0.3" sign in the header. */
 .scan-model-trigger {
-	display: flex;
+	display: inline-flex;
 	align-items: center;
-	gap: 8px;
-	min-height: 38px;
-	padding: 4px 10px 4px 5px;
-	border: 1px solid #ffffff24;
+	gap: 4px;
+	padding: 4px 8px;
+	border: 1px solid #ffffff22;
 	border-radius: 999px;
-	background: #151b2dcc;
+	background: transparent;
+	color: var(--scan-muted);
+	font-size: 9px;
+	font-weight: 600;
+	letter-spacing: 1.2px;
+	text-transform: uppercase;
+	white-space: nowrap;
+}
+.scan-model-trigger b {
 	color: var(--scan-ink);
-	box-shadow: 0 4px 18px #0002;
-	text-align: left;
+	font-weight: 700;
+	letter-spacing: 0.6px;
+}
+.book-scanner:is([data-model="corners"], [data-model="enrich"])
+	.scan-model-trigger
+	b {
+	color: #ffb1b4;
 }
 .scan-model-trigger:hover,
 .scan-model-trigger[aria-expanded="true"] {
 	border-color: #ffffff4a;
-	background: #20283d;
-}
-.scan-model-icon {
-	display: grid;
-	place-items: center;
-	width: 28px;
-	height: 28px;
-	flex-shrink: 0;
-	border-radius: 50%;
-	background: #ffffff08;
-	color: #c6cbd7;
-}
-.book-scanner:is([data-model="corners"], [data-model="enrich"])
-	.scan-model-trigger
-	.scan-model-icon,
-.scan-model-menu button[aria-checked="true"] .scan-model-icon {
-	color: #ffb1b4;
-	background: linear-gradient(135deg, #7c141466, #e2242429);
-}
-.scan-model-current {
-	display: grid;
-	gap: 1px;
-	font-size: 11px;
-	font-weight: 550;
-}
-.scan-model-trigger .scan-model-caption {
-	display: none;
-}
-.scan-model-caption,
-.scan-model-menu-title {
-	font-size: 8px;
-	font-weight: 600;
-	letter-spacing: 1.3px;
-	text-transform: uppercase;
-	color: var(--scan-muted);
-}
-.scan-model-divider {
-	margin: 0 7px;
-	color: #7f8aa2;
+	background: #ffffff0f;
 }
 .scan-model-chevron {
-	margin-left: 6px;
-	color: #a6adbf;
 	transition: transform 0.2s;
 }
 .scan-model-trigger[aria-expanded="true"] .scan-model-chevron {
@@ -187,67 +171,71 @@
 }
 .scan-model-menu {
 	position: absolute;
-	top: calc(100% + 9px);
-	right: 0;
-	width: min(350px, calc(100vw - 40px));
-	padding: 7px;
+	top: calc(100% + 8px);
+	left: 0;
+	display: grid;
+	gap: 2px;
+	width: max-content;
+	min-width: 190px;
+	max-width: calc(100vw - 32px);
+	padding: 5px;
 	border: 1px solid #ffffff25;
-	border-radius: 21px;
+	border-radius: 14px;
 	background: #141a2b;
 	box-shadow: 0 18px 50px #0006;
-}
-.scan-model-menu-title {
-	padding: 10px 10px 12px;
 }
 .scan-model-menu > button {
 	display: flex;
 	align-items: center;
 	gap: 10px;
 	width: 100%;
-	min-height: 78px;
-	padding: 12px 10px;
+	min-height: 36px;
+	padding: 6px 10px;
 	border: 1px solid transparent;
-	border-radius: 14px;
+	border-radius: 10px;
 	background: transparent;
 	color: var(--scan-ink);
+	font-size: 12px;
 	text-align: left;
+}
+.scan-model-menu > button b {
+	min-width: 26px;
+	font-weight: 700;
+}
+.scan-model-menu > button span {
+	color: var(--scan-muted);
 }
 .scan-model-menu > button:hover,
 .scan-model-menu > button:focus-visible {
-	background: #ffffff08;
+	background: #ffffff0f;
 }
 .scan-model-menu > button[aria-checked="true"] {
 	border-color: #ef3d4838;
 	background: #ef3d480b;
 }
-.scan-model-option-copy {
-	display: grid;
-	gap: 7px;
-}
-.scan-model-menu-title-mode {
-	margin-top: 8px;
-	padding-top: 10px;
-	border-top: 1px solid #ffffff12;
+.scan-model-menu > button[aria-checked="true"] b {
+	color: #ffb1b4;
 }
 .scan-model-modes {
 	display: grid;
 	grid-template-columns: repeat(3, minmax(0, 1fr));
 	gap: 4px;
-	padding: 6px 7px 2px;
+	margin-top: 4px;
+	padding: 6px 2px 2px;
+	border-top: 1px solid #ffffff12;
 }
 .scan-model-menu .scan-model-modes > button {
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	gap: 6px;
-	width: auto;
-	min-height: 34px;
-	padding: 6px 8px;
+	gap: 5px;
+	min-height: 30px;
+	padding: 4px 6px;
 	border: 1px solid #ffffff14;
-	border-radius: 10px;
+	border-radius: 9px;
 	background: #ffffff06;
 	color: #c6ccda;
-	font-size: 11px;
+	font-size: 10px;
 	font-weight: 600;
 }
 .scan-model-menu .scan-model-modes > button[aria-pressed="true"] {
@@ -258,39 +246,10 @@
 .scan-model-menu .scan-model-modes > button:disabled {
 	opacity: 0.4;
 }
-.scan-model-mode-note {
-	margin: 4px 0 2px;
-	padding: 0 9px 4px;
-	color: var(--scan-muted);
-	font-size: 10px;
-	line-height: 1.45;
-}
 .scan-model-menu > .scan-model-shelf {
-	border-color: #e5484d33;
-}
-.scan-model-option-title {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	font-size: 12px;
-	font-weight: 600;
-}
-.scan-model-badge {
-	padding: 3px 6px;
-	border: 1px solid #ffffff12;
-	border-radius: 6px;
-	color: #c6ccda;
-	font-size: 9px;
-	font-weight: 400;
-}
-.scan-model-description {
-	font-size: 10px;
-	line-height: 1.5;
-	color: var(--scan-muted);
-}
-.scan-model-check {
-	margin-left: auto;
-	color: #f58c93;
+	margin-top: 4px;
+	border-top: 1px solid #ffffff12;
+	border-radius: 10px;
 }
 .book-scanner .scan-detect-button {
 	display: inline-flex;
@@ -330,6 +289,113 @@
 }
 .scan-icon:hover {
 	background: #ffffff12;
+}
+/* Small live book in the bottom-left corner: preview and guide. */
+.scan-book-guide {
+	position: absolute;
+	left: max(10px, env(safe-area-inset-left));
+	bottom: max(12px, env(safe-area-inset-bottom));
+	z-index: 8;
+	width: 112px;
+	height: 150px;
+	margin: 0;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	/* Only the canvas takes the pointer, so the rest of the corner stays tappable. */
+	pointer-events: none;
+}
+.scan-book-guide > div {
+	flex: 1 1 auto;
+	width: 100%;
+	min-height: 0;
+	pointer-events: auto;
+	/* Drag to orbit without scrolling the page. */
+	touch-action: none;
+	cursor: grab;
+}
+.scan-book-guide > div:active {
+	cursor: grabbing;
+}
+.scan-book-guide figcaption {
+	flex-shrink: 0;
+	padding: 2px 8px;
+	border-radius: 999px;
+	background: #080b1ab3;
+	color: var(--scan-ink);
+	font-size: 9px;
+	font-weight: 600;
+	letter-spacing: 1.2px;
+	text-transform: uppercase;
+}
+/* Small stepper: front → spine → back → done. Go back and forth freely. */
+.scan-cover-stepper {
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	height: 50px;
+	flex-shrink: 0;
+}
+.scan-cover-stepper button {
+	display: inline-flex;
+	align-items: center;
+	gap: 7px;
+	height: 34px;
+	padding: 0 12px 0 6px;
+	border: 1px solid #ffffff1f;
+	border-radius: 999px;
+	background: #ffffff08;
+	color: var(--scan-muted);
+	font-size: 11px;
+	font-weight: 600;
+}
+.scan-cover-stepper button small {
+	color: var(--scan-muted);
+	font-size: 9px;
+	font-weight: 500;
+}
+/* Step 4: the full-size book with its size handles and sliders. */
+.scan-size-step {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	width: min(100%, 660px);
+	min-height: 0;
+	margin: 0 auto;
+	overflow-y: auto;
+}
+.scan-size-step .scan-size-configurator {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
+}
+.scan-cover-stepper button i {
+	display: grid;
+	place-items: center;
+	width: 22px;
+	height: 22px;
+	border-radius: 50%;
+	background: #ffffff12;
+	font-size: 10px;
+	font-style: normal;
+}
+.scan-cover-stepper button.is-done i {
+	background: #4fd18b33;
+	color: #4fd18b;
+}
+.scan-cover-stepper button[aria-current="step"] {
+	border-color: #ffffff4a;
+	background: #ffffff14;
+	color: var(--scan-ink);
+}
+.scan-cover-stepper button[aria-current="step"] i {
+	background: var(--scan-accent);
+	color: #fff;
+}
+.scan-cover-stepper button:disabled {
+	opacity: 0.4;
 }
 .scan-steps {
 	display: flex;
@@ -708,10 +774,13 @@
 	line-height: 1.6;
 	padding-left: 14px;
 }
+/* Same box as the portal viewfinder (.scan-portal-viewfinder), so the image
+   you crop fills exactly the space the portal had. */
 .scan-crop-workspace {
 	position: relative;
 	flex: 1;
-	min-height: 220px;
+	min-height: 280px;
+	max-height: 600px;
 	overflow: hidden;
 	border-radius: 20px;
 	border: 0;
@@ -1002,7 +1071,8 @@
 	.scan-crop-screen {
 		max-height: 790px;
 	}
-	.scan-viewfinder {
+	.scan-viewfinder,
+	.scan-crop-workspace {
 		margin: 0 auto;
 		width: 100%;
 		max-width: 440px;
@@ -1089,11 +1159,19 @@
 	pointer-events: none;
 }
 .scan-viewfinder.scan-portal-viewfinder {
+	--scan-portal-scale: 1.5;
 	border: 0;
 	border-radius: 0;
 	background: transparent;
 	min-height: 280px;
 	max-height: 600px;
+	/* The portal is drawn larger than the viewfinder box. */
+	overflow: visible;
+}
+.scan-portal-viewfinder > .scanner-portal,
+.scan-portal-viewfinder[data-fallback="true"] > video {
+	transform: scale(var(--scan-portal-scale));
+	transform-origin: 50% 50%;
 }
 .scan-portal-viewfinder > video {
 	opacity: 0;
@@ -1141,7 +1219,8 @@
 		height: 180px;
 		margin-bottom: 10px;
 	}
-	.scan-portal-viewfinder {
+	.scan-portal-viewfinder,
+	.scan-crop-workspace {
 		min-height: 220px !important;
 	}
 }

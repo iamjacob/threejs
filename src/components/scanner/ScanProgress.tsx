@@ -284,6 +284,13 @@ function MiniBook({ draft }: { draft: ScanDraft }) {
 	);
 }
 
+/**
+ * Feature flag for the full progress card (ring, step title, counter, segment
+ * bar, hint, tools). When false the card shows only the "All details" button
+ * that opens the details sheet. Set to `true` to bring everything back.
+ */
+export const SHOW_SCAN_PROGRESS_FULL = false;
+
 export default function ScanProgress({
 	draft,
 	enrichment,
@@ -390,41 +397,48 @@ export default function ScanProgress({
 			: PROGRESS_GROUPS[g].steps[s].n;
 
 	return (
-		<nav className="spx-card" aria-label="Scan progress">
+		<nav
+			className={`spx-card${SHOW_SCAN_PROGRESS_FULL ? "" : " spx-compact"}`}
+			aria-label="Scan progress"
+		>
 			<div className="spx-head">
-				<div className="spx-ring">
-					<svg viewBox="0 0 40 40" aria-hidden="true">
-						<circle
-							cx="20"
-							cy="20"
-							r={RING_R}
-							fill="none"
-							stroke="var(--spx-track)"
-							strokeWidth="2.5"
-						/>
-						<circle
-							className="spx-ring-fill"
-							cx="20"
-							cy="20"
-							r={RING_R}
-							fill="none"
-							stroke={finished ? "var(--spx-ok)" : "var(--spx-accent)"}
-							strokeWidth="2.5"
-							strokeLinecap="round"
-							strokeDasharray={RING_C}
-							strokeDashoffset={RING_C * (1 - groupProgress)}
-							transform="rotate(-90 20 20)"
-						/>
-					</svg>
-					<span className="spx-ring-num">
-						{finished ? <Check size={15} aria-hidden="true" /> : g + 1}
-					</span>
-				</div>
-				<SlideTitle text={title} dir={dir} loader={working && !picked} />
-				<div className="spx-count">
-					{doneCount}
-					<span>/{TOTAL}</span>
-				</div>
+				{SHOW_SCAN_PROGRESS_FULL && (
+					<>
+						<div className="spx-ring">
+							<svg viewBox="0 0 40 40" aria-hidden="true">
+								<circle
+									cx="20"
+									cy="20"
+									r={RING_R}
+									fill="none"
+									stroke="var(--spx-track)"
+									strokeWidth="2.5"
+								/>
+								<circle
+									className="spx-ring-fill"
+									cx="20"
+									cy="20"
+									r={RING_R}
+									fill="none"
+									stroke={finished ? "var(--spx-ok)" : "var(--spx-accent)"}
+									strokeWidth="2.5"
+									strokeLinecap="round"
+									strokeDasharray={RING_C}
+									strokeDashoffset={RING_C * (1 - groupProgress)}
+									transform="rotate(-90 20 20)"
+								/>
+							</svg>
+							<span className="spx-ring-num">
+								{finished ? <Check size={15} aria-hidden="true" /> : g + 1}
+							</span>
+						</div>
+						<SlideTitle text={title} dir={dir} loader={working && !picked} />
+						<div className="spx-count">
+							{doneCount}
+							<span>/{TOTAL}</span>
+						</div>
+					</>
+				)}
 				{onOpenAll && (
 					<button
 						type="button"
@@ -438,86 +452,90 @@ export default function ScanProgress({
 				)}
 			</div>
 
-			<div className="spx-bar">
-				{PROGRESS_GROUPS.map((group, gi) => {
-					const groupFull = values[gi].every(Boolean);
-					return (
-						<div
-							key={group.title}
-							className="spx-cluster"
-							style={{ flexGrow: group.steps.length }}
-						>
-							<div className="spx-segs">
-								{group.steps.map((st, si) => {
-									const done = Boolean(values[gi][si]);
-									const cur = !finished && gi === g && si === s;
-									const sel = gi === sg && si === ss;
-									return (
-										<button
-											key={st.n}
-											type="button"
-											className={`spx-seg${done ? " done" : ""}${cur ? " cur" : ""}${sel ? " sel" : ""}`}
-											aria-label={`${group.title}: ${st.n}${values[gi][si] ? ` — ${values[gi][si]}` : ""}`}
-											aria-current={cur ? "step" : undefined}
-											onClick={() =>
-												setPicked((prev) =>
-													prev && prev[0] === gi && prev[1] === si
-														? null
-														: [gi, si],
-												)
-											}
-										/>
-									);
-								})}
+			{SHOW_SCAN_PROGRESS_FULL && (
+				<>
+					<div className="spx-bar">
+						{PROGRESS_GROUPS.map((group, gi) => {
+							const groupFull = values[gi].every(Boolean);
+							return (
+								<div
+									key={group.title}
+									className="spx-cluster"
+									style={{ flexGrow: group.steps.length }}
+								>
+									<div className="spx-segs">
+										{group.steps.map((st, si) => {
+											const done = Boolean(values[gi][si]);
+											const cur = !finished && gi === g && si === s;
+											const sel = gi === sg && si === ss;
+											return (
+												<button
+													key={st.n}
+													type="button"
+													className={`spx-seg${done ? " done" : ""}${cur ? " cur" : ""}${sel ? " sel" : ""}`}
+													aria-label={`${group.title}: ${st.n}${values[gi][si] ? ` — ${values[gi][si]}` : ""}`}
+													aria-current={cur ? "step" : undefined}
+													onClick={() =>
+														setPicked((prev) =>
+															prev && prev[0] === gi && prev[1] === si
+																? null
+																: [gi, si],
+														)
+													}
+												/>
+											);
+										})}
+									</div>
+									<span
+										className={`spx-cl${groupFull ? " ok" : gi === g ? " on" : ""}`}
+									>
+										{group.title}
+									</span>
+								</div>
+							);
+						})}
+					</div>
+
+					<div className="spx-detail">
+						<div className="spx-hint">
+							<div className="h">
+								{finished && !picked ? "Book details complete." : step.h}
 							</div>
-							<span
-								className={`spx-cl${groupFull ? " ok" : gi === g ? " on" : ""}`}
-							>
-								{group.title}
-							</span>
+							<div className="sub">
+								{finished && !picked
+									? "Add it to your shelf when you’re happy with the size."
+									: step.s}
+							</div>
 						</div>
-					);
-				})}
-			</div>
+						{showAction ? (
+							<button
+								type="button"
+								className="spx-chip spx-chip-action"
+								onClick={() => step.face && onPart(step.face)}
+							>
+								<Camera size={13} aria-hidden="true" />
+								Add {step.n.toLowerCase()}
+							</button>
+						) : (
+							<div className={`spx-chip${shownValue ? " ok" : ""}`}>
+								<i />
+								<span className="k">{step.k}</span>
+								<span className="v">
+									{shownValue ?? (working && !picked ? "Looking…" : "Pending")}
+								</span>
+							</div>
+						)}
+					</div>
+					{tools && <div className="spx-tools">{tools}</div>}
 
-			<div className="spx-detail">
-				<div className="spx-hint">
-					<div className="h">
-						{finished && !picked ? "Book details complete." : step.h}
-					</div>
-					<div className="sub">
-						{finished && !picked
-							? "Add it to your shelf when you’re happy with the size."
-							: step.s}
-					</div>
-				</div>
-				{showAction ? (
-					<button
-						type="button"
-						className="spx-chip spx-chip-action"
-						onClick={() => step.face && onPart(step.face)}
-					>
-						<Camera size={13} aria-hidden="true" />
-						Add {step.n.toLowerCase()}
-					</button>
-				) : (
-					<div className={`spx-chip${shownValue ? " ok" : ""}`}>
-						<i />
-						<span className="k">{step.k}</span>
-						<span className="v">
-							{shownValue ?? (working && !picked ? "Looking…" : "Pending")}
-						</span>
-					</div>
-				)}
-			</div>
-			{tools && <div className="spx-tools">{tools}</div>}
-
-			<output className={`spx-toast${toast ? " show" : ""}`}>
-				<i>
-					<Check size={13} strokeWidth={3.2} aria-hidden="true" />
-				</i>
-				<span>{toast?.text}</span>
-			</output>
+					<output className={`spx-toast${toast ? " show" : ""}`}>
+						<i>
+							<Check size={13} strokeWidth={3.2} aria-hidden="true" />
+						</i>
+						<span>{toast?.text}</span>
+					</output>
+				</>
+			)}
 		</nav>
 	);
 }

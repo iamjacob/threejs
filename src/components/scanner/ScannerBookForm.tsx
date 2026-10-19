@@ -5,6 +5,13 @@ import ScannerBook3D, { type PreviewSide } from "./ScannerBook3D";
 import { type PhotoTag, photoTags, type ScanPhoto } from "./scanDrafts";
 import type { CroppedFace } from "./scannedBook";
 
+/**
+ * Feature flag for the whole live book section (`.scan-live-book`: toolbar,
+ * 3D book, side picker and details drawer). When false the component renders
+ * nothing. Set to `true` to bring it back.
+ */
+export const SHOW_LIVE_BOOK = false;
+
 type Props = {
 	title: string;
 	onTitle: (title: string) => void;
@@ -29,6 +36,8 @@ type Props = {
 	/** micro right after the first cover; full once all covers are in or skipped. */
 	bookSize?: "micro" | "full";
 	onSkipCovers?: () => void;
+	/** Overrides SHOW_LIVE_BOOK for this instance. */
+	showLiveBook?: boolean;
 };
 export default function ScannerBookForm({
 	title,
@@ -52,6 +61,7 @@ export default function ScannerBookForm({
 	onResetSize,
 	bookSize = "full",
 	onSkipCovers,
+	showLiveBook = SHOW_LIVE_BOOK,
 }: Props) {
 	const [side, setSide] = useState<PreviewSide>("front");
 	const [open, setOpen] = useState(false);
@@ -69,6 +79,7 @@ export default function ScannerBookForm({
 					: "page",
 			);
 	}, [previewTag]);
+	if (!showLiveBook) return null;
 	return (
 		<section
 			className="scan-live-book"

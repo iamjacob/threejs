@@ -1,14 +1,4 @@
-import {
-	Check,
-	ChevronDown,
-	Crop,
-	Globe,
-	Library,
-	Lock,
-	ScanLine,
-	Sparkles,
-	WifiOff,
-} from "lucide-react";
+import { ChevronDown, Globe, Library, Lock, WifiOff } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import {
 	type ScannerDataMode,
@@ -17,13 +7,9 @@ import {
 	scannerModels,
 } from "./scannerModels";
 
-const MODEL_ICONS = {
-	manual: Crop,
-	corners: ScanLine,
-	enrich: Sparkles,
-} as const;
 const MODE_ICONS = { online: Globe, offline: WifiOff, private: Lock } as const;
 
+/** Header sign: "Scanner 0.3" (or the chosen version); opens a short list. */
 export default function ScannerModelSelect({
 	value,
 	onChange,
@@ -36,7 +22,7 @@ export default function ScannerModelSelect({
 	onChange: (model: ScannerModel) => void;
 	mode: ScannerDataMode;
 	onModeChange: (mode: ScannerDataMode) => void;
-	/** Optional: offer "Scan full shelf" under the models. */
+	/** Optional: offer "Scan full shelf" under the versions. */
 	onScanShelf?: () => void;
 	disabled: boolean;
 }) {
@@ -47,10 +33,6 @@ export default function ScannerModelSelect({
 	const menuId = useId();
 	const selected =
 		scannerModels.find((model) => model.id === value) ?? scannerModels[0];
-	const selectedMode =
-		scannerDataModes.find((item) => item.id === mode) ?? scannerDataModes[0];
-	const Icon = MODEL_ICONS[value];
-	const ModeIcon = MODE_ICONS[mode];
 
 	useEffect(() => {
 		if (!open) return;
@@ -68,7 +50,7 @@ export default function ScannerModelSelect({
 		<fieldset
 			ref={host}
 			className="scan-model-select"
-			aria-label="Scanner selection"
+			aria-label="Scanner version"
 			onBlur={(event) => {
 				if (!event.currentTarget.contains(event.relatedTarget)) setOpen(false);
 			}}
@@ -85,11 +67,12 @@ export default function ScannerModelSelect({
 				ref={trigger}
 				type="button"
 				className="scan-model-trigger"
-				aria-label={`Scanner model: ${selected.name}, ${selected.label}`}
+				aria-label={`Scanner ${selected.version}, ${selected.label}. Change version`}
 				aria-haspopup="menu"
 				aria-expanded={open}
 				aria-controls={open ? menuId : undefined}
 				disabled={disabled}
+				title={selected.label}
 				onClick={() => setOpen(!open)}
 				onKeyDown={(event) => {
 					if (event.key === "ArrowDown" || event.key === "ArrowUp") {
@@ -98,35 +81,18 @@ export default function ScannerModelSelect({
 					}
 				}}
 			>
-				<span className="scan-model-icon">
-					<Icon size={19} />
-				</span>
-				<span className="scan-model-current">
-					<span className="scan-model-caption">Scanner model</span>
-					<span>
-						{selected.name}
-						<span className="scan-model-divider">·</span>
-						{selected.enrich ? (
-							<>
-								<ModeIcon size={11} aria-hidden="true" /> {selectedMode.label}
-							</>
-						) : (
-							selected.label
-						)}
-					</span>
-				</span>
-				<ChevronDown size={15} className="scan-model-chevron" />
+				Scanner <b>{selected.version}</b>
+				<ChevronDown size={11} className="scan-model-chevron" />
 			</button>
 			{open && (
 				<div
 					id={menuId}
 					className="scan-model-menu"
 					role="menu"
-					aria-label="Scanner model"
+					aria-label="Scanner version"
 				>
-					<div className="scan-model-menu-title">Choose your scanner</div>
 					{scannerModels.map((model, index) => {
-						const OptionIcon = MODEL_ICONS[model.id];
+						const last = scannerModels.length - 1;
 						return (
 							<button
 								key={model.id}
@@ -138,13 +104,13 @@ export default function ScannerModelSelect({
 								aria-checked={value === model.id}
 								tabIndex={-1}
 								disabled={disabled}
+								title={model.description}
 								onClick={() => {
 									onChange(model.id);
 									setOpen(false);
 									trigger.current?.focus();
 								}}
 								onKeyDown={(event) => {
-									const last = scannerModels.length - 1;
 									const next =
 										event.key === "ArrowDown"
 											? (index + 1) % (last + 1)
@@ -161,91 +127,51 @@ export default function ScannerModelSelect({
 									}
 								}}
 							>
-								<span className="scan-model-icon">
-									<OptionIcon size={19} />
-								</span>
-								<span className="scan-model-option-copy">
-									<span className="scan-model-option-title">
-										{model.name}
-										<span className="scan-model-badge">{model.label}</span>
-									</span>
-									<span className="scan-model-description">
-										{model.description}
-									</span>
-								</span>
-								{value === model.id && (
-									<Check className="scan-model-check" size={16} />
-								)}
+								<b>{model.version}</b>
+								<span>{model.label}</span>
 							</button>
 						);
 					})}
-					<div className="scan-model-menu-title scan-model-menu-title-mode">
-						Book details
-					</div>
-					<div className="scan-model-modes">
-						{scannerDataModes.map((item) => {
-							const OptionIcon = MODE_ICONS[item.id];
-							const locked = !selected.enrich;
-							return (
-								<button
-									key={item.id}
-									type="button"
-									aria-pressed={mode === item.id}
-									disabled={disabled || locked}
-									title={
-										locked
-											? `Switch to Gutenberg 0.3 to look up details`
-											: item.description
-									}
-									onClick={() => onModeChange(item.id)}
-								>
-									<OptionIcon size={14} aria-hidden="true" />
-									<span>{item.label}</span>
-								</button>
-							);
-						})}
-					</div>
-					<p className="scan-model-mode-note">
-						{selected.enrich
-							? selectedMode.description
-							: "Gutenberg 0.3 adds details, size and page count."}
-					</p>
+					{selected.enrich && (
+						<div className="scan-model-modes">
+							{scannerDataModes.map((item) => {
+								const ModeIcon = MODE_ICONS[item.id];
+								return (
+									<button
+										key={item.id}
+										type="button"
+										aria-pressed={mode === item.id}
+										disabled={disabled}
+										title={item.description}
+										onClick={() => onModeChange(item.id)}
+									>
+										<ModeIcon size={12} aria-hidden="true" />
+										{item.label}
+									</button>
+								);
+							})}
+						</div>
+					)}
 					{onScanShelf && (
-						<>
-							<div className="scan-model-menu-title scan-model-menu-title-mode">
-								Many books
-							</div>
-							<button
-								type="button"
-								role="menuitem"
-								className="scan-model-shelf"
-								tabIndex={-1}
-								disabled={disabled || mode === "offline"}
-								title={
-									mode === "offline"
-										? "Needs Online mode: the AI reads the shelf photo"
-										: "Photograph a whole shelf; we list the books and walk through them one at a time"
-								}
-								onClick={() => {
-									setOpen(false);
-									onScanShelf();
-								}}
-							>
-								<span className="scan-model-icon">
-									<Library size={19} />
-								</span>
-								<span className="scan-model-option-copy">
-									<span className="scan-model-option-title">
-										Scan full shelf
-										<span className="scan-model-badge">beta</span>
-									</span>
-									<span className="scan-model-description">
-										One photo of the shelf. The AI lists every book; you confirm
-										them one by one.
-									</span>
-								</span>
-							</button>
-						</>
+						<button
+							type="button"
+							role="menuitem"
+							className="scan-model-shelf"
+							tabIndex={-1}
+							disabled={disabled || mode === "offline"}
+							title={
+								mode === "offline"
+									? "Needs Online mode: the AI reads the shelf photo"
+									: "Photograph a whole shelf; we list the books and walk through them one at a time"
+							}
+							onClick={() => {
+								setOpen(false);
+								onScanShelf();
+							}}
+						>
+							<Library size={14} aria-hidden="true" />
+							<span>Scan full shelf</span>
+						</button>
 					)}
 				</div>
 			)}

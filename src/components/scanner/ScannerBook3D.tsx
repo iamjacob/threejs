@@ -241,6 +241,7 @@ function BookModel({
 	editable,
 	onPart,
 	onSize,
+	interactive = true,
 }: {
 	faces: Partial<Record<"front" | "spine" | "back", CroppedFace>>;
 	side: PreviewSide;
@@ -249,6 +250,8 @@ function BookModel({
 	editable: boolean;
 	onPart: (tag: PhotoTag) => void;
 	onSize: (axis: Axis, value: number) => void;
+	/** Lets the user orbit the book with the pointer. */
+	interactive?: boolean;
 }) {
 	const group = useRef<Group>(null);
 	const { camera, gl } = useThree();
@@ -489,7 +492,7 @@ function BookModel({
 			{/* Rotate only. No zoom: the camera distance is fixed so every book
 			    renders at the same scale (a 30 cm book is 1.5× a 20 cm one). */}
 			<OrbitControls
-				enabled={!dragging}
+				enabled={interactive && !dragging}
 				enablePan={false}
 				enableZoom={false}
 				enableDamping
@@ -628,6 +631,7 @@ export default function ScannerBook3D({
 	onConfirm,
 	toolsRequest,
 	reset,
+	startEditing = false,
 }: {
 	faces: Partial<Record<"front" | "spine" | "back", CroppedFace>>;
 	side: PreviewSide;
@@ -643,8 +647,10 @@ export default function ScannerBook3D({
 	onConfirm: () => void;
 	toolsRequest?: number;
 	reset: () => void;
+	/** Open with the size handles and sliders already showing. */
+	startEditing?: boolean;
 }) {
-	const [editing, setEditing] = useState(false);
+	const [editing, setEditing] = useState(startEditing);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: each bump toggles the tools once.
 	useEffect(() => {
 		if (toolsRequest) setEditing((value) => !value);
@@ -719,5 +725,47 @@ export default function ScannerBook3D({
 				/>
 			)}
 		</div>
+	);
+}
+
+/**
+ * Small copy of the 3D book for a corner guide. It shares BookModel, so it
+ * turns to `side`, shows the same cropped faces, and can be orbited by hand
+ * (rotate only; no zoom or pan, and no size handles).
+ */
+export function ScannerBookGuide({
+	faces,
+	side,
+	size,
+	unit,
+}: {
+	faces: Partial<Record<"front" | "spine" | "back", CroppedFace>>;
+	side: PreviewSide;
+	size: BookSizeCm;
+	unit: Unit;
+}) {
+	return (
+		<Canvas
+			camera={{
+				position: [
+					SCENE_DISTANCE * 0.18,
+					SCENE_TARGET_Y + 0.35,
+					SCENE_DISTANCE,
+				],
+				fov: 34,
+			}}
+			dpr={[1, 1.5]}
+		>
+			<BookModel
+				faces={faces}
+				side={side}
+				size={size}
+				unit={unit}
+				editable={false}
+				interactive
+				onPart={() => {}}
+				onSize={() => {}}
+			/>
+		</Canvas>
 	);
 }

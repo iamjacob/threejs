@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
 	createScannerPortalRenderer,
+	PORTAL_SHAPES,
 	portalCanvasSize,
+	portalCropRect,
 	portalOpeningScale,
 	portalVideoTextureSize,
 } from "../src/components/scanner/scannerPortalRenderer.ts";
@@ -93,3 +95,49 @@ test("large video previews use a bounded reusable canvas and release its backing
 		else globalThis.document = previousDocument;
 	}
 });
+
+test("portal crop keeps the centred part of the frame the window shows", () => {
+	// Cover window is 3:4 (half-extents 0.3 x 0.4). A 4:3 landscape frame is cut on x.
+	assert.deepEqual(portalCropRect(1600, 1200, PORTAL_SHAPES.front), {
+		x: 350,
+		y: 0,
+		width: 900,
+		height: 1200,
+	});
+	// A frame with the window's own aspect is kept whole.
+	assert.deepEqual(portalCropRect(900, 1200, PORTAL_SHAPES.front), {
+		x: 0,
+		y: 0,
+		width: 900,
+		height: 1200,
+	});
+	// A taller frame is cut on y instead, centred.
+	const tall = portalCropRect(1000, 2000, PORTAL_SHAPES.front);
+	assert.equal(tall.x, 0);
+	assert.equal(tall.width, 1000);
+	assert.equal(tall.height, 1333);
+	assert.equal(tall.y, 333);
+	// The spine window is a narrow centred strip of the full height.
+	const spine = portalCropRect(1200, 1600, PORTAL_SHAPES.spine);
+	assert.equal(spine.y, 0);
+	assert.equal(spine.height, 1600);
+	assert.ok(spine.width < 400);
+	assert.equal(spine.x * 2 + spine.width, 1200);
+});
+
+test("portal crop padding grows the region evenly and stays inside the frame", () => {
+	const plain = portalCropRect(1600, 1200, PORTAL_SHAPES.front);
+	const padded = portalCropRect(1600, 1200, PORTAL_SHAPES.front, 0.1);
+	assert.ok(padded.width > plain.width);
+	assert.equal(padded.x * 2 + padded.width, plain.x * 2 + plain.width);
+	assert.ok(padded.y >= 0 && padded.y + padded.height <= 1200);
+	assert.deepEqual(portalCropRect(1600, 1200, PORTAL_SHAPES.front, 5), {
+		x: 0,
+		y: 0,
+		width: 1600,
+		height: 1200,
+	});
+	const bad = portalCropRect(Number.NaN, 0, PORTAL_SHAPES.front, 0.04);
+	assert.ok(bad.width >= 1 && bad.height >= 1);
+});
+

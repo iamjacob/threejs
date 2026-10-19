@@ -6,23 +6,25 @@ export const scannerModels = [
 	{
 		id: "manual",
 		name: "Gutenberg 0.1",
+		version: "0.1",
 		label: "Manual",
-		description: "Place the four crop corners yourself.",
+		description: "Crop by hand.",
 		enrich: false,
 	},
 	{
 		id: "corners",
 		name: "Gutenberg 0.2",
-		label: "Auto corners",
-		description: "Detect the corners, then fine-tune your crop.",
+		version: "0.2",
+		label: "Auto",
+		description: "Finds the corners for you.",
 		enrich: false,
 	},
 	{
 		id: "enrich",
 		name: "Gutenberg 0.3",
-		label: "Enrich & measure",
-		description:
-			"Auto corners plus book details, real size and pages from the web or the local catalog.",
+		version: "0.3",
+		label: "Enrich",
+		description: "Auto, plus book details and size.",
 		enrich: true,
 	},
 ] as const;
@@ -34,17 +36,17 @@ export const scannerDataModes = [
 	{
 		id: "online",
 		label: "Online",
-		description: "Open Library, Google Books, Wikipedia and Wikiquote.",
+		description: "Look up details on the web.",
 	},
 	{
 		id: "offline",
 		label: "Offline",
-		description: "No lookups. Only what you type and photograph.",
+		description: "No lookups.",
 	},
 	{
 		id: "private",
 		label: "Private",
-		description: "Local catalog and on-device barcode reading only.",
+		description: "Local catalog and barcode only.",
 	},
 ] as const;
 export type ScannerDataMode = (typeof scannerDataModes)[number]["id"];

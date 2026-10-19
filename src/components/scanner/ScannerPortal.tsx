@@ -81,7 +81,7 @@ export default function ScannerPortal({
 						scale: portalOpeningScale(now - openedAt, reducedMotion),
 						live: liveRef.current,
 						video: video?.current,
-						pixelRatio: window.devicePixelRatio,
+						pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
 						shape: shapeRef.current,
 					});
 					lastFrame = now;

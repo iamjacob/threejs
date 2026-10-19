@@ -30,6 +30,12 @@ const FIELDS: Field[] = [
 
 type Card = { key: keyof EnrichmentValues; label: string; value: string };
 
+/**
+ * Feature flag for the reveal toast ("Title identified as …"). When false the
+ * scanner does not render it at all. Set to `true` to bring it back.
+ */
+export const SHOW_SCAN_REVEAL = false;
+
 const SHOW_MS = 4200;
 const FADE_MS = 420;
 

@@ -17,19 +17,46 @@ export async function decodePhoto(file: Blob): Promise<HTMLCanvasElement> {
 	}
 }
 
+/** A rectangle of the source, in source pixels. */
+export type SourceRegion = {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+};
+
+/**
+ * Copies `source` (width × height) into a canvas, capped at 2560px. Pass a
+ * `region` to keep only that part of the source (a rough crop).
+ */
 export function imageCanvas(
 	source: CanvasImageSource,
 	width: number,
 	height: number,
+	region?: SourceRegion,
 ) {
 	const canvas = document.createElement("canvas");
-	const scale = Math.min(1, 2560 / Math.max(width, height));
-	canvas.width = Math.max(1, Math.round(width * scale));
-	canvas.height = Math.max(1, Math.round(height * scale));
+	const keptWidth = region?.width ?? width;
+	const keptHeight = region?.height ?? height;
+	const scale = Math.min(1, 2560 / Math.max(keptWidth, keptHeight));
+	canvas.width = Math.max(1, Math.round(keptWidth * scale));
+	canvas.height = Math.max(1, Math.round(keptHeight * scale));
 	const context = canvas.getContext("2d", { alpha: false });
 	if (!context)
 		throw new Error("Image processing is unavailable in this browser.");
-	context.drawImage(source, 0, 0, canvas.width, canvas.height);
+	if (region)
+		context.drawImage(
+			source,
+			region.x,
+			region.y,
+			region.width,
+			region.height,
+			0,
+			0,
+			canvas.width,
+			canvas.height,
+		);
+	else context.drawImage(source, 0, 0, canvas.width, canvas.height);
 	return canvas;
 }
 

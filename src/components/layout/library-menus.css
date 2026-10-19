@@ -284,8 +284,8 @@
 }
 /* Keep the original scanner close button and optional demo tools below navigation. */
 .book-scanner .scan-header {
-	height: 112px;
-	padding-top: 56px;
+	/* height: 112px;
+	padding-top: 56px; */
 }
 .library-demo-header {
 	position: fixed;

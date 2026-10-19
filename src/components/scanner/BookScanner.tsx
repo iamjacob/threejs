@@ -30,7 +30,8 @@ import { cropPerspective, imageCanvas, rotatePhoto } from "./cropImage";
 import { detectPhotoCorners } from "./detectPhotoCorners";
 import type { Point } from "./perspective";
 import ScanDetailsSheet from "./ScanDetailsSheet";
-import ScannerBookForm from "./ScannerBookForm";
+import ScannerBook3D, { ScannerBookGuide } from "./ScannerBook3D";
+import ScannerBookForm, { SHOW_LIVE_BOOK } from "./ScannerBookForm";
 import ScannerController, {
 	type ScannerControllerAction,
 } from "./ScannerController";
@@ -38,7 +39,7 @@ import ScannerModelSelect from "./ScannerModelSelect";
 import ScannerOpenBook from "./ScannerOpenBook";
 import ScannerPortal from "./ScannerPortal";
 import ScanProgress, { ScanHistoryDock } from "./ScanProgress";
-import ScanReveal from "./ScanReveal";
+import ScanReveal, { SHOW_SCAN_REVEAL } from "./ScanReveal";
 import ShelfScanQueue from "./ShelfScanQueue";
 import {
 	loadDrafts,
@@ -67,10 +68,39 @@ import {
 	saveScannerDataMode,
 	saveScannerModel,
 } from "./scannerModels";
+import {
+	PORTAL_CROP_PAD,
+	PORTAL_SHAPES,
+	portalCropRect,
+} from "./scannerPortalRenderer";
 import "./scanner.css";
+
+/**
+ * Feature flag for the camera status pill ("Camera on" / "Waiting for
+ * camera" / "Camera off", `.scan-live`) on the viewfinder. When false it is
+ * not rendered. Set to `true` to bring it back.
+ */
+const SHOW_SCAN_LIVE = false;
+
+/**
+ * Feature flag for the "Detect corners again" button (`.scan-detect-button`)
+ * on the crop step. Corners are already detected automatically, so it is
+ * hidden. Set to `true` to bring it back.
+ */
+const SHOW_DETECT_BUTTON = false;
 
 type Step = "requesting" | "camera" | "unavailable" | "crop" | "review";
 type Face = "front" | "spine" | "back";
+
+/** Steps in the small stepper: three covers, then size, then pages. */
+const STEPS = [
+	{ id: "front", label: "Front" },
+	{ id: "spine", label: "Spine" },
+	{ id: "back", label: "Back" },
+	{ id: "size", label: "Size" },
+	{ id: "pages", label: "Pages" },
+] as const;
+type StepId = (typeof STEPS)[number]["id"];
 
 export default function BookScanner({
 	onClose,
@@ -386,7 +416,14 @@ export default function BookScanner({
 		setCropDragging(false);
 		cancelDetection();
 		setSource(image);
-		setPoints([]);
+		// Start with the whole image selected, then let auto detect tighten it.
+		// If nothing is found, these four points stay as the crop.
+		setPoints([
+			{ x: 0, y: 0 },
+			{ x: image.width, y: 0 },
+			{ x: image.width, y: image.height },
+			{ x: 0, y: image.height },
+		]);
 		setStep("crop");
 		if (detectsCorners(model)) void findCorners(image);
 	};
@@ -668,13 +705,19 @@ export default function BookScanner({
 		setActivePhoto(null);
 		if (!video.current || !cameraReady || !video.current.videoWidth) return;
 		try {
-			prepareCrop(
-				imageCanvas(
-					video.current,
-					video.current.videoWidth,
-					video.current.videoHeight,
-				),
-			);
+			const { videoWidth, videoHeight } = video.current;
+			// Rough crop: keep what the portal window shows (plus a little margin),
+			// so corner detection and your fine crop start from the book, not the
+			// whole frame. Without WebGL the window isn't drawn, so keep it all.
+			const region = portalFallback
+				? undefined
+				: portalCropRect(
+						videoWidth,
+						videoHeight,
+						PORTAL_SHAPES[captureTag.current === "page" ? "page" : face],
+						PORTAL_CROP_PAD,
+					);
+			prepareCrop(imageCanvas(video.current, videoWidth, videoHeight, region));
 			stopCamera();
 			setError("");
 		} catch {
@@ -738,12 +781,25 @@ export default function BookScanner({
 				setActivePhoto(id);
 			}
 
-			setStep(
-				faces.front ||
-					(photos.find((p) => p.id === activePhoto)?.tag ?? face) === "front"
-					? "review"
-					: "crop",
-			);
+			// After a cover, reopen the camera for the next one that's still
+			// missing (front → spine → back). Once they're in, go to review.
+			const coverOrder: Face[] = ["front", "spine", "back"];
+			const nextCover =
+				tag === "front" || tag === "spine" || tag === "back"
+					? coverOrder
+							.slice(coverOrder.indexOf(tag) + 1)
+							.find((candidate) => !faces[candidate])
+					: undefined;
+			if (nextCover) {
+				setFace(nextCover);
+				setActivePhoto(null);
+				void startCamera();
+			} else {
+				// All covers done: carry on to step 4, the size.
+				if (tag === "front" || tag === "spine" || tag === "back")
+					setView("cover");
+				setStep(faces.front || tag === "front" ? "review" : "crop");
+			}
 		} catch (cause) {
 			setError(
 				cause instanceof Error ? cause.message : "Couldn’t crop this photo.",
@@ -811,7 +867,11 @@ export default function BookScanner({
 			type="button"
 			className="scan-button scan-secondary"
 			disabled={busy}
-			onClick={() => fileInput.current?.click()}
+			onClick={() => {
+				// A photo picked here belongs to the cover we're asking for.
+				if (captureTag.current !== "page") uploadPart.current = face;
+				fileInput.current?.click();
+			}}
 		>
 			<ImagePlus size={17} /> Camera roll · Add photos
 		</button>
@@ -842,6 +902,66 @@ export default function BookScanner({
 		uploadPart.current = tag;
 		if (tag === "front" || tag === "spine" || tag === "back") setFace(tag);
 		fileInput.current?.click();
+	};
+	/** Review shows Size ("cover" view) or Pages; before that, the cover being shot. */
+	const activeTag = photos.find((p) => p.id === activePhoto)?.tag;
+	const shootingPage =
+		captureTag.current === "page" ||
+		Boolean(
+			activeTag &&
+				activeTag !== "front" &&
+				activeTag !== "spine" &&
+				activeTag !== "back",
+		);
+	const currentStepId: StepId =
+		step === "review"
+			? view === "pages"
+				? "pages"
+				: "size"
+			: shootingPage
+				? "pages"
+				: face;
+	const showStepper = !shelf;
+	// Small live book in the bottom-left corner: a guide that turns to the cover
+	// being shot (front → spine → back) and fills in as each crop is accepted.
+	// The Size step shows the big book instead.
+	const showGuide =
+		!shelf && !detailsOpen && step !== "review" && !shootingPage;
+	const guideSide: Face = face;
+	const guideFaces: Partial<Record<Face, CroppedFace>> =
+		liveCrop &&
+		(liveCrop.tag === "front" ||
+			liveCrop.tag === "spine" ||
+			liveCrop.tag === "back")
+			? { ...faces, [liveCrop.tag]: liveCrop.crop }
+			: faces;
+	/** Jump to a cover (its saved crop, or the camera if it's missing), Size or Pages. */
+	const goToStep = (target: StepId) => {
+		if (busy || target === currentStepId) return;
+		captureTag.current = null;
+		uploadPage.current = null;
+		cancelDetection();
+		setError("");
+		if (target === "size" || target === "pages") {
+			if (!faces.front) return;
+			stopCamera();
+			setActivePhoto(null);
+			setLiveCrop(null);
+			setView(target === "pages" ? "pages" : "cover");
+			setStep("review");
+			return;
+		}
+		setLiveCrop(null);
+		const photo =
+			photos.find((p) => p.tag === target && p.crop) ??
+			photos.find((p) => p.tag === target);
+		if (photo) {
+			void selectPhoto(photo);
+			return;
+		}
+		setFace(target);
+		setActivePhoto(null);
+		if (step !== "camera" && step !== "requesting") void startCamera();
 	};
 	const editField = (key: keyof EnrichmentValues, value: string) => {
 		if (key === "title") setTitle(value);
@@ -1023,19 +1143,28 @@ export default function BookScanner({
 				}}
 			/>
 			<header className="scan-header">
-				<button
-					type="button"
-					className="scan-brand"
-					aria-label="Close scanner and go to the shelf"
-					disabled={busy}
-					onClick={close}
-				>
-					<img
-						src={`${import.meta.env.BASE_URL}icons/wordmark-gradient.svg`}
-						alt="Boooks"
+				<div className="scan-brand-group">
+					<button
+						type="button"
+						className="scan-brand"
+						aria-label="Close scanner and go to the shelf"
+						disabled={busy}
+						onClick={close}
+					>
+						<img
+							src={`${import.meta.env.BASE_URL}icons/wordmark-gradient.svg`}
+							alt="Boooks"
+						/>
+					</button>
+					<ScannerModelSelect
+						value={model}
+						onChange={changeModel}
+						mode={dataMode}
+						onModeChange={changeDataMode}
+						onScanShelf={() => shelfInput.current?.click()}
+						disabled={busy}
 					/>
-					<small>Scanner</small>
-				</button>
+				</div>
 				<button
 					type="button"
 					className="scan-icon scan-close"
@@ -1066,8 +1195,22 @@ export default function BookScanner({
 				onSelectDraft={switchDraft}
 				onNewDraft={() => switchDraft(newScanDraft())}
 			/>
+			{showGuide && (
+				<figure
+					className="scan-book-guide"
+					aria-label={`Book preview: ${guideSide}`}
+				>
+					<ScannerBookGuide
+						faces={guideFaces}
+						side={guideSide}
+						size={size}
+						unit={unit}
+					/>
+					<figcaption>{photoTags[guideSide]}</figcaption>
+				</figure>
+			)}
 			<div className="scan-main">
-				{!detailsOpen && (
+				{SHOW_SCAN_REVEAL && !detailsOpen && (
 					<ScanReveal
 						draftId={draftId}
 						enrichment={revealEnrichment}
@@ -1082,32 +1225,43 @@ export default function BookScanner({
 						onClose={() => setDetailsOpen(false)}
 					/>
 				)}
-				{step === "review" && faces.front && (
-					<div
-						className="scan-view-switch"
-						role="tablist"
-						aria-label="Book view"
-					>
-						<button
-							type="button"
-							role="tab"
-							aria-selected={view === "cover"}
-							onClick={() => setView("cover")}
-						>
-							Cover &amp; size
-						</button>
-						<button
-							type="button"
-							role="tab"
-							aria-selected={view === "pages"}
-							onClick={() => setView("pages")}
-						>
-							Pages
-							<small>
-								{pagePhotoCount}/{pageCount || "?"}
-							</small>
-						</button>
-					</div>
+				{showStepper && (
+					<nav className="scan-cover-stepper" aria-label="Book steps">
+						{STEPS.map(({ id, label }, index) => {
+							const complete =
+								id === "size"
+									? Boolean(sizeEntry?.confident || sizeEntry?.overridden)
+									: id === "pages"
+										? pagePhotoCount > 0
+										: Boolean(faces[id]);
+							return (
+								<button
+									key={id}
+									type="button"
+									className={complete ? "is-done" : undefined}
+									aria-current={id === currentStepId ? "step" : undefined}
+									disabled={
+										busy || ((id === "size" || id === "pages") && !faces.front)
+									}
+									onClick={() => goToStep(id)}
+								>
+									<i>
+										{complete ? (
+											<Check size={11} aria-hidden="true" />
+										) : (
+											index + 1
+										)}
+									</i>
+									{label}
+									{id === "pages" && pagePhotoCount > 0 && (
+										<small>
+											{pagePhotoCount}/{pageCount || "?"}
+										</small>
+									)}
+								</button>
+							);
+						})}
+					</nav>
 				)}
 				{shelf ? (
 					<ShelfScanQueue
@@ -1135,6 +1289,25 @@ export default function BookScanner({
 						onScanPage={scanPage}
 						onSelectPhoto={(photo) => void selectPhoto(photo)}
 					/>
+				) : step === "review" && faces.front && !SHOW_LIVE_BOOK ? (
+					<section className="scan-size-step" aria-label="Book size">
+						<ScannerBook3D
+							faces={faces}
+							side="front"
+							onPart={handlePart}
+							size={size}
+							unit={unit}
+							setUnit={setUnit}
+							onSize={writeSize}
+							source={sizeEntry?.source ?? "Default estimate"}
+							overridden={sizeEntry?.overridden ?? false}
+							confident={sizeEntry?.confident ?? false}
+							onConfirm={() => confirmSize(draftId)}
+							toolsRequest={sizeToolsRequest}
+							reset={() => resetSize(draftId)}
+							startEditing
+						/>
+					</section>
 				) : (
 					<ScannerBookForm
 						preview={liveCrop}
@@ -1225,7 +1398,7 @@ export default function BookScanner({
 					step === "requesting" ||
 					step === "unavailable") && (
 					<div className="scan-camera-screen">
-						<div className="scan-section-title">
+						<div className="scannerMode">
 							<h1 ref={heading} tabIndex={-1}>
 								{step === "requesting"
 									? "Opening camera…"
@@ -1268,14 +1441,16 @@ export default function BookScanner({
 								face={captureTag.current === "page" ? "page" : face}
 								onFallbackChange={setPortalFallback}
 							/>
-							<span className="scan-live">
-								<i />{" "}
-								{step === "camera"
-									? "Camera on"
-									: step === "requesting"
-										? "Waiting for camera"
-										: "Camera off"}
-							</span>
+							{SHOW_SCAN_LIVE && (
+								<span className="scan-live">
+									<i />{" "}
+									{step === "camera"
+										? "Camera on"
+										: step === "requesting"
+											? "Waiting for camera"
+											: "Camera off"}
+								</span>
+							)}
 							{step !== "unavailable" && !cameraReady && (
 								<LoaderCircle className="scan-camera-loading scan-spin" />
 							)}
@@ -1357,7 +1532,7 @@ export default function BookScanner({
 												? "Drag the corners to fine-tune your crop."
 												: `Tap corner ${points.length + 1}: ${cornerNames[points.length].toLowerCase()}. Continue clockwise.`}
 							</p>
-							{detectsCorners(model) && (
+							{SHOW_DETECT_BUTTON && detectsCorners(model) && (
 								<button
 									type="button"
 									className="scan-detect-button"
@@ -1526,16 +1701,6 @@ export default function BookScanner({
 					busy={busy || !draftsReady}
 					onPart={handlePart}
 					onOpenAll={() => setDetailsOpen(true)}
-					tools={
-						<ScannerModelSelect
-							value={model}
-							onChange={changeModel}
-							mode={dataMode}
-							onModeChange={changeDataMode}
-							onScanShelf={() => shelfInput.current?.click()}
-							disabled={busy}
-						/>
-					}
 				/>
 			</div>
 			{busy && !["crop", "review"].includes(step) && (

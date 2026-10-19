@@ -126,6 +126,44 @@ export const PORTAL_SHAPES: Record<PortalFace, [number, number]> = {
 	shelf: [0.44, 0.26],
 };
 
+/** Extra room kept around the window so the book's edges aren't on the cut. */
+export const PORTAL_CROP_PAD = 0.04;
+
+/**
+ * The part of the camera frame the portal window shows, in video pixels.
+ * Mirrors the fragment shader: the feed is centred and "covers" the window, so
+ * the visible region is centred and has the window's aspect ratio. `pad` grows
+ * it by that fraction on every side (clamped to the frame).
+ */
+export function portalCropRect(
+	videoWidth: number,
+	videoHeight: number,
+	shape: [number, number] = PORTAL_SHAPES.front,
+	pad = 0,
+) {
+	const width = Math.max(1, Number.isFinite(videoWidth) ? videoWidth : 1);
+	const height = Math.max(1, Number.isFinite(videoHeight) ? videoHeight : 1);
+	const portalAspect = shape[0] / shape[1];
+	const videoAspect = width / height;
+	const grow = 1 + 2 * Math.max(0, pad);
+	const w = Math.min(
+		width,
+		width * Math.min(1, portalAspect / videoAspect) * grow,
+	);
+	const h = Math.min(
+		height,
+		height * Math.min(1, videoAspect / portalAspect) * grow,
+	);
+	const x = Math.max(0, Math.round((width - w) / 2));
+	const y = Math.max(0, Math.round((height - h) / 2));
+	return {
+		x,
+		y,
+		width: Math.max(1, Math.min(Math.round(w), Math.round(width) - x)),
+		height: Math.max(1, Math.min(Math.round(h), Math.round(height) - y)),
+	};
+}
+
 export function createScannerPortalRenderer(canvas: HTMLCanvasElement) {
 	const gl = canvas.getContext("webgl", {
 		alpha: true,
