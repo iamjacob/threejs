@@ -884,6 +884,7 @@ export function ScannerBookGuide({
 				current={Math.min(page, Math.max(1, pages) - 1)}
 				photos={pageMap}
 				faces={images}
+				spread
 			/>
 			<OrbitControls
 				enablePan={false}

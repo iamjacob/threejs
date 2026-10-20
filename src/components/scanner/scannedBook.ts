@@ -1,6 +1,7 @@
 import type { LibraryBook } from "../../lib/bookCatalog";
 import { bookCatalog } from "../../lib/bookCatalog";
 import { getBookTextureUrls } from "../book/bookTextures";
+import { pagePhotos } from "./scanDrafts";
 import {
 	findCatalogMatch,
 	formatPhysicalSize,
@@ -134,18 +135,19 @@ export async function scannedBook(scan: BookScan): Promise<LibraryBook> {
 		spine: scan.spine?.image ?? makeFace(true),
 		back: scan.back?.image ?? makeFace(false),
 	};
+	// One image per page, in page order (a rescan replaces, scan order is free).
 	const scanPages = scan.photos
-		?.filter(
-			(photo) => !["front", "spine", "back", "dustjacket"].includes(photo.tag),
-		)
-		.map(
-			(photo) =>
-				photo.crop ?? {
-					image: photo.image,
-					width: scan.front.width,
-					height: scan.front.height,
-				},
-		);
+		? [...pagePhotos(scan.photos)]
+				.sort(([a], [b]) => a - b)
+				.map(
+					([, photo]) =>
+						photo.crop ?? {
+							image: photo.image,
+							width: scan.front.width,
+							height: scan.front.height,
+						},
+				)
+		: undefined;
 	return {
 		enrichment: {
 			...scan.enrichment,

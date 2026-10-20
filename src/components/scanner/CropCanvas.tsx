@@ -7,6 +7,9 @@ export const cornerNames = [
 	"Bottom right",
 	"Bottom left",
 ];
+/** Loupe size (CSS px) and how much it magnifies the on-screen photo. */
+const LENS_SIZE = 132;
+const LENS_ZOOM = 3;
 type View = {
 	width: number;
 	height: number;
@@ -30,7 +33,10 @@ export default function CropCanvas({
 }) {
 	const host = useRef<HTMLDivElement>(null);
 	const canvas = useRef<HTMLCanvasElement>(null);
+	const lens = useRef<HTMLCanvasElement>(null);
 	const active = useRef<{ index: number; pointer: number } | null>(null);
+	/** The corner being dragged: the loupe follows it. */
+	const [dragIndex, setDragIndex] = useState<number | null>(null);
 	const [view, setView] = useState<View>({
 		width: 1,
 		height: 1,
@@ -106,6 +112,71 @@ export default function CropCanvas({
 			ctx.stroke();
 		}
 	}, [source, points, view]);
+	// Magnifier: while a corner is held, show the photo around it at 3× (what a
+	// fingertip hides), with the crop outline and a small sight in the middle.
+	const dragged = dragIndex === null ? undefined : points[dragIndex];
+	const onRight = dragged
+		? view.x + dragged.x * view.scale < view.width / 2
+		: true;
+	useEffect(() => {
+		const target = lens.current;
+		if (!target || !dragged) return;
+		const css = LENS_SIZE;
+		const dpr = Math.min(window.devicePixelRatio || 1, 2);
+		target.width = Math.round(css * dpr);
+		target.height = Math.round(css * dpr);
+		const ctx = target.getContext("2d");
+		if (!ctx) return;
+		ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+		ctx.fillStyle = "#0b0f1a";
+		ctx.fillRect(0, 0, css, css);
+		// The lens shows `css / LENS_ZOOM` screen pixels around the corner.
+		const span = css / LENS_ZOOM / view.scale;
+		ctx.imageSmoothingEnabled = true;
+		ctx.drawImage(
+			source,
+			dragged.x - span / 2,
+			dragged.y - span / 2,
+			span,
+			span,
+			0,
+			0,
+			css,
+			css,
+		);
+		// Crop outline, in lens coordinates.
+		const toLens = (p: Point) => ({
+			x: css / 2 + ((p.x - dragged.x) / span) * css,
+			y: css / 2 + ((p.y - dragged.y) / span) * css,
+		});
+		if (points.length > 1) {
+			ctx.beginPath();
+			points.forEach((p, i) => {
+				const l = toLens(p);
+				if (i === 0) ctx.moveTo(l.x, l.y);
+				else ctx.lineTo(l.x, l.y);
+			});
+			if (points.length === 4) ctx.closePath();
+			ctx.strokeStyle = "#f5f3e9";
+			ctx.lineWidth = 1.5;
+			ctx.stroke();
+		}
+		// Sight: a small ring with a gap, so the exact pixel stays visible.
+		ctx.strokeStyle = "#ef3d48";
+		ctx.lineWidth = 1.5;
+		const c = css / 2;
+		ctx.beginPath();
+		ctx.arc(c, c, 9, 0, Math.PI * 2);
+		ctx.moveTo(c - 16, c);
+		ctx.lineTo(c - 5, c);
+		ctx.moveTo(c + 5, c);
+		ctx.lineTo(c + 16, c);
+		ctx.moveTo(c, c - 16);
+		ctx.lineTo(c, c - 5);
+		ctx.moveTo(c, c + 5);
+		ctx.lineTo(c, c + 16);
+		ctx.stroke();
+	}, [dragged, points, source, view.scale]);
 	const position = (event: PointerEvent) => {
 		const rect = event.currentTarget.getBoundingClientRect();
 		return {
@@ -120,6 +191,7 @@ export default function CropCanvas({
 	const end = (event: PointerEvent) => {
 		if (active.current?.pointer !== event.pointerId) return;
 		active.current = null;
+		setDragIndex(null);
 		onInteractionChange?.(false);
 		if (host.current?.hasPointerCapture(event.pointerId))
 			host.current.releasePointerCapture(event.pointerId);
@@ -159,6 +231,7 @@ export default function CropCanvas({
 					onChange([...points, p]);
 				}
 				active.current = { index, pointer: event.pointerId };
+				setDragIndex(index);
 				onInteractionChange?.(true);
 				event.currentTarget.setPointerCapture(event.pointerId);
 			}}
@@ -173,9 +246,20 @@ export default function CropCanvas({
 			onPointerCancel={end}
 			onLostPointerCapture={() => {
 				active.current = null;
+				setDragIndex(null);
 				onInteractionChange?.(false);
 			}}
 		>
+			{dragged && (
+				// A purely visual aid: hidden from screen readers via its wrapper.
+				<div
+					className="scan-loupe"
+					data-side={onRight ? "right" : "left"}
+					aria-hidden="true"
+				>
+					<canvas ref={lens} />
+				</div>
+			)}
 			<canvas
 				ref={canvas}
 				aria-label="Book photo. Place corners clockwise, starting at the top left."

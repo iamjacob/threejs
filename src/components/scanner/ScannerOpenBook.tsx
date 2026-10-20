@@ -1,7 +1,7 @@
 import { Html } from "@react-three/drei";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { BookOpen, Camera, ChevronLeft, ChevronRight } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import {
 	type Group,
 	type InstancedMesh,
@@ -17,7 +17,7 @@ import {
 	CM_PER_WORLD_UNIT,
 } from "../../stores/useBookSizeStore";
 import { getControllerJoystick } from "../tour/controllerJoystick";
-import type { ScanPhoto } from "./scanDrafts";
+import { pagePhotos, type ScanPhoto } from "./scanDrafts";
 import "./scanner-open-book.css";
 
 const OPEN = 1; // radians each cover/leaf swings from the spine
@@ -26,18 +26,56 @@ const VIEW_DISTANCE =
 	(BOOK_SIZE_LIMITS_CM.width[1] * 2 * 1.15) / CM_PER_WORLD_UNIT;
 const WINDOW = 4; // interactive leaves each side of the opening
 
-/** Which scanned photo belongs to which page index (0-based leaf). */
-export function pagePhotos(photos: ScanPhoto[]) {
-	const map = new Map<number, ScanPhoto>();
-	let next = 0;
-	for (const photo of photos) {
-		if (["front", "spine", "back", "dustjacket"].includes(photo.tag)) continue;
-		const explicit = photo.page;
-		const index = explicit ?? next;
-		map.set(index, photo);
-		next = Math.max(next, index) + 1;
-	}
-	return map;
+export { pagePhotos };
+
+const prefersReducedMotion = () =>
+	typeof window !== "undefined" &&
+	window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+
+/**
+ * One page's hinge. It eases toward lying open on the right (a page still to
+ * come) or turned over to the left (a page already scanned) and lifts a
+ * little mid-turn, so a new scan folds over smoothly. A page that appears
+ * starts at its final angle, so jumping across the book never flips hundreds
+ * of pages. Reduced motion snaps.
+ */
+function FoldingLeaf({
+	turned,
+	lift,
+	position,
+	children,
+}: {
+	/** True once the page has been turned over to the left. */
+	turned: boolean;
+	/** How far the page rises at the middle of the turn. */
+	lift: number;
+	position: [number, number, number];
+	children: ReactNode;
+}) {
+	const hinge = useRef<Group>(null);
+	const target = turned ? -OPEN : OPEN;
+	const angle = useRef(target);
+	const first = useRef(target);
+	useFrame((_, delta) => {
+		const group = hinge.current;
+		if (!group) return;
+		if (prefersReducedMotion()) angle.current = target;
+		else {
+			const ease = 1 - Math.exp(-Math.min(delta, 0.06) * 6);
+			angle.current += (target - angle.current) * ease;
+			if (Math.abs(target - angle.current) < 0.002) angle.current = target;
+		}
+		group.rotation.y = angle.current;
+		const progress = Math.min(1, Math.abs(target - angle.current) / (2 * OPEN));
+		group.position.y = Math.sin(progress * Math.PI) * lift;
+	});
+	return (
+		<group position={position}>
+			<group ref={hinge} rotation={[0, first.current, 0]}>
+				{children}
+			</group>
+		</group>
+	);
 }
 
 function Leaf({
@@ -88,7 +126,9 @@ function Leaf({
 		[],
 	);
 	return (
-		<mesh position={[width / 2, 0, 0]} castShadow receiveShadow>
+		// No shadows between leaves: they sit a hair apart, and self-shadowing
+		// turned every leaf in the stack black.
+		<mesh position={[width / 2, 0, 0]}>
 			<boxGeometry args={[width, height, thickness]} />
 			{texture ? (
 				<meshStandardMaterial map={texture} roughness={0.9} />
@@ -270,12 +310,18 @@ export function OpenBookModel({
 	faces,
 	onPickPage,
 	side,
+	spread = false,
 }: {
 	size: BookSizeCm;
 	pages: number;
 	current: number;
 	photos: Map<number, ScanPhoto>;
 	faces: { front?: string; back?: string; spine?: string };
+	/**
+	 * Face the book like an open spread: the page just scanned lies on the left
+	 * with the page to scan on the right. Off, the spine faces the camera.
+	 */
+	spread?: boolean;
 	/** Omit to hide the "Scan p.N" buttons (the small previews). */
 	onPickPage?: (index: number) => void;
 	/** Turn to this cover instead of the idle sway. */
@@ -305,8 +351,8 @@ export function OpenBookModel({
 	return (
 		<group ref={root} position={[0, 0, 0]}>
 			<ambientLight intensity={1.4} />
-			<directionalLight position={[1.5, 3, 2]} intensity={1.8} castShadow />
-			<group rotation={[0, Math.PI / 2, 0]}>
+			<directionalLight position={[1.5, 3, 2]} intensity={1.8} />
+			<group rotation={[0, spread ? -Math.PI / 2 : Math.PI / 2, 0]}>
 				<Stack
 					pages={pages}
 					current={current}
@@ -315,10 +361,11 @@ export function OpenBookModel({
 					thickness={thickness}
 				/>
 				{leaves.map((index) => (
-					<group
+					<FoldingLeaf
 						key={index}
+						turned={index < current}
+						lift={height * 0.04}
 						position={[-width / 2, 0, thickness * 0.5 - (index + 0.5) * leaf]}
-						rotation={[0, index >= current ? OPEN : -OPEN, 0]}
 					>
 						<Leaf
 							width={width}
@@ -344,7 +391,7 @@ export function OpenBookModel({
 									</button>
 								</Html>
 							)}
-					</group>
+					</FoldingLeaf>
 				))}
 				{/* covers */}
 				<group
@@ -397,26 +444,26 @@ export default function ScannerOpenBook({
 	photos,
 	faces,
 	busy,
+	current,
+	onCurrent,
 	onScanPage,
-	onSelectPhoto,
 }: {
 	size: BookSizeCm;
 	pages: number;
 	photos: ScanPhoto[];
 	faces: { front?: string; back?: string; spine?: string };
 	busy: boolean;
+	/** The page the book is open at (0-based). The pages roll shares it. */
+	current: number;
+	onCurrent: (page: number) => void;
 	onScanPage: (index: number) => void;
-	onSelectPhoto: (photo: ScanPhoto) => void;
 }) {
 	const map = useMemo(() => pagePhotos(photos), [photos]);
-	const total = Math.max(1, pages);
-	const [current, setCurrent] = useState(() => {
-		// Open at the first empty page after the last scanned one.
-		const last = Math.max(-1, ...map.keys());
-		return Math.min(total - 1, last + 1);
-	});
+	// The book never has fewer leaves than the page you are on: pages go on.
+	const total = Math.max(1, pages, current + 1);
 	const scanned = map.size;
-	const strip = useRef<HTMLOListElement>(null);
+	const latest = useRef(current);
+	latest.current = current;
 	// Scanner joystick: push right/left to turn pages (repeats while held).
 	useEffect(() => {
 		let last = 0;
@@ -425,52 +472,38 @@ export default function ScannerOpenBook({
 			const stick = getControllerJoystick();
 			if (Math.abs(stick.x) > 0.45 && time - last > 320 / Math.abs(stick.x)) {
 				last = time;
-				setCurrent((value) =>
-					Math.max(0, Math.min(total - 1, value + (stick.x > 0 ? 1 : -1))),
-				);
+				onCurrent(Math.max(0, latest.current + (stick.x > 0 ? 1 : -1)));
 			}
 			raf = requestAnimationFrame(tick);
 		};
 		raf = requestAnimationFrame(tick);
 		return () => cancelAnimationFrame(raf);
-	}, [total]);
-	useEffect(() => {
-		strip.current
-			?.querySelector<HTMLElement>(`[data-page="${current}"]`)
-			?.scrollIntoView({
-				inline: "center",
-				block: "nearest",
-				behavior: "smooth",
-			});
-	}, [current]);
+	}, [onCurrent]);
 	return (
 		<section className="sob" aria-label="Scan the pages">
 			<header className="sob-head">
 				<BookOpen size={15} aria-hidden="true" />
 				<span>
 					Pages
-					<small>
-						{scanned} of {total} scanned
-					</small>
+					<small>{scanned} scanned</small>
 				</span>
 				<div className="sob-nav">
 					<button
 						type="button"
 						aria-label="Previous page"
 						disabled={current <= 0}
-						onClick={() => setCurrent((v) => Math.max(0, v - 1))}
+						onClick={() => onCurrent(Math.max(0, current - 1))}
 					>
 						<ChevronLeft size={16} />
 					</button>
 					<output>
 						p.{current + 1}
-						<span>/{total}</span>
+						<span>/{Math.max(total, scanned + 1)}</span>
 					</output>
 					<button
 						type="button"
 						aria-label="Next page"
-						disabled={current >= total - 1}
-						onClick={() => setCurrent((v) => Math.min(total - 1, v + 1))}
+						onClick={() => onCurrent(current + 1)}
 					>
 						<ChevronRight size={16} />
 					</button>
@@ -491,54 +524,24 @@ export default function ScannerOpenBook({
 						current={current}
 						photos={map}
 						faces={faces}
-						onPickPage={(index) => {
-							if (!busy) onScanPage(index);
-						}}
 					/>
 				</Canvas>
 			</div>
-			<ol className="sob-strip" ref={strip} aria-label="All pages">
-				{Array.from({ length: total }, (_, index) => {
-					const photo = map.get(index);
-					return (
-						// biome-ignore lint/suspicious/noArrayIndexKey: the page number is the identity of a leaf.
-						<li key={`page-${index}`} data-page={index}>
-							<button
-								type="button"
-								className={`sob-page${photo ? " has-scan" : ""}${index === current ? " is-current" : ""}`}
-								title={`Page ${index + 1}${photo ? " · scanned" : ""}`}
-								aria-label={`Page ${index + 1}${photo ? ", scanned" : ", not scanned"}`}
-								aria-current={index === current ? "page" : undefined}
-								disabled={busy}
-								onClick={() => {
-									setCurrent(index);
-									if (photo) onSelectPhoto(photo);
-								}}
-								style={
-									photo
-										? {
-												backgroundImage: `url(${photo.crop?.image ?? photo.image})`,
-											}
-										: undefined
-								}
-							>
-								{!photo && index % 10 === 0 && <span>{index + 1}</span>}
-							</button>
-						</li>
-					);
-				})}
-			</ol>
-			<button
-				type="button"
-				className="sob-scan"
-				disabled={busy}
-				onClick={() => onScanPage(current)}
-			>
-				<Camera size={15} aria-hidden="true" />
-				{map.get(current)
-					? `Rescan page ${current + 1}`
-					: `Scan page ${current + 1}`}
-			</button>
+			<div className="scan-rail">
+				<button
+					type="button"
+					className="scan-rail-btn is-primary"
+					disabled={busy}
+					onClick={() => onScanPage(current)}
+				>
+					<span className="scan-rail-icon">
+						<Camera size={22} aria-hidden="true" />
+					</span>
+					<span>
+						{map.get(current) ? "Rescan" : "Scan"} p.{current + 1}
+					</span>
+				</button>
+			</div>
 		</section>
 	);
 }

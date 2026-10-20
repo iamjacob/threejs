@@ -76,7 +76,12 @@ export function rotatePhoto(source: HTMLCanvasElement, clockwise: boolean) {
 }
 
 // The same GPU homography as the supplied cropper, with bounded textures and cleanup.
-export function cropPerspective(source: HTMLCanvasElement, points: Point[]) {
+export function cropPerspective(
+	source: HTMLCanvasElement,
+	points: Point[],
+	/** Cap the output (and the input texture) at this many pixels: for fast live previews. */
+	maxSize = 2048,
+) {
 	if (!isValidQuadrilateral(points))
 		throw new Error("Place the corners in order without crossing the edges.");
 	const canvas = document.createElement("canvas");
@@ -90,7 +95,7 @@ export function cropPerspective(source: HTMLCanvasElement, points: Point[]) {
 			"Perspective cropping needs WebGL. Please try another browser.",
 		);
 	try {
-		const limit = Math.min(2048, gl.getParameter(gl.MAX_TEXTURE_SIZE));
+		const limit = Math.min(maxSize, gl.getParameter(gl.MAX_TEXTURE_SIZE));
 		const dimensions = outputDimensions(points);
 		const scale = Math.min(
 			1,

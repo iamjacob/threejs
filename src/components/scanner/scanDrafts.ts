@@ -23,6 +23,18 @@ export type ScanPhoto = {
 	/** 0-based page index this photo was scanned for (page-type tags only). */
 	page?: number;
 };
+/** Which scanned photo belongs to which page index (0-based leaf). */
+export function pagePhotos(photos: ScanPhoto[]) {
+	const map = new Map<number, ScanPhoto>();
+	let next = 0;
+	for (const photo of photos) {
+		if (["front", "spine", "back", "dustjacket"].includes(photo.tag)) continue;
+		const index = photo.page ?? next;
+		map.set(index, photo);
+		next = Math.max(next, index) + 1;
+	}
+	return map;
+}
 export type ScanDraft = {
 	id: string;
 	title: string;

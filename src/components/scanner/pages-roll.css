@@ -1,0 +1,83 @@
+/* The pages roll: every part of the book in one scrollable row. Thin outlined
+   tiles; a tall red line after the covers and after every 25 pages. */
+.pages-roll {
+	position: absolute;
+	right: 14px;
+	bottom: calc(var(--scan-pad-b) + var(--scan-footer-h));
+	left: 14px;
+	z-index: 9;
+	height: var(--scan-roll-h);
+	border-radius: 14px;
+	background: #000000d9;
+	-webkit-backdrop-filter: blur(10px);
+	backdrop-filter: blur(10px);
+}
+.pages-roll ol {
+	position: relative;
+	display: flex;
+	align-items: flex-end;
+	gap: 8px;
+	height: 100%;
+	margin: 0;
+	padding: 0 12px 8px;
+	overflow-x: auto;
+	overflow-y: hidden;
+	list-style: none;
+	scrollbar-width: none;
+	overscroll-behavior-x: contain;
+}
+.pages-roll ol::-webkit-scrollbar {
+	display: none;
+}
+.pages-roll li {
+	flex-shrink: 0;
+}
+.pages-roll-tile {
+	display: block;
+	width: 28px;
+	height: 52px;
+	padding: 0;
+	border: 1px solid #ffffffd9;
+	border-radius: 3px;
+	background: transparent center / cover no-repeat;
+	transition:
+		transform 0.15s ease,
+		border-color 0.15s;
+}
+.pages-roll-tile.is-spine {
+	width: 12px;
+}
+.pages-roll-tile.is-front,
+.pages-roll-tile.is-back {
+	width: 34px;
+}
+.pages-roll-tile.has-scan {
+	border-color: #4fd18b;
+}
+.pages-roll-tile.is-current {
+	border-color: #f23a2a;
+	box-shadow: 0 0 0 1px #f23a2a;
+	transform: translateY(-4px);
+}
+.pages-roll-tile:disabled {
+	opacity: 0.5;
+}
+.pages-roll-mark {
+	position: relative;
+	align-self: stretch;
+	width: 2px;
+	margin: 0 2px;
+	border-radius: 1px;
+	background: #f23a2a;
+}
+.pages-roll-mark span {
+	position: absolute;
+	top: 2px;
+	left: 6px;
+	color: #f23a2a;
+	font:
+		600 9px / 1 "Geist Mono",
+		ui-monospace,
+		Menlo,
+		monospace;
+}

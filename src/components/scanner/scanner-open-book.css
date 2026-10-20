@@ -55,6 +55,11 @@
 	flex-shrink: 0;
 	align-items: center;
 	gap: 8px;
+	padding: 6px 10px;
+	border: 1px solid #ffffff1a;
+	border-radius: 16px;
+	/* Readable over the shelf behind the scanner. */
+	background: #0b0f1acc;
 	font-size: 13px;
 	font-weight: 600;
 }
@@ -172,22 +177,4 @@
 	left: 0;
 	white-space: nowrap;
 }
-.sob-scan {
-	display: inline-flex;
-	flex-shrink: 0;
-	align-items: center;
-	justify-content: center;
-	gap: 8px;
-	align-self: center;
-	min-height: 40px;
-	padding: 8px 18px;
-	border: 1px solid #e5484d;
-	border-radius: 999px;
-	background: #e5484d;
-	color: #fff;
-	font-size: 13px;
-	font-weight: 600;
-}
-.sob-scan:disabled {
-	opacity: 0.4;
-}
+

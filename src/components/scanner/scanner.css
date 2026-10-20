@@ -5,6 +5,8 @@
 	/* Gap under the content, and the height of the pinned step footer. */
 	--scan-pad-b: max(12px, env(safe-area-inset-bottom));
 	--scan-footer-h: 0px;
+	/* Height of the pages roll that sits just above the step footer. */
+	--scan-roll-h: 0px;
 	position: fixed;
 	inset: 0;
 	z-index: 1500;
@@ -20,11 +22,12 @@
 	overflow: hidden;
 	overscroll-behavior: contain;
 	padding: env(safe-area-inset-top) 14px
-		calc(var(--scan-pad-b) + var(--scan-footer-h));
+		calc(var(--scan-pad-b) + var(--scan-footer-h) + var(--scan-roll-h));
 	-webkit-tap-highlight-color: transparent;
 }
 .book-scanner[data-stepper] {
 	--scan-footer-h: 50px;
+	--scan-roll-h: 76px;
 }
 .book-scanner > .scan-header {
 	grid-area: head;
@@ -297,13 +300,20 @@
 .scan-icon:hover {
 	background: #ffffff12;
 }
+/* While scanning pages the guide is the open book: wider, so the page just
+   scanned can be seen lying beside the one being shot. */
+.scan-book-guide[data-open] {
+	width: min(260px, calc(100vw - 140px));
+	height: 190px;
+}
 /* Small live book in the bottom-left corner: preview and guide. */
 .scan-book-guide {
 	position: absolute;
 	left: max(10px, env(safe-area-inset-left));
 	/* Sits above the camera-roll / shutter row so it never covers a button. */
 	bottom: calc(
-		max(12px, env(safe-area-inset-bottom)) + var(--scan-footer-h) + 124px
+		max(12px, env(safe-area-inset-bottom)) + var(--scan-footer-h) +
+			var(--scan-roll-h) + 24px
 	);
 	z-index: 8;
 	width: 128px;
@@ -415,6 +425,17 @@
 .scan-cover-read[data-state="reading"] {
 	flex-direction: row;
 	gap: 5px;
+}
+/* A title the reader was not sure of: amber, so it reads as "please check". */
+.scan-cover-read[data-verdict="check"] {
+	border-color: #f0b44c66;
+}
+.scan-cover-read .scan-cover-read-warn {
+	color: #f0b44c;
+}
+.scan-cover-read[data-verdict="not-book"],
+.scan-cover-read[data-verdict="empty"] {
+	border-color: #ffb1b455;
 }
 .scan-cover-read button {
 	border: 0;
@@ -858,43 +879,115 @@
 /* Camera controls: a vertical column fixed to the right edge, centred top to
    bottom (camera roll, shutter, flashlight). The scanner is itself fixed, so
    this stays put while the viewfinder keeps the full width. */
-.scan-camera-actions {
+/* One style for every right-hand control (camera, crop): a round icon with a
+   small label under it, all the same width and spacing, centred on the edge. */
+.scan-rail {
 	position: fixed;
-	top: 50%;
+	top: calc(50% - (var(--scan-footer-h) + var(--scan-roll-h)) / 2);
 	right: max(14px, env(safe-area-inset-right));
 	z-index: 8;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
-	gap: 22px;
-	width: 84px;
+	gap: 14px;
+	width: 76px;
+	max-height: calc(100dvh - 190px - var(--scan-footer-h) - var(--scan-roll-h));
 	transform: translateY(-50%);
 }
-.scan-camera-actions .scan-secondary {
+.scan-rail-btn {
+	display: flex;
 	flex-direction: column;
+	align-items: center;
+	gap: 5px;
 	width: 100%;
-	border: none;
-	font-size: 10px;
-	line-height: 1.3;
-	gap: 6px;
-	padding: 4px;
+	padding: 0;
+	border: 0;
 	background: none;
+	color: var(--scan-ink);
+	font-size: 10px;
+	font-weight: 500;
+	line-height: 1.2;
 	text-align: center;
+	text-shadow: 0 1px 4px #000;
 }
-.scan-shutter {
+.scan-rail-icon {
 	display: grid;
 	place-items: center;
-	height: 70px;
-	width: 70px;
-	border: 2px solid #f6f1e8;
-	background: none;
+	width: 46px;
+	height: 46px;
+	border: 1px solid #ffffff25;
 	border-radius: 50%;
+	background: #141b2de0;
+	transition:
+		background 0.2s,
+		border-color 0.2s,
+		transform 0.2s;
 }
-.scan-shutter > span {
-	width: 57px;
-	height: 57px;
+.scan-rail-btn:hover:not(:disabled) .scan-rail-icon {
+	background: #1f2944;
+}
+.scan-rail-btn:active:not(:disabled) .scan-rail-icon {
+	transform: scale(0.94);
+}
+.scan-rail-btn.is-primary .scan-rail-icon {
+	border-color: transparent;
+	background: var(--scan-accent);
+	color: #fff;
+	box-shadow: 0 4px 20px #df132344;
+}
+.scan-rail-btn.is-done .scan-rail-icon {
+	border-color: #4fd18b88;
+	background: #4fd18b22;
+	color: #4fd18b;
+}
+.scan-rail-btn.is-done {
+	color: #4fd18b;
+}
+.scan-rail-btn[aria-pressed="true"] .scan-rail-icon {
+	background: linear-gradient(110deg, #7c1414, #e22424);
+	border-color: #f49d9d;
+	box-shadow: 0 0 18px #e2242444;
+}
+.scan-rail-btn:disabled {
+	opacity: 0.45;
+}
+/* The shutter is the same round button, just bigger, with the white dot. */
+.scan-rail-btn.is-shutter .scan-rail-icon {
+	width: 62px;
+	height: 62px;
+	border: 2px solid #f6f1e8;
+	background: transparent;
+}
+.scan-shutter-dot {
+	width: 48px;
+	height: 48px;
 	border-radius: 50%;
 	background: #f6f1e8;
+}
+/* The review actions sit low on the right edge, above the pages roll, so they
+   never overlap the Scan page button that is centred on the same edge. */
+.scan-rail.scan-rail-low {
+	top: auto;
+	/* Clears the little list button that sits just above the pages roll. */
+	bottom: calc(
+		var(--scan-pad-b) + var(--scan-footer-h) + var(--scan-roll-h) + 74px
+	);
+	max-height: none;
+	transform: none;
+}
+/* Rotate left / right share one row. */
+.scan-rail-pair {
+	display: flex;
+	justify-content: center;
+	gap: 8px;
+	width: 100%;
+}
+.scan-rail-btn.is-small {
+	width: auto;
+}
+.scan-rail-btn.is-small .scan-rail-icon {
+	width: 34px;
+	height: 34px;
 }
 .scan-capture-label {
 	color: #9ba3b7;
@@ -923,6 +1016,33 @@
 .scan-crop-canvas > canvas {
 	width: 100%;
 	height: 100%;
+}
+/* Magnifier shown while a corner is held. It sits in the top corner on the
+   opposite side from the finger, so the hand never covers it. */
+.scan-crop-canvas > .scan-loupe {
+	position: absolute;
+	top: 56px;
+	z-index: 4;
+	width: 132px;
+	height: 132px;
+	overflow: hidden;
+	border: 2px solid #f5f3e9;
+	border-radius: 50%;
+	box-shadow:
+		0 8px 28px #000a,
+		0 0 0 4px #0b0f1a99;
+	pointer-events: none;
+}
+.scan-crop-canvas > .scan-loupe > canvas {
+	display: block;
+	width: 100%;
+	height: 100%;
+}
+.scan-loupe[data-side="right"] {
+	right: 10px;
+}
+.scan-loupe[data-side="left"] {
+	left: 10px;
 }
 .scan-corner {
 	position: absolute;
@@ -958,42 +1078,7 @@
 }
 /* Crop controls: a vertical column fixed to the right edge, like the camera
    controls, so they never take space from the crop box. */
-.scan-crop-rail {
-	position: fixed;
-	top: 50%;
-	right: max(14px, env(safe-area-inset-right));
-	z-index: 8;
-	display: flex;
-	flex-direction: column;
-	align-items: stretch;
-	gap: 14px;
-	width: 96px;
-	transform: translateY(-50%);
-}
-.scan-crop-tools {
-	display: flex;
-	flex-direction: column;
-	justify-content: center;
-	align-items: center;
-	gap: 4px;
-	margin: 0;
-}
-.scan-crop-tools .scan-icon {
-	border: 0;
-	background: none;
-}
-.scan-crop-actions {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-}
-.scan-crop-actions .scan-button {
-	justify-content: center;
-	min-height: 42px;
-	padding: 8px;
-	font-size: 11px;
-	text-align: center;
-}
+
 .scan-review-screen {
 	max-width: 420px;
 }
@@ -1370,32 +1455,6 @@
 	}
 }
 
-.library-scan-button {
-	position: fixed;
-	top: 50%;
-	right: max(16px, env(safe-area-inset-right));
-	z-index: 60;
-	transform: translateY(-50%);
-	display: grid;
-	place-items: center;
-	width: 52px;
-	height: 52px;
-	border: 1px solid rgb(255 255 255 / 18%);
-	border-radius: 50%;
-	background: rgb(30 36 58 / 88%);
-	box-shadow: 0 6px 24px rgb(0 0 0 / 24%);
-	color: #f4f1ea;
-	cursor: pointer;
-	touch-action: manipulation;
-	-webkit-tap-highlight-color: transparent;
-}
-.library-scan-button:hover {
-	background: #35405d;
-}
-.library-scan-button:focus-visible {
-	outline: 2px solid #f4f1ea;
-	outline-offset: 4px;
-}
 .book-scanner:is(
 		[data-step="unavailable"],
 		[data-step="requesting"],
@@ -1422,35 +1481,6 @@
 .book-scanner .scan-crop-count {
 	backdrop-filter: none;
 	-webkit-backdrop-filter: none;
-}
-.scan-torch {
-	display: flex;
-	flex-direction: column;
-	align-items: center;
-	gap: 6px;
-	font-size: 10px;
-	color: var(--scan-ink);
-	text-shadow: 0 1px 4px #000;
-}
-.scan-torch .scan-icon {
-	width: 46px;
-	height: 46px;
-	background: #141b2de0;
-	border-color: #ffffff25;
-}
-.scan-torch .scan-icon[aria-pressed="true"] {
-	background: linear-gradient(110deg, #7c1414, #e22424);
-	border-color: #f49d9d;
-	box-shadow: 0 0 18px #e2242444;
-}
-.scan-torch .scan-icon:disabled {
-	opacity: 0.5;
-}
-.scan-crop-tools {
-	align-self: center;
-	padding-inline: 12px;
-	border-radius: 24px;
-	background: #11182cdd;
 }
 
 .scan-roll-workspace {
@@ -1783,14 +1813,6 @@
 	overflow: hidden;
 	clip: rect(0, 0, 0, 0);
 	padding: 0;
-}
-/* Adjust crop and Add to shelf share one line (crop 1 : add 2). */
-.scan-review-screen .scan-review-controls {
-	display: grid;
-	grid-template-columns: 1fr 2fr;
-	align-items: center;
-	gap: 10px;
-	padding-top: 4px;
 }
 .scan-live-toolbar {
 	display: flex;

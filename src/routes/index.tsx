@@ -1,7 +1,7 @@
 import { Stats } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
 import { createFileRoute } from "@tanstack/react-router";
-import { Camera, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import BoooksController from "../components/layout/BoooksController";
 import RenderStats from "../components/layout/RenderStats";
 import ShaderWarmup from "../components/layout/ShaderWarmup";
@@ -52,7 +52,6 @@ function Home() {
 		typeof window !== "undefined" &&
 		new URLSearchParams(window.location.search).has("controls");
 	const [scanning, setScanning] = useState(false);
-	const scanButton = useRef<HTMLButtonElement>(null);
 	const scannerOpener = useRef<HTMLElement | null>(null);
 	const [notice, setNotice] = useState("");
 	const stage = useTourStore((state) => state.stage);
@@ -140,9 +139,10 @@ function Home() {
 		setScanning(false);
 		useTourStore.setState({ paused: !SHOW_DEMO_UI || bookPanel !== "closed" });
 		requestAnimationFrame(() => {
+			// The controller remounts when the scanner closes, so fall back to it.
 			const target = scannerOpener.current?.isConnected
 				? scannerOpener.current
-				: scanButton.current;
+				: document.querySelector<HTMLElement>(".bc-btn");
 			target?.focus({ preventScroll: true });
 		});
 	};
@@ -295,25 +295,6 @@ function Home() {
 				reader === "closed" &&
 				["library", "pick", "end", "grow"].includes(stage) && (
 					<BoooksController onAction={controllerAction} />
-				)}
-			{!scanning &&
-				!editing &&
-				reader === "closed" &&
-				bookPanel === "closed" &&
-				stage === "library" &&
-				!platesOpen &&
-				!adding && (
-					<button
-						ref={scanButton}
-						type="button"
-						className="library-scan-button"
-						aria-label="Scan a book"
-						title="Scan a book"
-						aria-controls="book-scanner"
-						onClick={(event) => openScanner(event.currentTarget)}
-					>
-						<Camera size={23} aria-hidden="true" />
-					</button>
 				)}
 			{scanning && <BookScanner onClose={closeScanner} onAdd={addBook} />}
 			{showShelfControls && <ShelfControls />}
