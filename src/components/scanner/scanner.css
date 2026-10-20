@@ -2,6 +2,9 @@
 	--scan-ink: #f4f1e9;
 	--scan-muted: #a1a7b8;
 	--scan-accent: #ef3d48;
+	/* Gap under the content, and the height of the pinned step footer. */
+	--scan-pad-b: max(12px, env(safe-area-inset-bottom));
+	--scan-footer-h: 0px;
 	position: fixed;
 	inset: 0;
 	z-index: 1500;
@@ -16,8 +19,12 @@
 	font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 	overflow: hidden;
 	overscroll-behavior: contain;
-	padding: env(safe-area-inset-top) 14px max(12px, env(safe-area-inset-bottom));
+	padding: env(safe-area-inset-top) 14px
+		calc(var(--scan-pad-b) + var(--scan-footer-h));
 	-webkit-tap-highlight-color: transparent;
+}
+.book-scanner[data-stepper] {
+	--scan-footer-h: 50px;
 }
 .book-scanner > .scan-header {
 	grid-area: head;
@@ -294,10 +301,13 @@
 .scan-book-guide {
 	position: absolute;
 	left: max(10px, env(safe-area-inset-left));
-	bottom: max(12px, env(safe-area-inset-bottom));
+	/* Sits above the camera-roll / shutter row so it never covers a button. */
+	bottom: calc(
+		max(12px, env(safe-area-inset-bottom)) + var(--scan-footer-h) + 124px
+	);
 	z-index: 8;
-	width: 112px;
-	height: 150px;
+	width: 128px;
+	height: 168px;
 	margin: 0;
 	display: flex;
 	flex-direction: column;
@@ -328,16 +338,25 @@
 	letter-spacing: 1.2px;
 	text-transform: uppercase;
 }
-/* Small stepper: front → spine → back → done. Go back and forth freely. */
+/* Small stepper: front → spine → back → done. Go back and forth freely.
+   Pinned to the bottom of the scanner as a footer; the scanner reserves its
+   height via --scan-footer-h so it never covers the content above. */
 .scan-cover-stepper {
+	position: absolute;
+	right: 14px;
+	bottom: var(--scan-pad-b);
+	left: 14px;
+	z-index: 9;
 	display: flex;
 	align-items: center;
 	justify-content: center;
 	gap: 6px;
-	height: 50px;
-	flex-shrink: 0;
+	height: var(--scan-footer-h);
+	/* Only the buttons take the pointer, so the row never blocks the content. */
+	pointer-events: none;
 }
 .scan-cover-stepper button {
+	pointer-events: auto;
 	display: inline-flex;
 	align-items: center;
 	gap: 7px;
@@ -354,6 +373,103 @@
 	color: var(--scan-muted);
 	font-size: 9px;
 	font-weight: 500;
+}
+/* What the AI read from the front cover: title, subtitle, author. */
+/* Small glass chip laid over the top of the book preview. */
+.scan-cover-read {
+	position: absolute;
+	top: 6px;
+	left: 50%;
+	z-index: 2;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 1px;
+	width: max-content;
+	max-width: calc(100% - 8px);
+	padding: 4px 9px;
+	border: 1px solid #ffffff1f;
+	border-radius: 12px;
+	background: #0b0f1acc;
+	backdrop-filter: blur(8px);
+	-webkit-backdrop-filter: blur(8px);
+	color: var(--scan-muted);
+	font-size: 9px;
+	line-height: 1.3;
+	text-align: center;
+	pointer-events: none;
+	transform: translateX(-50%);
+}
+.scan-cover-read strong,
+.scan-cover-read span {
+	max-width: 100%;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+.scan-cover-read strong {
+	color: var(--scan-ink);
+	font-size: 10px;
+	font-weight: 600;
+}
+.scan-cover-read[data-state="reading"] {
+	flex-direction: row;
+	gap: 5px;
+}
+.scan-cover-read button {
+	border: 0;
+	background: none;
+	color: #ffb1b4;
+	font-size: 9px;
+	text-decoration: underline;
+	pointer-events: auto;
+}
+/* Camera instructions: a quiet glass pill over the top of the portal.
+   The crop screen uses the same layout (pill on top, controls in a column on
+   the right), so the camera and the crop share one box and the photo stays
+   the same size from capture to crop. */
+.scan-camera-screen,
+.scan-crop-screen {
+	position: relative;
+}
+.scannerMode,
+.scan-crop-screen > .scan-section-title {
+	position: absolute;
+	top: 6px;
+	left: 50%;
+	z-index: 3;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 2px;
+	width: max-content;
+	max-width: calc(100% - 24px);
+	padding: 8px 16px;
+	border: 1px solid #ffffff1f;
+	border-radius: 18px;
+	background: #0b0f1ab8;
+	backdrop-filter: blur(12px);
+	-webkit-backdrop-filter: blur(12px);
+	box-shadow: 0 8px 24px #0000004d;
+	text-align: center;
+	pointer-events: none;
+	transform: translateX(-50%);
+}
+.scannerMode h1,
+.scan-crop-screen > .scan-section-title h1 {
+	margin: 0;
+	color: var(--scan-ink);
+	font-size: 14px;
+	font-weight: 600;
+	letter-spacing: 0;
+	line-height: 1.3;
+}
+.scannerMode p,
+.scan-crop-screen > .scan-section-title p {
+	margin: 0;
+	color: var(--scan-muted);
+	font-size: 11px;
+	line-height: 1.4;
 }
 /* Step 4: the full-size book with its size handles and sliders. */
 .scan-size-step {
@@ -739,19 +855,31 @@
 	top: 50%;
 	left: 48%;
 }
+/* Camera controls: a vertical column fixed to the right edge, centred top to
+   bottom (camera roll, shutter, flashlight). The scanner is itself fixed, so
+   this stays put while the viewfinder keeps the full width. */
 .scan-camera-actions {
-	display: grid;
-	grid-template-columns: 1fr 74px 1fr;
+	position: fixed;
+	top: 50%;
+	right: max(14px, env(safe-area-inset-right));
+	z-index: 8;
+	display: flex;
+	flex-direction: column;
 	align-items: center;
-	gap: 16px;
-	padding: 22px 0 2px;
+	gap: 22px;
+	width: 84px;
+	transform: translateY(-50%);
 }
 .scan-camera-actions .scan-secondary {
+	flex-direction: column;
+	width: 100%;
 	border: none;
 	font-size: 10px;
+	line-height: 1.3;
 	gap: 6px;
 	padding: 4px;
 	background: none;
+	text-align: center;
 }
 .scan-shutter {
 	display: grid;
@@ -828,21 +956,43 @@
 	font-size: 9px;
 	pointer-events: none;
 }
+/* Crop controls: a vertical column fixed to the right edge, like the camera
+   controls, so they never take space from the crop box. */
+.scan-crop-rail {
+	position: fixed;
+	top: 50%;
+	right: max(14px, env(safe-area-inset-right));
+	z-index: 8;
+	display: flex;
+	flex-direction: column;
+	align-items: stretch;
+	gap: 14px;
+	width: 96px;
+	transform: translateY(-50%);
+}
 .scan-crop-tools {
 	display: flex;
+	flex-direction: column;
 	justify-content: center;
 	align-items: center;
-	gap: 12px;
-	margin: 10px 0;
+	gap: 4px;
+	margin: 0;
 }
 .scan-crop-tools .scan-icon {
 	border: 0;
 	background: none;
 }
 .scan-crop-actions {
-	display: grid;
-	grid-template-columns: 1fr 2fr;
-	gap: 10px;
+	display: flex;
+	flex-direction: column;
+	gap: 8px;
+}
+.scan-crop-actions .scan-button {
+	justify-content: center;
+	min-height: 42px;
+	padding: 8px;
+	font-size: 11px;
+	text-align: center;
 }
 .scan-review-screen {
 	max-width: 420px;
@@ -1056,7 +1206,7 @@
 }
 @media (min-width: 760px) {
 	.book-scanner {
-		padding-bottom: 28px;
+		--scan-pad-b: 28px;
 	}
 	.scan-header {
 		height: 90px;
@@ -1076,11 +1226,6 @@
 		margin: 0 auto;
 		width: 100%;
 		max-width: 440px;
-	}
-	.scan-camera-actions {
-		max-width: 440px;
-		width: 100%;
-		margin: 0 auto;
 	}
 	.scan-review-screen {
 		max-height: 740px;
@@ -1279,7 +1424,6 @@
 	-webkit-backdrop-filter: none;
 }
 .scan-torch {
-	justify-self: center;
 	display: flex;
 	flex-direction: column;
 	align-items: center;
@@ -1640,16 +1784,13 @@
 	clip: rect(0, 0, 0, 0);
 	padding: 0;
 }
+/* Adjust crop and Add to shelf share one line (crop 1 : add 2). */
 .scan-review-screen .scan-review-controls {
-	display: flex;
-	flex-wrap: wrap;
+	display: grid;
+	grid-template-columns: 1fr 2fr;
 	align-items: center;
-	justify-content: center;
-	gap: 6px 14px;
+	gap: 10px;
 	padding-top: 4px;
-}
-.scan-review-screen .scan-review-controls > .scan-button {
-	flex: 1 1 100%;
 }
 .scan-live-toolbar {
 	display: flex;
@@ -1865,6 +2006,11 @@
 		monospace;
 	backdrop-filter: blur(10px);
 	-webkit-backdrop-filter: blur(10px);
+}
+/* Open / closed book switch sits bottom-left, opposite the size readout. */
+.scan-size-toggle.scan-size-toggle-view {
+	right: auto;
+	left: 8px;
 }
 .scan-size-toggle.is-on {
 	border-color: #d6c9a5aa;

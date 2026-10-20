@@ -396,6 +396,7 @@
 	font-weight: 600;
 	letter-spacing: 0.6px;
 	text-transform: uppercase;
+	justify-content: center;
 }
 .spx-item.is-active {
 	background: rgb(229 72 77 / 14%);

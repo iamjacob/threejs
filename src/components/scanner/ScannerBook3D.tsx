@@ -1,6 +1,6 @@
 import { Edges, Html, OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { ChevronDown, Ruler } from "lucide-react";
+import { BookOpen, ChevronDown, Ruler } from "lucide-react";
 import {
 	type PointerEvent as ReactPointerEvent,
 	useEffect,
@@ -14,8 +14,7 @@ import {
 	Plane,
 	Raycaster,
 	SRGBColorSpace,
-	type Texture,
-	TextureLoader,
+	Texture,
 	Vector2,
 	Vector3,
 } from "three";
@@ -26,8 +25,16 @@ import {
 	formatMeasurement,
 } from "../../stores/useBookSizeStore";
 import { getControllerJoystick } from "../tour/controllerJoystick";
-import type { PhotoTag } from "./scanDrafts";
+import { OPEN_BOOK_CAMERA, OpenBookModel, pagePhotos } from "./ScannerOpenBook";
+import type { PhotoTag, ScanPhoto } from "./scanDrafts";
 import type { CroppedFace } from "./scannedBook";
+
+/**
+ * Feature flag for the "Book size" panel (`.scan-size-controls`: unit toggle,
+ * presets and the height / width / thickness sliders). When false it is not
+ * rendered. Set to `true` to bring it back.
+ */
+export const SHOW_SIZE_CONTROLS = false;
 
 export type PreviewSide = "front" | "spine" | "back" | "page";
 type Axis = keyof BookSizeCm;
@@ -57,27 +64,40 @@ function Surface({
 	onPick: () => void;
 }) {
 	const [texture, setTexture] = useState<Texture | null>(null);
+	const current = useRef<Texture | null>(null);
 	useEffect(() => {
 		let active = true;
-		let loaded: Texture | undefined;
-		setTexture(null);
-		if (image)
-			new TextureLoader().load(
-				image,
-				(value) => {
-					loaded = value;
-					value.colorSpace = SRGBColorSpace;
-					if (active) setTexture(value);
-					else value.dispose();
-				},
-				undefined,
-				() => {},
-			);
+		if (!image) {
+			current.current?.dispose();
+			current.current = null;
+			setTexture(null);
+			return;
+		}
+		// Keep showing the old image until the new one is decoded (no flicker
+		// while a crop is dragged), and skip three's global Cache so live-crop
+		// data URLs aren't kept in memory forever.
+		const element = new Image();
+		element.onload = () => {
+			if (!active) return;
+			const next = new Texture(element);
+			next.colorSpace = SRGBColorSpace;
+			next.needsUpdate = true;
+			current.current?.dispose();
+			current.current = next;
+			setTexture(next);
+		};
+		element.src = image;
 		return () => {
 			active = false;
-			loaded?.dispose();
 		};
 	}, [image]);
+	useEffect(
+		() => () => {
+			current.current?.dispose();
+			current.current = null;
+		},
+		[],
+	);
 	return (
 		// biome-ignore lint/a11y/noStaticElementInteractions: Three.js mesh; keyboard-equivalent controls live outside the canvas.
 		<mesh
@@ -242,6 +262,7 @@ function BookModel({
 	onPart,
 	onSize,
 	interactive = true,
+	targetY = SCENE_TARGET_Y,
 }: {
 	faces: Partial<Record<"front" | "spine" | "back", CroppedFace>>;
 	side: PreviewSide;
@@ -252,6 +273,8 @@ function BookModel({
 	onSize: (axis: Axis, value: number) => void;
 	/** Lets the user orbit the book with the pointer. */
 	interactive?: boolean;
+	/** Height the camera looks at; the corner guide frames its own book. */
+	targetY?: number;
 }) {
 	const group = useRef<Group>(null);
 	const { camera, gl } = useThree();
@@ -273,10 +296,13 @@ function BookModel({
 	const height = size.height * CM;
 	const depth = size.thickness * CM;
 	const board = Math.max(0.004, depth * 0.12);
-	const spine = depth / 2;
-	const coverWidth = width - spine;
-	const coverCenter = -width / 2 + spine + coverWidth / 2;
+	// A flat, square-edged book: the covers span the full width and a straight
+	// spine board closes the left edge (no rounded spine).
+	const coverWidth = width;
+	const coverCenter = 0;
 	const paperDepth = Math.max(0.006, depth - board * 2);
+	const paperWidth = width - board * 1.5;
+	const paperCenter = board / 4;
 
 	useEffect(() => {
 		const update = () =>
@@ -431,14 +457,12 @@ function BookModel({
 						</mesh>
 					)}
 				</group>
-				<mesh position={[-width / 2 + spine, height / 2, 0]}>
-					<cylinderGeometry
-						args={[spine, spine, height, 24, 1, true, Math.PI, Math.PI]}
-					/>
-					<meshStandardMaterial color="#263b51" side={DoubleSide} />
+				<mesh position={[-width / 2 + board / 2, height / 2, 0]}>
+					<boxGeometry args={[board, height, depth]} />
+					<meshStandardMaterial color="#263b51" roughness={0.7} />
 				</mesh>
-				<mesh position={[coverCenter, height / 2, 0]}>
-					<boxGeometry args={[coverWidth - board, height - 0.02, paperDepth]} />
+				<mesh position={[paperCenter, height / 2, 0]}>
+					<boxGeometry args={[paperWidth, height - 0.02, paperDepth]} />
 					<meshStandardMaterial color="#e9e4d7" roughness={0.92} />
 				</mesh>
 				{faces.spine && (
@@ -499,7 +523,7 @@ function BookModel({
 				dampingFactor={0.08}
 				minPolarAngle={0.6}
 				maxPolarAngle={2.3}
-				target={[0, SCENE_TARGET_Y, 0]}
+				target={[0, targetY, 0]}
 			/>
 		</>
 	);
@@ -632,6 +656,7 @@ export default function ScannerBook3D({
 	toolsRequest,
 	reset,
 	startEditing = false,
+	openBook,
 }: {
 	faces: Partial<Record<"front" | "spine" | "back", CroppedFace>>;
 	side: PreviewSide;
@@ -649,8 +674,27 @@ export default function ScannerBook3D({
 	reset: () => void;
 	/** Open with the size handles and sliders already showing. */
 	startEditing?: boolean;
+	/**
+	 * Adds a button to switch to the open book (with its real page stack). The
+	 * book starts closed, because the ruler and drag handles belong to the
+	 * closed book; the open view is for looking at the pages.
+	 */
+	openBook?: { pages: number; photos: ScanPhoto[] };
 }) {
 	const [editing, setEditing] = useState(startEditing);
+	const [showOpen, setShowOpen] = useState(false);
+	const openFaces = useMemo(
+		() => ({
+			front: faces.front?.image,
+			back: faces.back?.image,
+			spine: faces.spine?.image,
+		}),
+		[faces.front?.image, faces.back?.image, faces.spine?.image],
+	);
+	const openPhotos = useMemo(
+		() => pagePhotos(openBook?.photos ?? []),
+		[openBook?.photos],
+	);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: each bump toggles the tools once.
 	useEffect(() => {
 		if (toolsRequest) setEditing((value) => !value);
@@ -659,29 +703,71 @@ export default function ScannerBook3D({
 	return (
 		<div className="scan-size-configurator">
 			<div className="scan-three-book scan-three-book-sized">
-				<Canvas
-					camera={{
-						position: [
-							SCENE_DISTANCE * 0.18,
-							SCENE_TARGET_Y + 0.35,
-							SCENE_DISTANCE,
-						],
-						fov: 34,
-					}}
-					dpr={[1, 1.5]}
-					fallback={<span>3D preview unavailable. Use the sliders below.</span>}
-				>
-					<BookModel
-						faces={faces}
-						side={side}
-						size={size}
-						unit={unit}
-						editable={editable}
-						onPart={onPart}
-						onSize={onSize}
-					/>
-				</Canvas>
-				<button
+				{openBook && showOpen ? (
+					<Canvas
+						camera={OPEN_BOOK_CAMERA}
+						dpr={[1, 1.5]}
+						fallback={
+							<span>3D preview unavailable. Use the sliders below.</span>
+						}
+					>
+						<OpenBookModel
+							size={size}
+							pages={Math.max(1, openBook.pages)}
+							current={0}
+							photos={openPhotos}
+							faces={openFaces}
+						/>
+						<OrbitControls
+							enablePan={false}
+							enableZoom={false}
+							enableDamping
+							dampingFactor={0.08}
+						/>
+					</Canvas>
+				) : (
+					<Canvas
+						camera={{
+							position: [
+								SCENE_DISTANCE * 0.18,
+								SCENE_TARGET_Y + 0.35,
+								SCENE_DISTANCE,
+							],
+							fov: 34,
+						}}
+						dpr={[1, 1.5]}
+						fallback={
+							<span>3D preview unavailable. Use the sliders below.</span>
+						}
+					>
+						<BookModel
+							faces={faces}
+							side={side}
+							size={size}
+							unit={unit}
+							editable={editable}
+							onPart={onPart}
+							onSize={onSize}
+						/>
+					</Canvas>
+				)}
+				{openBook && (
+					<button
+						type="button"
+						className="scan-size-toggle scan-size-toggle-view"
+						aria-pressed={showOpen}
+						title={
+							showOpen
+								? "Back to the closed book with the ruler and size handles"
+								: "Show the open book with its pages"
+						}
+						onClick={() => setShowOpen((value) => !value)}
+					>
+						<BookOpen size={14} aria-hidden="true" />
+						<span>{showOpen ? "Closed book" : "Open book"}</span>
+					</button>
+				)}
+				{/* <button
 					type="button"
 					className={`scan-size-toggle${editable ? " is-on" : ""}`}
 					aria-pressed={editable}
@@ -697,7 +783,7 @@ export default function ScannerBook3D({
 						{formatMeasurement(size.width, unit)} ×{" "}
 						{formatMeasurement(size.thickness, unit)}
 					</span>
-				</button>
+				</button> */}
 			</div>
 			{!confident && (
 				<output className="scan-size-prompt">
@@ -713,7 +799,7 @@ export default function ScannerBook3D({
 					</button>
 				</output>
 			)}
-			{editable && (
+			{SHOW_SIZE_CONTROLS && editable && (
 				<Controls
 					size={size}
 					unit={unit}
@@ -729,42 +815,81 @@ export default function ScannerBook3D({
 }
 
 /**
- * Small copy of the 3D book for a corner guide. It shares BookModel, so it
- * turns to `side`, shows the same cropped faces, and can be orbited by hand
- * (rotate only; no zoom or pan, and no size handles).
+ * Small book for a corner guide. For covers it is the same flat, closed book
+ * as the size step: it turns to the cover being shot and shows the cropped
+ * faces as they arrive (the live crop included). While a page is being
+ * scanned it shows the open book at that page instead. Drag to orbit
+ * (rotate only).
  */
 export function ScannerBookGuide({
 	faces,
 	side,
 	size,
-	unit,
+	pages,
+	photos,
+	page,
 }: {
 	faces: Partial<Record<"front" | "spine" | "back", CroppedFace>>;
-	side: PreviewSide;
+	/** The cover to face. Ignored while `page` is set. */
+	side: "front" | "spine" | "back";
 	size: BookSizeCm;
-	unit: Unit;
+	pages: number;
+	photos: ScanPhoto[];
+	/** 0-based page being scanned: the book opens there instead of turning to a cover. */
+	page?: number;
 }) {
+	const images = useMemo(
+		() => ({
+			front: faces.front?.image,
+			back: faces.back?.image,
+			spine: faces.spine?.image,
+		}),
+		[faces.front?.image, faces.back?.image, faces.spine?.image],
+	);
+	const pageMap = useMemo(() => pagePhotos(photos), [photos]);
+	// Frame this book (not the largest allowed one) so it fills the corner.
+	const height = size.height * CM;
+	// biome-ignore lint/correctness/useExhaustiveDependencies: frame once per book, not while the size changes.
+	const closedCamera = useMemo(
+		() => ({
+			position: [height * 0.45, height * 0.68, height * 2.3] as [
+				number,
+				number,
+				number,
+			],
+			fov: 34,
+		}),
+		[],
+	);
+	if (page === undefined)
+		return (
+			<Canvas camera={closedCamera} dpr={[1, 1.5]}>
+				<BookModel
+					faces={faces}
+					side={side}
+					size={size}
+					unit="cm"
+					editable={false}
+					onPart={() => {}}
+					onSize={() => {}}
+					targetY={height / 2}
+				/>
+			</Canvas>
+		);
 	return (
-		<Canvas
-			camera={{
-				position: [
-					SCENE_DISTANCE * 0.18,
-					SCENE_TARGET_Y + 0.35,
-					SCENE_DISTANCE,
-				],
-				fov: 34,
-			}}
-			dpr={[1, 1.5]}
-		>
-			<BookModel
-				faces={faces}
-				side={side}
+		<Canvas camera={OPEN_BOOK_CAMERA} dpr={[1, 1.5]}>
+			<OpenBookModel
 				size={size}
-				unit={unit}
-				editable={false}
-				interactive
-				onPart={() => {}}
-				onSize={() => {}}
+				pages={Math.max(1, pages)}
+				current={Math.min(page, Math.max(1, pages) - 1)}
+				photos={pageMap}
+				faces={images}
+			/>
+			<OrbitControls
+				enablePan={false}
+				enableZoom={false}
+				enableDamping
+				dampingFactor={0.08}
 			/>
 		</Canvas>
 	);

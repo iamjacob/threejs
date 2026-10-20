@@ -3,7 +3,6 @@ import {
 	Camera,
 	Check,
 	Crop,
-	Download,
 	Flashlight,
 	FlashlightOff,
 	ImagePlus,
@@ -55,6 +54,7 @@ import {
 	requestScanMetadata,
 	requestShelfScan,
 	SCAN_TIMEOUT_MS,
+	ScanMetadataError,
 	type ShelfBook,
 } from "./scanMetadata";
 import type { BookScan, CroppedFace } from "./scannedBook";
@@ -271,23 +271,58 @@ export default function BookScanner({
 	};
 
 	// Read title/author from the front cover in the background; only fills
-	// fields the user left empty. Progress shows up in ScanProgress.
+	// fields the user left empty. Progress shows in the read-out under the stepper.
+	const [coverRead, setCoverRead] = useState<
+		"idle" | "reading" | "done" | "failed"
+	>("idle");
+	// Bump to run the cover read again (the "Try again" button).
+	const [coverReadRetry, setCoverReadRetry] = useState(0);
 	const frontImage = faces.front?.image;
 	// biome-ignore lint/correctness/useExhaustiveDependencies: re-run only when the cover or draft changes, not on every keystroke.
 	useEffect(() => {
-		if (!frontImage || !draftsReady || !lookups || privateOnly) return;
+		// The cover read is the first AI step, so it runs on every scanner version
+		// (not just 0.3) whenever the data mode allows the network (Online).
+		if (!frontImage || !draftsReady || dataMode !== "online") {
+			setCoverRead("idle");
+			return;
+		}
 		const controller = new AbortController();
+		// Set only when the effect is torn down (new cover, draft switch, unmount).
+		// The 30 s timeout also aborts the request, but must still clear the UI.
+		let cancelled = false;
 		let timeout: ReturnType<typeof setTimeout> | undefined;
 		const timer = setTimeout(() => {
+			setCoverRead("reading");
 			setEnrichment((current) => ({
 				...current,
 				status: "searching",
 				activeStep: current.activeStep ?? "Title",
 			}));
 			timeout = setTimeout(() => controller.abort(), SCAN_TIMEOUT_MS);
-			void requestScanMetadata(frontImage, controller.signal)
+			// One retry for a network blip, rate limit or server error; a bad
+			// photo (400/413) or a cancel is not retried.
+			const readCover = async () => {
+				for (let attempt = 0; ; attempt++) {
+					try {
+						return await requestScanMetadata(frontImage, controller.signal);
+					} catch (cause) {
+						const status =
+							cause instanceof ScanMetadataError ? cause.status : 0;
+						const retry =
+							attempt < 1 &&
+							!cancelled &&
+							!controller.signal.aborted &&
+							(status === 0 || status === 429 || status >= 500);
+						if (!retry) throw cause;
+						await new Promise((resolve) => setTimeout(resolve, 1500));
+						if (cancelled || controller.signal.aborted) throw cause;
+					}
+				}
+			};
+			let failed = false;
+			void readCover()
 				.then((metadata) => {
-					if (controller.signal.aborted) return;
+					if (cancelled) return;
 					if (metadata.title) setTitle((v) => v.trim() || metadata.title);
 					if (metadata.subtitle)
 						setSubtitle((v) => v.trim() || metadata.subtitle);
@@ -295,22 +330,30 @@ export default function BookScanner({
 				})
 				.catch(() => {
 					/* Manual entry still works when the cover reader is unavailable. */
+					failed = true;
 				})
 				.finally(() => {
-					if (!controller.signal.aborted)
-						setEnrichment((current) => ({
-							...current,
-							activeStep:
-								current.activeStep === "Title" ? null : current.activeStep,
-						}));
+					if (cancelled) return;
+					setCoverRead(failed ? "failed" : "done");
+					setEnrichment((current) =>
+						current.activeStep === "Title"
+							? {
+									...current,
+									activeStep: null,
+									// Don't leave "searching" up after a failed read.
+									status: failed ? "partial" : current.status,
+								}
+							: current,
+					);
 				});
 		}, 600);
 		return () => {
+			cancelled = true;
 			clearTimeout(timer);
 			if (timeout) clearTimeout(timeout);
 			controller.abort();
 		};
-	}, [frontImage, draftId, draftsReady, lookups, privateOnly]);
+	}, [frontImage, draftId, draftsReady, dataMode, coverReadRetry]);
 
 	const [error, setError] = useState("");
 	const [busy, setBusy] = useState(false);
@@ -535,8 +578,11 @@ export default function BookScanner({
 		cancelDetection();
 		setError("");
 		stopCamera();
-		if (step === "review") setStep("crop");
-		else if (step === "crop" && faces.front) {
+		if (step === "review") {
+			// Steps are open without any photo, so there may be nothing to crop.
+			if (source) setStep("crop");
+			else void startCamera();
+		} else if (step === "crop" && faces.front) {
 			setFace("front");
 			const saved = crops.current.front;
 			if (saved) {
@@ -795,10 +841,11 @@ export default function BookScanner({
 				setActivePhoto(null);
 				void startCamera();
 			} else {
-				// All covers done: carry on to step 4, the size.
+				// All covers done: carry on to step 4, the size. A scanned page
+				// returns to the book it came from (steps are open in any order).
 				if (tag === "front" || tag === "spine" || tag === "back")
 					setView("cover");
-				setStep(faces.front || tag === "front" ? "review" : "crop");
+				setStep("review");
 			}
 		} catch (cause) {
 			setError(
@@ -851,17 +898,6 @@ export default function BookScanner({
 			if (mounted.current) setBusy(false);
 		}
 	};
-	const download = () => {
-		const output = faces[face] ?? faces.front;
-		if (!output) return;
-		const link = document.createElement("a");
-		link.href = output.image;
-		const extension = output.image.startsWith("data:image/webp")
-			? "webp"
-			: "png";
-		link.download = `${(title.trim() || "book").replace(/[^\p{L}\p{N}._-]+/gu, "-")}.${face}.${extension}`;
-		link.click();
-	};
 	const upload = (
 		<button
 			type="button"
@@ -903,6 +939,14 @@ export default function BookScanner({
 		if (tag === "front" || tag === "spine" || tag === "back") setFace(tag);
 		fileInput.current?.click();
 	};
+	const pageCount = Math.max(
+		enrichment.pageCount ?? 0,
+		...photos.map((photo) => (photo.page ?? -1) + 1),
+		photos.filter((photo) => photo.tag === "page").length,
+	);
+	const pagePhotoCount = photos.filter(
+		(photo) => !["front", "spine", "back", "dustjacket"].includes(photo.tag),
+	).length;
 	/** Review shows Size ("cover" view) or Pages; before that, the cover being shot. */
 	const activeTag = photos.find((p) => p.id === activePhoto)?.tag;
 	const shootingPage =
@@ -925,9 +969,36 @@ export default function BookScanner({
 	// Small live book in the bottom-left corner: a guide that turns to the cover
 	// being shot (front → spine → back) and fills in as each crop is accepted.
 	// The Size step shows the big book instead.
-	const showGuide =
-		!shelf && !detailsOpen && step !== "review" && !shootingPage;
+	// While scanning a page it shows the book open at that page instead.
+	const showGuide = !shelf && !detailsOpen && step !== "review";
 	const guideSide: Face = face;
+	const activePageIndex = photos.find((p) => p.id === activePhoto)?.page;
+	const guidePage = shootingPage
+		? (uploadPage.current ?? activePageIndex ?? pagePhotoCount)
+		: undefined;
+	const livePageCrop =
+		shootingPage &&
+		guidePage !== undefined &&
+		liveCrop &&
+		liveCrop.tag !== "front" &&
+		liveCrop.tag !== "spine" &&
+		liveCrop.tag !== "back"
+			? liveCrop.crop
+			: undefined;
+	// The page being cropped shows on its leaf before you accept it.
+	const guidePhotos: ScanPhoto[] =
+		livePageCrop && guidePage !== undefined
+			? [
+					...photos,
+					{
+						id: "live-page",
+						name: "Live crop",
+						image: livePageCrop.image,
+						tag: "page",
+						page: guidePage,
+					},
+				]
+			: photos;
 	const guideFaces: Partial<Record<Face, CroppedFace>> =
 		liveCrop &&
 		(liveCrop.tag === "front" ||
@@ -935,6 +1006,35 @@ export default function BookScanner({
 			liveCrop.tag === "back")
 			? { ...faces, [liveCrop.tag]: liveCrop.crop }
 			: faces;
+	/** What the AI read from the front cover: a small chip over the book preview. */
+	const coverReadChip =
+		showStepper &&
+		faces.front &&
+		(coverRead !== "idle" || title || subtitle || author) ? (
+			<output className="scan-cover-read" data-state={coverRead}>
+				{coverRead === "reading" ? (
+					<>
+						<LoaderCircle className="scan-spin" size={11} aria-hidden="true" />
+						<span>Reading the cover…</span>
+					</>
+				) : (
+					<>
+						<strong>{title || "Untitled"}</strong>
+						{(subtitle || author) && (
+							<span>{[subtitle, author].filter(Boolean).join(" · ")}</span>
+						)}
+						{coverRead === "failed" && !title && (
+							<button
+								type="button"
+								onClick={() => setCoverReadRetry((value) => value + 1)}
+							>
+								Couldn’t read it. Try again
+							</button>
+						)}
+					</>
+				)}
+			</output>
+		) : null;
 	/** Jump to a cover (its saved crop, or the camera if it's missing), Size or Pages. */
 	const goToStep = (target: StepId) => {
 		if (busy || target === currentStepId) return;
@@ -942,8 +1042,8 @@ export default function BookScanner({
 		uploadPage.current = null;
 		cancelDetection();
 		setError("");
+		// Every step is always open: Size and Pages work before any cover is in.
 		if (target === "size" || target === "pages") {
-			if (!faces.front) return;
 			stopCamera();
 			setActivePhoto(null);
 			setLiveCrop(null);
@@ -969,14 +1069,6 @@ export default function BookScanner({
 		else if (key === "author") setAuthor(value);
 		setEnrichment((current) => ({ ...current, [key]: value }));
 	};
-	const pageCount = Math.max(
-		enrichment.pageCount ?? 0,
-		...photos.map((photo) => (photo.page ?? -1) + 1),
-		photos.filter((photo) => photo.tag === "page").length,
-	);
-	const pagePhotoCount = photos.filter(
-		(photo) => !["front", "spine", "back", "dustjacket"].includes(photo.tag),
-	).length;
 	const [sizeToolsRequest, setSizeToolsRequest] = useState(0);
 	// The 3D book starts micro after the first cover and grows once all three
 	// covers are in (or the user skips the rest).
@@ -1049,14 +1141,14 @@ export default function BookScanner({
 				break;
 			case "cover":
 				setView("cover");
-				if (step !== "review" && faces.front) {
+				if (step !== "review") {
 					stopCamera();
 					setStep("review");
 				}
 				break;
 			case "pages":
 				setView("pages");
-				if (step !== "review" && faces.front) {
+				if (step !== "review") {
 					stopCamera();
 					setStep("review");
 				}
@@ -1066,7 +1158,7 @@ export default function BookScanner({
 				break;
 			case "size":
 				setView("cover");
-				if (step !== "review" && faces.front) {
+				if (step !== "review") {
 					stopCamera();
 					setStep("review");
 				}
@@ -1103,6 +1195,7 @@ export default function BookScanner({
 		<section
 			id="book-scanner"
 			data-step={step}
+			data-stepper={showStepper || undefined}
 			data-model={model}
 			data-face={face}
 			className="book-scanner"
@@ -1204,9 +1297,16 @@ export default function BookScanner({
 						faces={guideFaces}
 						side={guideSide}
 						size={size}
-						unit={unit}
+						pages={pageCount || 180}
+						photos={guidePhotos}
+						page={guidePage}
 					/>
-					<figcaption>{photoTags[guideSide]}</figcaption>
+					{coverReadChip}
+					<figcaption>
+						{guidePage === undefined
+							? photoTags[guideSide]
+							: `Page ${guidePage + 1}`}
+					</figcaption>
 				</figure>
 			)}
 			<div className="scan-main">
@@ -1240,9 +1340,7 @@ export default function BookScanner({
 									type="button"
 									className={complete ? "is-done" : undefined}
 									aria-current={id === currentStepId ? "step" : undefined}
-									disabled={
-										busy || ((id === "size" || id === "pages") && !faces.front)
-									}
+									disabled={busy}
 									onClick={() => goToStep(id)}
 								>
 									<i>
@@ -1274,7 +1372,7 @@ export default function BookScanner({
 						onSkip={skipShelfBook}
 						onClose={closeShelfScan}
 					/>
-				) : step === "review" && faces.front && view === "pages" ? (
+				) : step === "review" && view === "pages" ? (
 					<ScannerOpenBook
 						key={draftId}
 						size={size}
@@ -1289,7 +1387,7 @@ export default function BookScanner({
 						onScanPage={scanPage}
 						onSelectPhoto={(photo) => void selectPhoto(photo)}
 					/>
-				) : step === "review" && faces.front && !SHOW_LIVE_BOOK ? (
+				) : step === "review" && !SHOW_LIVE_BOOK ? (
 					<section className="scan-size-step" aria-label="Book size">
 						<ScannerBook3D
 							faces={faces}
@@ -1306,6 +1404,7 @@ export default function BookScanner({
 							toolsRequest={sizeToolsRequest}
 							reset={() => resetSize(draftId)}
 							startEditing
+							openBook={{ pages: pageCount || 180, photos }}
 						/>
 					</section>
 				) : (
@@ -1562,83 +1661,85 @@ export default function BookScanner({
 								{points.length} / 4 corners
 							</span>
 						</div>
-						<div className="scan-crop-tools">
-							<button
-								type="button"
-								className="scan-icon"
-								aria-label="Rotate photo left"
-								disabled={busy}
-								onClick={() => {
-									prepareCrop(rotatePhoto(source, false));
-								}}
-							>
-								<RotateCcw size={18} />
-							</button>
-							<button
-								type="button"
-								className="scan-text-button"
-								disabled={busy}
-								onClick={() => changePoints([])}
-							>
-								Reset
-							</button>
-							<button
-								type="button"
-								className="scan-text-button"
-								disabled={busy}
-								onClick={() =>
-									changePoints([
-										{ x: 0, y: 0 },
-										{ x: source.width, y: 0 },
-										{ x: source.width, y: source.height },
-										{ x: 0, y: source.height },
-									])
-								}
-							>
-								Full image
-							</button>
-							<button
-								type="button"
-								className="scan-icon"
-								aria-label="Rotate photo right"
-								disabled={busy}
-								onClick={() => {
-									prepareCrop(rotatePhoto(source, true));
-								}}
-							>
-								<RotateCw size={18} />
-							</button>
-						</div>
-						<div className="scan-crop-actions">
-							<button
-								type="button"
-								className="scan-button scan-secondary"
-								disabled={busy}
-								onClick={() => {
-									void startCamera();
-								}}
-							>
-								Retake
-							</button>
-							<button
-								type="button"
-								className="scan-button scan-primary"
-								disabled={
-									busy || detection === "detecting" || points.length !== 4
-								}
-								onClick={crop}
-							>
-								{busy ? (
-									<LoaderCircle className="scan-spin" size={17} />
-								) : (
-									<Crop size={17} />
-								)}{" "}
-								{busy ? "Cropping…" : "Crop & preview"}
-							</button>
+						<div className="scan-crop-rail">
+							<div className="scan-crop-tools">
+								<button
+									type="button"
+									className="scan-icon"
+									aria-label="Rotate photo left"
+									disabled={busy}
+									onClick={() => {
+										prepareCrop(rotatePhoto(source, false));
+									}}
+								>
+									<RotateCcw size={18} />
+								</button>
+								<button
+									type="button"
+									className="scan-text-button"
+									disabled={busy}
+									onClick={() => changePoints([])}
+								>
+									Reset
+								</button>
+								<button
+									type="button"
+									className="scan-text-button"
+									disabled={busy}
+									onClick={() =>
+										changePoints([
+											{ x: 0, y: 0 },
+											{ x: source.width, y: 0 },
+											{ x: source.width, y: source.height },
+											{ x: 0, y: source.height },
+										])
+									}
+								>
+									Full image
+								</button>
+								<button
+									type="button"
+									className="scan-icon"
+									aria-label="Rotate photo right"
+									disabled={busy}
+									onClick={() => {
+										prepareCrop(rotatePhoto(source, true));
+									}}
+								>
+									<RotateCw size={18} />
+								</button>
+							</div>
+							<div className="scan-crop-actions">
+								<button
+									type="button"
+									className="scan-button scan-secondary"
+									disabled={busy}
+									onClick={() => {
+										void startCamera();
+									}}
+								>
+									Retake
+								</button>
+								<button
+									type="button"
+									className="scan-button scan-primary"
+									disabled={
+										busy || detection === "detecting" || points.length !== 4
+									}
+									onClick={crop}
+								>
+									{busy ? (
+										<LoaderCircle className="scan-spin" size={17} />
+									) : (
+										<Crop size={17} />
+									)}{" "}
+									{busy ? "Cropping…" : "Crop & preview"}
+								</button>
+							</div>
 						</div>
 					</div>
 				)}
-				{step === "review" && faces.front && (
+				{step === "review" && (
 					<div className="scan-review-screen">
 						<div className="scan-section-title">
 							<h1 ref={heading} tabIndex={-1}>
@@ -1649,8 +1750,23 @@ export default function BookScanner({
 						<div className="scan-review-controls">
 							<button
 								type="button"
+								className="scan-button scan-secondary"
+								disabled={busy}
+								onClick={() => {
+									const photo =
+										photos.find((p) => p.id === activePhoto) ??
+										photos.find((p) => p.tag === face);
+									if (photo) void selectPhoto(photo);
+									else if (source) setStep("crop");
+									else goToStep("front");
+								}}
+							>
+								<Crop size={16} /> Adjust crop
+							</button>
+							<button
+								type="button"
 								className="scan-button scan-primary"
-								disabled={busy || !title.trim()}
+								disabled={busy || !faces.front || !title.trim()}
 								onClick={add}
 							>
 								{busy ? (
@@ -1661,31 +1777,6 @@ export default function BookScanner({
 								{busy ? "Creating your book…" : "Add to shelf"}
 								<ArrowRight size={17} />
 							</button>
-							<div className="scan-review-links">
-								<button
-									type="button"
-									className="scan-text-button"
-									disabled={busy}
-									onClick={() => {
-										const photo =
-											photos.find((p) => p.id === activePhoto) ??
-											photos.find((p) => p.tag === face);
-										if (photo) void selectPhoto(photo);
-										else if (source) setStep("crop");
-									}}
-								>
-									<Crop size={14} /> Adjust crop
-								</button>
-								<button
-									type="button"
-									className="scan-text-button"
-									disabled={busy}
-									onClick={download}
-								>
-									<Download size={14} /> Download{" "}
-									{face === "front" ? "cover" : face}
-								</button>
-							</div>
 						</div>
 					</div>
 				)}

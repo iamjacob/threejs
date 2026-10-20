@@ -8,8 +8,7 @@ import {
 	Matrix4,
 	Quaternion,
 	SRGBColorSpace,
-	type Texture,
-	TextureLoader,
+	Texture,
 	Vector3,
 } from "three";
 import {
@@ -55,22 +54,39 @@ function Leaf({
 	even: boolean;
 }) {
 	const [texture, setTexture] = useState<Texture | null>(null);
+	const current = useRef<Texture | null>(null);
 	useEffect(() => {
 		let active = true;
-		let loaded: Texture | undefined;
-		setTexture(null);
-		if (image)
-			new TextureLoader().load(image, (value) => {
-				loaded = value;
-				value.colorSpace = SRGBColorSpace;
-				if (active) setTexture(value);
-				else value.dispose();
-			});
+		if (!image) {
+			current.current?.dispose();
+			current.current = null;
+			setTexture(null);
+			return;
+		}
+		// Keep showing the old page until the new one is decoded, and skip
+		// three's global Cache so live-crop data URLs aren't kept forever.
+		const element = new Image();
+		element.onload = () => {
+			if (!active) return;
+			const next = new Texture(element);
+			next.colorSpace = SRGBColorSpace;
+			next.needsUpdate = true;
+			current.current?.dispose();
+			current.current = next;
+			setTexture(next);
+		};
+		element.src = image;
 		return () => {
 			active = false;
-			loaded?.dispose();
 		};
 	}, [image]);
+	useEffect(
+		() => () => {
+			current.current?.dispose();
+			current.current = null;
+		},
+		[],
+	);
 	return (
 		<mesh position={[width / 2, 0, 0]} castShadow receiveShadow>
 			<boxGeometry args={[width, height, thickness]} />
@@ -154,53 +170,133 @@ function Stack({
 	);
 }
 
-function Book({
+type FaceImages = { front?: string; back?: string; spine?: string };
+
+/**
+ * Loads the cover textures. Each face is tracked on its own: when one image
+ * changes only that face reloads, the old texture stays on screen until the
+ * new one is ready (no flicker while you drag crop points), and a removed
+ * image clears its face. Superseded loads are thrown away.
+ */
+function useFaceTextures(faces: FaceImages) {
+	const [textures, setTextures] = useState<Record<string, Texture>>({});
+	const loaded = useRef<Record<string, { url: string; texture: Texture }>>({});
+	const wanted = useRef<Record<string, string | undefined>>({});
+	const front = faces.front;
+	const back = faces.back;
+	const spine = faces.spine;
+	useEffect(() => {
+		const next: Record<string, string | undefined> = { front, back, spine };
+		wanted.current = next;
+		let changed = false;
+		for (const key of Object.keys(next)) {
+			const url = next[key];
+			const have = loaded.current[key];
+			if (!url) {
+				if (have) {
+					have.texture.dispose();
+					delete loaded.current[key];
+					changed = true;
+				}
+				continue;
+			}
+			if (have?.url === url) continue;
+			// Load the image directly instead of through TextureLoader: three's
+			// global Cache (on in main.tsx) would keep every live-crop data URL in
+			// memory for good, and a crop being dragged makes a new one each time.
+			const image = new Image();
+			image.onload = () => {
+				// Dropped or replaced while loading, or the component is gone.
+				if (wanted.current[key] !== url) return;
+				const texture = new Texture(image);
+				texture.colorSpace = SRGBColorSpace;
+				texture.needsUpdate = true;
+				loaded.current[key]?.texture.dispose();
+				loaded.current[key] = { url, texture };
+				setTextures((current) => ({ ...current, [key]: texture }));
+			};
+			image.src = url;
+		}
+		if (changed)
+			setTextures(
+				Object.fromEntries(
+					Object.entries(loaded.current).map(([key, item]) => [
+						key,
+						item.texture,
+					]),
+				),
+			);
+	}, [front, back, spine]);
+	useEffect(() => {
+		const store = loaded.current;
+		return () => {
+			wanted.current = {};
+			for (const item of Object.values(store)) item.texture.dispose();
+			loaded.current = {};
+		};
+	}, []);
+	return textures;
+}
+
+/** Camera for the open book, framed for the widest allowed book. */
+export const OPEN_BOOK_CAMERA = {
+	position: [0, VIEW_DISTANCE * 0.85, VIEW_DISTANCE] as [
+		number,
+		number,
+		number,
+	],
+	fov: 32,
+};
+
+/**
+ * Turn of the whole book (radians about Y) that brings each part face-on to
+ * the camera. The spine already faces the camera; the covers swing open by
+ * OPEN, so their outer faces point (π/2 − OPEN) off the camera axis: the front
+ * cover to the right, the back cover to the left.
+ */
+const COVER_TURN = Math.PI / 2 - OPEN;
+const SIDE_TURN = {
+	front: -COVER_TURN,
+	spine: 0,
+	back: COVER_TURN,
+} as const;
+export type OpenBookSide = keyof typeof SIDE_TURN;
+
+export function OpenBookModel({
 	size,
 	pages,
 	current,
 	photos,
 	faces,
 	onPickPage,
+	side,
 }: {
 	size: BookSizeCm;
 	pages: number;
 	current: number;
 	photos: Map<number, ScanPhoto>;
 	faces: { front?: string; back?: string; spine?: string };
-	onPickPage: (index: number) => void;
+	/** Omit to hide the "Scan p.N" buttons (the small previews). */
+	onPickPage?: (index: number) => void;
+	/** Turn to this cover instead of the idle sway. */
+	side?: OpenBookSide;
 }) {
 	const root = useRef<Group>(null);
 	const width = size.width / CM_PER_WORLD_UNIT;
 	const height = size.height / CM_PER_WORLD_UNIT;
 	const thickness = size.thickness / CM_PER_WORLD_UNIT;
 	const leaf = thickness / Math.max(1, pages);
-	const [textures, setTextures] = useState<Record<string, Texture>>({});
-	useEffect(() => {
-		const loader = new TextureLoader();
-		const next: Record<string, Texture> = {};
-		let active = true;
-		for (const [key, url] of Object.entries(faces)) {
-			if (!url) continue;
-			loader.load(url, (texture) => {
-				texture.colorSpace = SRGBColorSpace;
-				if (!active) {
-					texture.dispose();
-					return;
-				}
-				next[key] = texture;
-				setTextures({ ...next });
-			});
-		}
-		return () => {
-			active = false;
-			for (const texture of Object.values(next)) texture.dispose();
-		};
-	}, [faces]);
-	// Gentle idle sway.
-	useFrame((state) => {
+	const textures = useFaceTextures(faces);
+	// Gentle idle sway, or ease round to the requested side.
+	useFrame((state, delta) => {
 		if (!root.current) return;
-		root.current.rotation.y =
-			-0.35 + Math.sin(state.clock.elapsedTime * 0.3) * 0.08;
+		if (side) {
+			const ease = 1 - Math.exp(-Math.min(delta, 0.06) * 8);
+			root.current.rotation.y +=
+				(SIDE_TURN[side] - root.current.rotation.y) * ease;
+		} else
+			root.current.rotation.y =
+				-0.35 + Math.sin(state.clock.elapsedTime * 0.3) * 0.08;
 		root.current.rotation.x = -0.55;
 	});
 	const from = Math.max(0, current - WINDOW);
@@ -231,7 +327,8 @@ function Book({
 							image={photos.get(index)?.crop?.image ?? photos.get(index)?.image}
 							even={index % 2 === 0}
 						/>
-						{(index === current || index === current - 1) &&
+						{onPickPage &&
+							(index === current || index === current - 1) &&
 							!photos.get(index) && (
 								<Html
 									position={[width / 2, 0, 0.02]}
@@ -388,7 +485,7 @@ export default function ScannerOpenBook({
 					dpr={[1, 1.5]}
 					shadows
 				>
-					<Book
+					<OpenBookModel
 						size={size}
 						pages={total}
 						current={current}
