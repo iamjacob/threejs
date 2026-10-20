@@ -1,6 +1,7 @@
 import {
 	Camera,
 	Check,
+	ChevronLeft,
 	Crop,
 	Flashlight,
 	FlashlightOff,
@@ -74,13 +75,19 @@ import {
 	type ScannerModel,
 	saveScannerDataMode,
 	saveScannerModel,
+	usesGlassUI,
 } from "./scannerModels";
 import {
+	coverRectToVideo,
+	fallbackGuideRect,
+	GUIDE_PORTAL_SIZE,
 	PORTAL_CROP_PAD,
 	PORTAL_SHAPES,
 	portalCropRect,
+	portalWindowRect,
 } from "./scannerPortalRenderer";
 import "./scanner.css";
+import "./scanner-glass.css";
 
 /**
  * Feature flag for the camera status pill ("Camera on" / "Waiting for
@@ -139,6 +146,9 @@ export default function BookScanner({
 	const [dataMode, setDataMode] = useState(readScannerDataMode);
 	const lookups = enriches(model, dataMode);
 	const privateOnly = dataMode === "private";
+	// 0.4 "UI": full-screen glass theme with fewer, larger controls.
+	const glass = usesGlassUI(model);
+
 	const unit = useBookSizeStore((state) => state.unit);
 	const sizeEntry = useBookSizeStore((state) => state.entries[draftId]);
 	const applyEnrichmentSize = useBookSizeStore(
@@ -812,14 +822,39 @@ export default function BookScanner({
 			// Rough crop: keep what the portal window shows (plus a little margin),
 			// so corner detection and your fine crop start from the book, not the
 			// whole frame. Without WebGL the window isn't drawn, so keep it all.
-			const region = portalFallback
-				? undefined
-				: portalCropRect(
+			const portalFace = captureTag.current === "page" ? "page" : face;
+			// 0.4: the camera fills the screen and the portal is only a guide, so
+			// keep exactly what is inside the guide, nothing from around it.
+			const viewWidth = video.current.clientWidth;
+			const viewHeight = video.current.clientHeight;
+			const region = glass
+				? coverRectToVideo(
+						portalFallback
+							? fallbackGuideRect(
+									viewWidth,
+									viewHeight,
+									portalFace,
+									GUIDE_PORTAL_SIZE,
+								)
+							: portalWindowRect(
+									viewWidth,
+									viewHeight,
+									PORTAL_SHAPES[portalFace],
+									GUIDE_PORTAL_SIZE,
+								),
+						viewWidth,
+						viewHeight,
 						videoWidth,
 						videoHeight,
-						PORTAL_SHAPES[captureTag.current === "page" ? "page" : face],
-						PORTAL_CROP_PAD,
-					);
+					)
+				: portalFallback
+					? undefined
+					: portalCropRect(
+							videoWidth,
+							videoHeight,
+							PORTAL_SHAPES[portalFace],
+							PORTAL_CROP_PAD,
+						);
 			prepareCrop(imageCanvas(video.current, videoWidth, videoHeight, region));
 			stopCamera();
 			setError("");
@@ -1392,6 +1427,7 @@ export default function BookScanner({
 			data-step={step}
 			data-stepper={showStepper || undefined}
 			data-model={model}
+			data-ui={glass ? "glass" : undefined}
 			data-face={face}
 			className="book-scanner"
 			aria-label="Add a book"
@@ -1453,15 +1489,30 @@ export default function BookScanner({
 						disabled={busy}
 					/>
 				</div>
-				<button
-					type="button"
-					className="scan-icon scan-close"
-					aria-label="Close scanner and explore shelf"
-					disabled={busy}
-					onClick={close}
-				>
-					<X size={19} />
-				</button>
+				{glass ? (
+					// 0.4: one step back (crop → camera, review → crop…); from the
+					// first camera step it returns to the shelf. Same as Escape.
+					<button
+						type="button"
+						className="scan-icon scan-back"
+						aria-label="Back"
+						title="Back"
+						disabled={busy}
+						onClick={back}
+					>
+						<ChevronLeft size={21} />
+					</button>
+				) : (
+					<button
+						type="button"
+						className="scan-icon scan-close"
+						aria-label="Close scanner and explore shelf"
+						disabled={busy}
+						onClick={close}
+					>
+						<X size={19} />
+					</button>
+				)}
 			</header>
 			{error && (
 				<div className="scan-error" role="alert">
@@ -1557,7 +1608,7 @@ export default function BookScanner({
 						})}
 					</nav>
 				)}
-				{showStepper && (
+				{showStepper && !glass && (
 					<PagesRoll
 						faces={faces}
 						pages={pagePhotos(photos)}
@@ -1747,6 +1798,8 @@ export default function BookScanner({
 								live={cameraReady}
 								face={captureTag.current === "page" ? "page" : face}
 								onFallbackChange={setPortalFallback}
+								guide={glass}
+								size={glass ? GUIDE_PORTAL_SIZE : 1}
 							/>
 							{SHOW_SCAN_LIVE && (
 								<span className="scan-live">
@@ -1887,6 +1940,7 @@ export default function BookScanner({
 								onChange={changePoints}
 								onInteractionChange={setCropDragging}
 								disabled={busy}
+								loupe={glass ? "pointer" : "corner"}
 							/>
 							<span className="scan-crop-count">
 								{points.length} / 4 corners
@@ -1923,35 +1977,39 @@ export default function BookScanner({
 								</span>
 								<span>Retake</span>
 							</button>
-							<button
-								type="button"
-								className="scan-rail-btn"
-								disabled={busy}
-								onClick={() =>
-									changePoints([
-										{ x: 0, y: 0 },
-										{ x: source.width, y: 0 },
-										{ x: source.width, y: source.height },
-										{ x: 0, y: source.height },
-									])
-								}
-							>
-								<span className="scan-rail-icon">
-									<Maximize size={20} />
-								</span>
-								<span>Full image</span>
-							</button>
-							<button
-								type="button"
-								className="scan-rail-btn"
-								disabled={busy}
-								onClick={() => changePoints([])}
-							>
-								<span className="scan-rail-icon">
-									<Undo2 size={20} />
-								</span>
-								<span>Reset</span>
-							</button>
+							{!glass && (
+								<button
+									type="button"
+									className="scan-rail-btn"
+									disabled={busy}
+									onClick={() =>
+										changePoints([
+											{ x: 0, y: 0 },
+											{ x: source.width, y: 0 },
+											{ x: source.width, y: source.height },
+											{ x: 0, y: source.height },
+										])
+									}
+								>
+									<span className="scan-rail-icon">
+										<Maximize size={20} />
+									</span>
+									<span>Full image</span>
+								</button>
+							)}
+							{!glass && (
+								<button
+									type="button"
+									className="scan-rail-btn"
+									disabled={busy}
+									onClick={() => changePoints([])}
+								>
+									<span className="scan-rail-icon">
+										<Undo2 size={20} />
+									</span>
+									<span>Reset</span>
+								</button>
+							)}
 							<div className="scan-rail-pair">
 								<button
 									type="button"
@@ -2047,7 +2105,8 @@ export default function BookScanner({
 					<LoaderCircle className="scan-spin" size={16} /> Opening photo…
 				</output>
 			)}
-			<ScannerController onAction={controllerAction} />
+			{/* 0.4 keeps one way to move around: the stepper, header and dock. */}
+			{!glass && <ScannerController onAction={controllerAction} />}
 		</section>
 	);
 }

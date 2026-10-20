@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
+	coverRectToVideo,
 	createScannerPortalRenderer,
+	fallbackGuideRect,
+	GUIDE_PORTAL_SIZE,
 	PORTAL_SHAPES,
+	portalWindowRect,
 	portalCanvasSize,
 	portalCropRect,
 	portalOpeningScale,
@@ -123,6 +127,87 @@ test("portal crop keeps the centred part of the frame the window shows", () => {
 	assert.equal(spine.height, 1600);
 	assert.ok(spine.width < 400);
 	assert.equal(spine.x * 2 + spine.width, 1200);
+});
+
+test("0.4 guide window is 22% smaller and centred like the shader draws it", () => {
+	const full = portalWindowRect(800, 1000, PORTAL_SHAPES.front, 1);
+	const guide = portalWindowRect(800, 1000, PORTAL_SHAPES.front, GUIDE_PORTAL_SIZE);
+	assert.ok(Math.abs(guide.width / full.width - 0.78) < 1e-9);
+	assert.ok(Math.abs(guide.height / full.height - 0.78) < 1e-9);
+	// Same centre: x in the middle, y nudged down 1.5% of the height.
+	assert.ok(Math.abs(guide.x + guide.width / 2 - 400) < 1e-9);
+	assert.ok(Math.abs(guide.y + guide.height / 2 - 515) < 1e-9);
+	// Portrait 0.8 aspect: cover half-extents 0.3 × 0.4 of the height.
+	assert.ok(Math.abs(full.width - 600) < 1e-9);
+	assert.ok(Math.abs(full.height - 800) < 1e-9);
+});
+
+test("full-screen capture keeps only what is inside the guide", () => {
+	// 1000×500 screen, 1920×1080 camera with object-fit: cover.
+	const view = { w: 1000, h: 500 };
+	const rect = { x: 400, y: 100, width: 200, height: 300 };
+	const crop = coverRectToVideo(rect, view.w, view.h, 1920, 1080);
+	// cover scale = max(1000/1920, 500/1080) = 0.5208; offsetY = (500-562.5)/2.
+	const scale = Math.max(1000 / 1920, 500 / 1080);
+	const offsetY = (500 - 1080 * scale) / 2;
+	assert.equal(crop.x, Math.round(400 / scale));
+	assert.equal(crop.y, Math.round((100 - offsetY) / scale));
+	assert.ok(Math.abs(crop.width - 200 / scale) <= 1);
+	assert.ok(Math.abs(crop.height - 300 / scale) <= 1);
+	// The crop's aspect is the guide's aspect: nothing from outside sneaks in.
+	assert.ok(Math.abs(crop.width / crop.height - 200 / 300) < 0.01);
+	// A guide past the edges is clamped to the frame.
+	const edge = coverRectToVideo({ x: -50, y: -50, width: 2000, height: 900 }, 1000, 500, 1920, 1080);
+	assert.ok(edge.x >= 0 && edge.y >= 0);
+	assert.ok(edge.x + edge.width <= 1920 && edge.y + edge.height <= 1080);
+});
+
+test("without WebGL the CSS guide box is the same 22%-smaller centred box", () => {
+	const box = fallbackGuideRect(1000, 800, "front", GUIDE_PORTAL_SIZE);
+	assert.ok(Math.abs(box.width - 1000 * 0.6 * 0.78) < 1e-9);
+	assert.ok(Math.abs(box.height - 800 * 0.8 * 0.78) < 1e-9);
+	assert.ok(Math.abs(box.x * 2 + box.width - 1000) < 1e-9);
+	const spine = fallbackGuideRect(1000, 800, "spine", GUIDE_PORTAL_SIZE);
+	assert.ok(spine.width < box.width / 3);
+});
+
+test("guide mode streams camera frames into the window and reuses a still frame", () => {
+	const fake = context();
+	const renderer = createScannerPortalRenderer(fake.canvas);
+	const video = { readyState: 2, videoWidth: 640, videoHeight: 480, currentTime: 1 };
+	const frame = { scale: 1, live: true, video, guide: true, size: GUIDE_PORTAL_SIZE };
+	renderer.draw({ ...frame, time: 0 });
+	renderer.draw({ ...frame, time: 1 });
+	assert.equal(fake.uploads.length, 2, "placeholder plus one camera frame");
+	video.currentTime = 2;
+	renderer.draw({ ...frame, time: 2 });
+	assert.equal(fake.uploads.length, 3);
+	assert.equal(fake.draws, 3);
+	renderer.dispose(true);
+});
+
+test("the window shows the same video pixels the capture keeps", () => {
+	// The shader maps the feed with object-fit: cover over the whole canvas,
+	// so a point at the window's corner samples the video pixel that
+	// coverRectToVideo puts at the crop's corner.
+	const [w, h, vw, vh] = [1000, 800, 1920, 1080];
+	const win = portalWindowRect(w, h, PORTAL_SHAPES.front, GUIDE_PORTAL_SIZE);
+	const crop = coverRectToVideo(win, w, h, vw, vh);
+	const ca = w / h;
+	const va = vw / vh;
+	const sample = (x, y) => {
+		let sx = x / w;
+		let sy = y / h;
+		if (va > ca) sx = (sx - 0.5) * (ca / va) + 0.5;
+		else sy = (sy - 0.5) * (va / ca) + 0.5;
+		return { x: sx * vw, y: sy * vh };
+	};
+	const topLeft = sample(win.x, win.y);
+	const bottomRight = sample(win.x + win.width, win.y + win.height);
+	assert.ok(Math.abs(topLeft.x - crop.x) <= 1);
+	assert.ok(Math.abs(topLeft.y - crop.y) <= 1);
+	assert.ok(Math.abs(bottomRight.x - (crop.x + crop.width)) <= 1);
+	assert.ok(Math.abs(bottomRight.y - (crop.y + crop.height)) <= 1);
 });
 
 test("portal crop padding grows the region evenly and stays inside the frame", () => {

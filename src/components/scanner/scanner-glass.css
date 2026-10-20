@@ -1,0 +1,351 @@
+/* Scanner 0.4 "UI": a full-screen glass theme with fewer, larger controls.
+   Everything is scoped to [data-ui="glass"], so 0.1–0.3 keep their look. */
+.book-scanner[data-ui="glass"] {
+	--glass-bg: rgb(255 255 255 / 7%);
+	--glass-bg-strong: rgb(22 26 40 / 62%);
+	--glass-line: rgb(255 255 255 / 14%);
+	--glass-line-strong: rgb(255 255 255 / 26%);
+	--glass-shine: inset 0 1px 0 rgb(255 255 255 / 12%);
+	--glass-shadow: 0 12px 40px rgb(0 0 0 / 35%);
+	--glass-blur: blur(22px) saturate(160%);
+	--glass-radius: 22px;
+	/* No pages roll in 0.4: the stepper is the only footer. */
+	--scan-footer-h: 0px;
+	--scan-roll-h: 0px;
+	padding: env(safe-area-inset-top) max(12px, env(safe-area-inset-right))
+		calc(var(--scan-pad-b) + var(--scan-footer-h))
+		max(12px, env(safe-area-inset-left));
+	/* The shelf stays in the background: a light frost, so the library is
+	   still recognisable behind the scanner while the UI stays readable. */
+	background:
+		radial-gradient(120% 80% at 50% 0%, rgb(226 36 36 / 8%), transparent 60%),
+		rgb(6 8 16 / 22%);
+	backdrop-filter: blur(8px) saturate(130%);
+	-webkit-backdrop-filter: blur(8px) saturate(130%);
+}
+.book-scanner[data-ui="glass"][data-stepper] {
+	--scan-footer-h: 60px;
+}
+
+/* Header: one floating glass bar. */
+.book-scanner[data-ui="glass"] > .scan-header {
+	max-width: none;
+	height: 52px;
+	margin: 8px 0 6px;
+	padding: 0 6px 0 10px;
+	border: 1px solid var(--glass-line);
+	border-radius: 999px;
+	background: var(--glass-bg);
+	box-shadow: var(--glass-shine), var(--glass-shadow);
+	backdrop-filter: var(--glass-blur);
+	-webkit-backdrop-filter: var(--glass-blur);
+}
+/* Back sits first in the header (left), like a standard back button. */
+.book-scanner[data-ui="glass"] .scan-back {
+	order: -1;
+	margin-right: 4px;
+}
+.book-scanner[data-ui="glass"] .scan-brand-group {
+	margin-right: auto;
+}
+.book-scanner[data-ui="glass"] .scan-icon {
+	border-color: var(--glass-line);
+	background: var(--glass-bg);
+	box-shadow: var(--glass-shine);
+}
+.book-scanner[data-ui="glass"] .scan-icon:hover {
+	background: rgb(255 255 255 / 14%);
+}
+.book-scanner[data-ui="glass"] .scan-model-trigger {
+	padding: 5px 10px;
+	border-color: var(--glass-line);
+	background: var(--glass-bg);
+}
+.book-scanner[data-ui="glass"] .scan-model-menu {
+	border-color: var(--glass-line);
+	border-radius: 18px;
+	background: var(--glass-bg-strong);
+	box-shadow: var(--glass-shine), var(--glass-shadow);
+	backdrop-filter: var(--glass-blur);
+	-webkit-backdrop-filter: var(--glass-blur);
+}
+
+/* Full-bleed stage: the camera, crop and book use all the room there is. */
+.book-scanner[data-ui="glass"] .scan-crop-screen,
+.book-scanner[data-ui="glass"] .scan-review-screen {
+	max-width: none;
+}
+.book-scanner[data-ui="glass"] .scan-viewfinder.scan-portal-viewfinder,
+.book-scanner[data-ui="glass"] .scan-crop-workspace {
+	max-height: none;
+}
+.book-scanner[data-ui="glass"] .scan-crop-workspace {
+	border: 1px solid var(--glass-line);
+	border-radius: var(--glass-radius);
+	background: rgb(0 0 0 / 22%);
+	box-shadow: var(--glass-shine);
+}
+@media (min-width: 760px) {
+	.book-scanner[data-ui="glass"] .scan-camera-screen,
+	.book-scanner[data-ui="glass"] .scan-crop-screen,
+	.book-scanner[data-ui="glass"] .scan-review-screen {
+		max-height: none;
+	}
+	.book-scanner[data-ui="glass"] .scan-viewfinder,
+	.book-scanner[data-ui="glass"] .scan-crop-workspace {
+		max-width: min(720px, calc(100vw - 240px));
+	}
+}
+
+/* Camera: the live feed fills the whole screen (100vw × 100vh) behind the UI.
+   The red portal is only a guide drawn on top (22% smaller, see-through), and
+   capture keeps just what is inside it (coverRectToVideo in BookScanner). */
+.book-scanner[data-ui="glass"] > .scan-header {
+	position: relative;
+	z-index: 10;
+}
+.book-scanner[data-ui="glass"] .scan-viewfinder.scan-portal-viewfinder {
+	--scan-portal-scale: 1;
+	position: fixed;
+	inset: 0;
+	z-index: 0;
+	/* inset: 0 on a fixed box = exactly the viewport (100vw × 100dvh). */
+	width: auto;
+	height: auto;
+	min-height: 0;
+	max-width: none;
+	max-height: none;
+	margin: 0;
+	border: 0;
+	border-radius: 0;
+	overflow: hidden;
+	/* See-through: the shelf shows around the portal. */
+	background: transparent;
+}
+/* The camera is laid out full screen (object-fit: cover) so the picture is at
+   full-screen size, but only the part inside the portal is ever visible. The
+   WebGL portal draws that part itself, so the <video> stays hidden. */
+.book-scanner[data-ui="glass"] .scan-portal-viewfinder > video {
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	opacity: 0;
+	object-fit: cover;
+	border-radius: 0;
+	transform: none;
+}
+.book-scanner[data-ui="glass"] .scan-portal-viewfinder > .scanner-portal {
+	transform: none;
+}
+/* No WebGL: show the full-screen video clipped to the guide box only. The
+   box is the 22%-smaller one the capture uses (fallbackGuideRect). */
+.book-scanner[data-ui="glass"] .scan-portal-viewfinder[data-fallback="true"] {
+	--guide-w: calc(60% * 0.78);
+	--guide-h: calc(80% * 0.78);
+}
+.book-scanner[data-ui="glass"][data-face="spine"]
+	.scan-portal-viewfinder[data-fallback="true"] {
+	--guide-w: calc(17% * 0.78);
+	--guide-h: calc(84% * 0.78);
+}
+.book-scanner[data-ui="glass"]
+	.scan-portal-viewfinder[data-fallback="true"]
+	> video {
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	opacity: 1;
+	object-fit: cover;
+	border-radius: 0;
+	transform: none;
+	clip-path: inset(
+		calc((100% - var(--guide-h)) / 2) calc((100% - var(--guide-w)) / 2) round
+			18px
+	);
+}
+.book-scanner[data-ui="glass"] .scanner-portal[data-fallback="true"]::before,
+.book-scanner[data-ui="glass"][data-face="spine"]
+	.scanner-portal[data-fallback="true"]::before {
+	width: var(--guide-w);
+	height: var(--guide-h);
+	left: calc((100% - var(--guide-w)) / 2);
+	top: calc((100% - var(--guide-h)) / 2);
+}
+
+/* Instructions: a calm glass pill. */
+.book-scanner[data-ui="glass"] .scannerMode,
+.book-scanner[data-ui="glass"] .scan-crop-screen > .scan-section-title {
+	top: 10px;
+	padding: 10px 18px;
+	border-color: var(--glass-line);
+	border-radius: 999px;
+	background: var(--glass-bg-strong);
+	box-shadow: var(--glass-shine), var(--glass-shadow);
+	backdrop-filter: var(--glass-blur);
+	-webkit-backdrop-filter: var(--glass-blur);
+	text-shadow: none;
+}
+.book-scanner[data-ui="glass"] .scannerMode h1,
+.book-scanner[data-ui="glass"] .scan-crop-screen > .scan-section-title h1 {
+	font-size: 15px;
+}
+
+/* Magnifier: twice the size, right beside the corner being dragged. Position
+   and size come from CropCanvas (placeLoupe); this is only the glass frame. */
+.book-scanner[data-ui="glass"] .scan-crop-canvas
+	> .scan-loupe[data-mode="pointer"] {
+	border: 1px solid var(--glass-line-strong);
+	box-shadow:
+		var(--glass-shine),
+		0 0 0 5px rgb(255 255 255 / 6%),
+		0 18px 48px rgb(0 0 0 / 55%);
+}
+
+/* Right-hand controls: one compact glass column (20% smaller than the first
+   0.4 pass: 84 → 67px wide, 52 → 42px buttons, 70 → 56px shutter). */
+.book-scanner[data-ui="glass"] .scan-rail {
+	right: max(12px, env(safe-area-inset-right));
+	gap: 13px;
+	width: 67px;
+	padding: 11px 0;
+	border: 1px solid var(--glass-line);
+	border-radius: 999px;
+	background: var(--glass-bg);
+	box-shadow: var(--glass-shine), var(--glass-shadow);
+	backdrop-filter: var(--glass-blur);
+	-webkit-backdrop-filter: var(--glass-blur);
+}
+.book-scanner[data-ui="glass"] .scan-rail-btn {
+	gap: 4px;
+	font-size: 9px;
+	text-shadow: none;
+}
+.book-scanner[data-ui="glass"] .scan-rail-icon {
+	width: 42px;
+	height: 42px;
+	border-color: var(--glass-line);
+	background: rgb(255 255 255 / 8%);
+	box-shadow: var(--glass-shine);
+}
+.book-scanner[data-ui="glass"]
+	.scan-rail-btn:hover:not(:disabled)
+	.scan-rail-icon {
+	border-color: var(--glass-line-strong);
+	background: rgb(255 255 255 / 16%);
+}
+.book-scanner[data-ui="glass"] .scan-rail-btn.is-primary .scan-rail-icon {
+	border-color: rgb(255 255 255 / 30%);
+	background: linear-gradient(135deg, #e22424, #7c1414);
+	box-shadow:
+		var(--glass-shine),
+		0 6px 24px rgb(226 36 36 / 40%);
+}
+.book-scanner[data-ui="glass"] .scan-rail-btn.is-shutter .scan-rail-icon {
+	width: 56px;
+	height: 56px;
+	border: 3px solid rgb(255 255 255 / 85%);
+	background: rgb(255 255 255 / 10%);
+}
+.book-scanner[data-ui="glass"] .scan-shutter-dot {
+	width: 43px;
+	height: 43px;
+	background: #fff;
+	box-shadow: 0 2px 12px rgb(0 0 0 / 30%);
+}
+.book-scanner[data-ui="glass"] .scan-rail-btn.is-small .scan-rail-icon {
+	width: 30px;
+	height: 30px;
+}
+.book-scanner[data-ui="glass"] .scan-rail-icon svg {
+	width: 16px;
+	height: 16px;
+}
+
+/* Stepper: one glass segmented bar instead of separate chips. */
+.book-scanner[data-ui="glass"] .scan-cover-stepper {
+	right: auto;
+	left: 50%;
+	width: max-content;
+	max-width: calc(100% - 24px);
+	height: 52px;
+	padding: 5px;
+	gap: 2px;
+	border: 1px solid var(--glass-line);
+	border-radius: 999px;
+	background: var(--glass-bg);
+	box-shadow: var(--glass-shine), var(--glass-shadow);
+	backdrop-filter: var(--glass-blur);
+	-webkit-backdrop-filter: var(--glass-blur);
+	transform: translateX(-50%);
+	pointer-events: auto;
+}
+.book-scanner[data-ui="glass"] .scan-cover-stepper button {
+	height: 40px;
+	padding: 0 14px 0 8px;
+	border: 0;
+	background: transparent;
+	font-size: 12px;
+}
+.book-scanner[data-ui="glass"] .scan-cover-stepper button[aria-current="step"] {
+	background: rgb(255 255 255 / 14%);
+	box-shadow: var(--glass-shine);
+}
+
+/* Floating bits: the same glass everywhere. */
+.book-scanner[data-ui="glass"] .scan-book-guide figcaption,
+.book-scanner[data-ui="glass"] .scan-cover-read,
+.book-scanner[data-ui="glass"] .scan-crop-count,
+.book-scanner[data-ui="glass"] .scan-busy {
+	border: 1px solid var(--glass-line);
+	background: var(--glass-bg-strong);
+	backdrop-filter: var(--glass-blur);
+	-webkit-backdrop-filter: var(--glass-blur);
+}
+.book-scanner[data-ui="glass"] .scan-error {
+	border-color: rgb(239 108 100 / 40%);
+	background: rgb(60 20 28 / 70%);
+	box-shadow: var(--glass-shine), var(--glass-shadow);
+	backdrop-filter: var(--glass-blur);
+	-webkit-backdrop-filter: var(--glass-blur);
+}
+.book-scanner[data-ui="glass"] .scan-details-sheet {
+	border-color: var(--glass-line);
+	background: var(--glass-bg-strong);
+	box-shadow: var(--glass-shine), var(--glass-shadow);
+}
+.book-scanner[data-ui="glass"] > .spx-dock {
+	padding: 10px 0;
+	border: 1px solid var(--glass-line);
+	border-radius: 999px;
+	background: var(--glass-bg);
+	box-shadow: var(--glass-shine), var(--glass-shadow);
+	backdrop-filter: var(--glass-blur);
+	-webkit-backdrop-filter: var(--glass-blur);
+}
+.book-scanner[data-ui="glass"] .sob-head {
+	border-color: var(--glass-line);
+	background: var(--glass-bg);
+	backdrop-filter: var(--glass-blur);
+	-webkit-backdrop-filter: var(--glass-blur);
+}
+
+/* No backdrop-filter support: fall back to solid, readable panels. */
+@supports not (
+		(backdrop-filter: blur(1px)) or
+		(-webkit-backdrop-filter: blur(1px))
+	) {
+	.book-scanner[data-ui="glass"] {
+		--glass-bg: rgb(22 26 40 / 92%);
+		--glass-bg-strong: rgb(22 26 40 / 96%);
+		background: rgb(6 8 16 / 88%);
+	}
+}
+@media (prefers-reduced-transparency: reduce) {
+	.book-scanner[data-ui="glass"] {
+		--glass-bg: rgb(22 26 40 / 94%);
+		--glass-bg-strong: rgb(22 26 40 / 98%);
+		background: #070912;
+		backdrop-filter: none;
+		-webkit-backdrop-filter: none;
+	}
+}

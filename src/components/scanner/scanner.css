@@ -163,7 +163,11 @@
 	font-weight: 700;
 	letter-spacing: 0.6px;
 }
-.book-scanner:is([data-model="corners"], [data-model="enrich"])
+.book-scanner:is(
+		[data-model="corners"],
+		[data-model="enrich"],
+		[data-model="ui"]
+	)
 	.scan-model-trigger
 	b {
 	color: #ffb1b4;

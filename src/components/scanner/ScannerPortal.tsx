@@ -13,6 +13,10 @@ type ScannerPortalProps = {
 	face?: PortalFace;
 	className?: string;
 	onFallbackChange?: (fallback: boolean) => void;
+	/** Ring only (0.4): the live camera behind shows through the window. */
+	guide?: boolean;
+	/** Window size multiplier (1 = classic portal). */
+	size?: number;
 };
 
 export default function ScannerPortal({
@@ -21,7 +25,11 @@ export default function ScannerPortal({
 	face = "front",
 	className,
 	onFallbackChange,
+	guide = false,
+	size = 1,
 }: ScannerPortalProps) {
+	const looks = useRef({ guide, size });
+	looks.current = { guide, size };
 	const canvas = useRef<HTMLCanvasElement>(null);
 	const liveRef = useRef(live);
 	const shapeRef = useRef<[number, number]>(PORTAL_SHAPES[face]);
@@ -83,6 +91,8 @@ export default function ScannerPortal({
 						video: video?.current,
 						pixelRatio: Math.min(window.devicePixelRatio || 1, 2),
 						shape: shapeRef.current,
+						guide: looks.current.guide,
+						size: looks.current.size,
 					});
 					lastFrame = now;
 				} catch {
@@ -156,7 +166,7 @@ export default function ScannerPortal({
 
 	useEffect(() => {
 		wake.current?.();
-	}, [live, face]);
+	}, [live, face, guide, size]);
 
 	return (
 		<div

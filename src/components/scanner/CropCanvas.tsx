@@ -1,4 +1,5 @@
 import { type PointerEvent, useEffect, useRef, useState } from "react";
+import { placeLoupe } from "./loupePlacement";
 import type { Point } from "./perspective";
 
 export const cornerNames = [
@@ -10,6 +11,9 @@ export const cornerNames = [
 /** Loupe size (CSS px) and how much it magnifies the on-screen photo. */
 const LENS_SIZE = 132;
 const LENS_ZOOM = 3;
+/** 0.4: the lens is twice as big and sits right beside the pointer. */
+const POINTER_LENS_SIZE = LENS_SIZE * 2;
+export type LoupeMode = "corner" | "pointer";
 type View = {
 	width: number;
 	height: number;
@@ -24,12 +28,15 @@ export default function CropCanvas({
 	onChange,
 	onInteractionChange,
 	disabled = false,
+	loupe = "corner",
 }: {
 	source: HTMLCanvasElement;
 	points: Point[];
 	onChange: (points: Point[]) => void;
 	onInteractionChange?: (dragging: boolean) => void;
 	disabled?: boolean;
+	/** "corner": small lens in the far top corner. "pointer": 2× lens beside the pointer. */
+	loupe?: LoupeMode;
 }) {
 	const host = useRef<HTMLDivElement>(null);
 	const canvas = useRef<HTMLCanvasElement>(null);
@@ -118,10 +125,23 @@ export default function CropCanvas({
 	const onRight = dragged
 		? view.x + dragged.x * view.scale < view.width / 2
 		: true;
+	const nearPointer = loupe === "pointer";
+	const lensBox =
+		dragged && nearPointer
+			? placeLoupe(
+					{
+						x: view.x + dragged.x * view.scale,
+						y: view.y + dragged.y * view.scale,
+					},
+					view,
+					POINTER_LENS_SIZE,
+				)
+			: undefined;
+	const lensSize = lensBox?.size ?? LENS_SIZE;
 	useEffect(() => {
 		const target = lens.current;
 		if (!target || !dragged) return;
-		const css = LENS_SIZE;
+		const css = lensSize;
 		const dpr = Math.min(window.devicePixelRatio || 1, 2);
 		target.width = Math.round(css * dpr);
 		target.height = Math.round(css * dpr);
@@ -176,7 +196,7 @@ export default function CropCanvas({
 		ctx.moveTo(c, c + 5);
 		ctx.lineTo(c, c + 16);
 		ctx.stroke();
-	}, [dragged, points, source, view.scale]);
+	}, [dragged, points, source, view.scale, lensSize]);
 	const position = (event: PointerEvent) => {
 		const rect = event.currentTarget.getBoundingClientRect();
 		return {
@@ -254,8 +274,19 @@ export default function CropCanvas({
 				// A purely visual aid: hidden from screen readers via its wrapper.
 				<div
 					className="scan-loupe"
-					data-side={onRight ? "right" : "left"}
+					data-mode={loupe}
+					data-side={nearPointer ? undefined : onRight ? "right" : "left"}
 					aria-hidden="true"
+					style={
+						lensBox
+							? {
+									left: lensBox.left,
+									top: lensBox.top,
+									width: lensBox.size,
+									height: lensBox.size,
+								}
+							: undefined
+					}
 				>
 					<canvas ref={lens} />
 				</div>

@@ -27,6 +27,14 @@ export const scannerModels = [
 		description: "Auto, plus book details and size.",
 		enrich: true,
 	},
+	{
+		id: "ui",
+		name: "Gutenberg 0.4",
+		version: "0.4",
+		label: "UI",
+		description: "Enrich, full screen glass and fewer controls.",
+		enrich: true,
+	},
 ] as const;
 
 export type ScannerModel = (typeof scannerModels)[number]["id"];
@@ -59,11 +67,9 @@ const modeIds = scannerDataModes.map((mode) => mode.id) as string[];
 export function readScannerModel(): ScannerModel {
 	try {
 		const saved = localStorage.getItem(storageKey);
-		return saved && modelIds.includes(saved)
-			? (saved as ScannerModel)
-			: "enrich";
+		return saved && modelIds.includes(saved) ? (saved as ScannerModel) : "ui";
 	} catch {
-		return "enrich";
+		return "ui";
 	}
 }
 
@@ -97,6 +103,11 @@ export function saveScannerDataMode(mode: ScannerDataMode) {
 /** Does this model detect corners automatically? */
 export function detectsCorners(model: ScannerModel) {
 	return model !== "manual";
+}
+
+/** Does this model use the 0.4 full-screen glass UI with the simpler controls? */
+export function usesGlassUI(model: ScannerModel) {
+	return model === "ui";
 }
 
 /** Does this model/mode pair look up book details at all? */

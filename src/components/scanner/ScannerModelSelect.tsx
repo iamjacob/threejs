@@ -9,7 +9,7 @@ import {
 
 const MODE_ICONS = { online: Globe, offline: WifiOff, private: Lock } as const;
 
-/** Header sign: "Scanner 0.3" (or the chosen version); opens a short list. */
+/** Header sign: "Scanner 0.4" (or the chosen version); opens a short list. */
 export default function ScannerModelSelect({
 	value,
 	onChange,
