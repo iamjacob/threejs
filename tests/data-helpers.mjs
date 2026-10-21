@@ -46,6 +46,17 @@ export function createWebStore() {
 	};
 }
 
+/** Builds a DataContext with deterministic ids and a controllable clock. */
+export async function openCtx(data, { store = createWebStore(), files = data.createMemoryFileStore(), start = 1_000 } = {}) {
+	const { database, driver } = await openDb(data, store);
+	let t = start;
+	let n = 0;
+	// Unique per context so a simulated restart never reuses ids; ordered within a context.
+	const tag = Math.random().toString(36).slice(2, 7);
+	const ctx = { database, files, clock: () => t, newId: () => `${tag}-${String(++n).padStart(4, "0")}` };
+	return { ctx, store, files, driver, advance: (ms) => (t += ms) };
+}
+
 /** Opens (or re-opens after "restart") a migrated database over the store. */
 export async function openDb(data, store = createWebStore(), migrations) {
 	const driver = data.createSqlJsDriver(SQL, {

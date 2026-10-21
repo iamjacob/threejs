@@ -4,6 +4,14 @@ import type { SqlDriver, SqlValue } from "./driver";
 
 export type Db = SqliteRemoteDatabase<typeof schema>;
 
+/**
+ * Rows changed by a Drizzle `.run()` through this Database. Used instead of INSERT … RETURNING,
+ * which the Capacitor plugin docs route through run(), not query(), and which is unverified natively.
+ */
+export function affectedRows(result: unknown): number {
+	return (result as { changes?: number }).changes ?? 0;
+}
+
 export class DatabaseError extends Error {
 	constructor(
 		message: string,
@@ -35,13 +43,15 @@ export class Database {
 			async (sql, params, method) => {
 				const values = params as SqlValue[];
 				if (method === "run") {
-					await this.driver.run(sql, values);
-					return { rows: [] };
+					const { changes } = await this.driver.run(sql, values);
+					// `changes` rides along on the run result; read it with affectedRows().
+					return { rows: [], changes } as { rows: unknown[] };
 				}
 				const rows = (await this.driver.query(sql, values)).map((row) =>
 					Object.values(row),
 				);
-				return { rows: method === "get" ? (rows[0] ?? []) : rows };
+				// For "get", an absent row must be undefined (an empty array would map to a ghost row).
+				return { rows: method === "get" ? (rows[0] as unknown[]) : rows };
 			},
 			{ schema },
 		);
