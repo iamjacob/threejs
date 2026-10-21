@@ -30,18 +30,33 @@ export async function drainOutbox(
 	transport: SyncTransport,
 	{ limit = 20 } = {},
 ) {
-	const result = { sent: 0, retried: 0, failed: 0, skipped: !transport.configured };
+	const result = {
+		sent: 0,
+		retried: 0,
+		failed: 0,
+		skipped: !transport.configured,
+	};
 	if (!transport.configured) return result;
-	const due = await ctx.database.read((db) => outboxRepository.due(db, ctx.clock(), limit));
+	const due = await ctx.database.read((db) =>
+		outboxRepository.due(db, ctx.clock(), limit),
+	);
 	for (const entry of due) {
 		try {
 			await transport.send(entry);
-			await ctx.database.write((db) => outboxRepository.markDone(db, entry.id, ctx.clock()));
+			await ctx.database.write((db) =>
+				outboxRepository.markDone(db, entry.id, ctx.clock()),
+			);
 			result.sent++;
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			await ctx.database.write((db) =>
-				outboxRepository.markRetry(db, entry, message, ctx.clock(), OUTBOX_MAX_ATTEMPTS),
+				outboxRepository.markRetry(
+					db,
+					entry,
+					message,
+					ctx.clock(),
+					OUTBOX_MAX_ATTEMPTS,
+				),
 			);
 			if (entry.attempts + 1 >= OUTBOX_MAX_ATTEMPTS) result.failed++;
 			else result.retried++;
@@ -51,5 +66,7 @@ export async function drainOutbox(
 }
 
 export function pendingOutbox(ctx: DataContext, profileId: string) {
-	return ctx.database.read((db) => outboxRepository.listForProfile(db, profileId));
+	return ctx.database.read((db) =>
+		outboxRepository.listForProfile(db, profileId),
+	);
 }

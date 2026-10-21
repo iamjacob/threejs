@@ -43,7 +43,10 @@ export async function promoteGuest(
 		const targetId =
 			target.kind === "new" ? newAccountIdFor(guestId) : target.profileId;
 		if (targetId === guestId)
-			throw new ValidationError("Cannot merge a profile into itself", "profileId");
+			throw new ValidationError(
+				"Cannot merge a profile into itself",
+				"profileId",
+			);
 		const mergeId = mergeIdFor(guestId, targetId);
 
 		const done = await db
@@ -105,7 +108,10 @@ async function ensureTarget(
 	if (target.kind === "existing") {
 		if (!existing) throw new NotFoundError("Account profile");
 		if (existing.kind !== "account" || existing.mergedInto)
-			throw new ValidationError("Target must be an active account", "profileId");
+			throw new ValidationError(
+				"Target must be an active account",
+				"profileId",
+			);
 		return existing;
 	}
 	if (existing) return existing;

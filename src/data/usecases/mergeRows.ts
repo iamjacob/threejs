@@ -55,7 +55,11 @@ export async function copyRows(
 	}
 	for (const note of await noteRepository.listAll(db, guest.id)) {
 		const id = copiedId(mergeId, note.id);
-		const clash = await noteRepository.getByClientKey(db, account.id, note.clientKey);
+		const clash = await noteRepository.getByClientKey(
+			db,
+			account.id,
+			note.clientKey,
+		);
 		if (clash) {
 			if (clash.id !== id) report.skippedConflicts.push(note.id);
 			continue;
@@ -83,7 +87,11 @@ export async function verifyMerge(
 	const skipped = new Set(report.skippedConflicts);
 	for (const note of await noteRepository.listAll(db, guestId)) {
 		if (skipped.has(note.id)) continue;
-		const copy = await noteRepository.get(db, targetId, copiedId(mergeId, note.id));
+		const copy = await noteRepository.get(
+			db,
+			targetId,
+			copiedId(mergeId, note.id),
+		);
 		if (
 			!copy ||
 			copy.title !== note.title ||
@@ -93,7 +101,11 @@ export async function verifyMerge(
 			throw new MergeVerificationError(`Note ${note.id} was not copied intact`);
 	}
 	for (const file of await fileRepository.listAll(db, guestId)) {
-		const copy = await fileRepository.get(db, targetId, copiedId(mergeId, file.id));
+		const copy = await fileRepository.get(
+			db,
+			targetId,
+			copiedId(mergeId, file.id),
+		);
 		if (!copy || copy.blobKey !== file.blobKey)
 			throw new MergeVerificationError(`File ${file.id} was not copied intact`);
 	}

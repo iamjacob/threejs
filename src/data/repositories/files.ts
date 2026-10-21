@@ -19,7 +19,11 @@ export const fileRepository = {
 			.all();
 	},
 	async insertIfAbsent(db: Db, record: FileRecord): Promise<boolean> {
-		const result = await db.insert(files).values(record).onConflictDoNothing().run();
+		const result = await db
+			.insert(files)
+			.values(record)
+			.onConflictDoNothing()
+			.run();
 		return affectedRows(result) > 0;
 	},
 };

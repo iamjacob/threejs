@@ -36,7 +36,9 @@ export const noteRepository = {
 		return db
 			.select()
 			.from(notes)
-			.where(and(eq(notes.profileId, profileId), eq(notes.clientKey, clientKey)))
+			.where(
+				and(eq(notes.profileId, profileId), eq(notes.clientKey, clientKey)),
+			)
 			.get();
 	},
 	async insert(db: Db, note: Note) {
@@ -44,14 +46,23 @@ export const noteRepository = {
 	},
 	/** Insert unless the id or (profile, clientKey) already exists. Returns true if inserted. */
 	async insertIfAbsent(db: Db, note: Note): Promise<boolean> {
-		const result = await db.insert(notes).values(note).onConflictDoNothing().run();
+		const result = await db
+			.insert(notes)
+			.values(note)
+			.onConflictDoNothing()
+			.run();
 		return affectedRows(result) > 0;
 	},
 	async update(
 		db: Db,
 		profileId: string,
 		id: string,
-		patch: Partial<Pick<Note, "title" | "body" | "pinned" | "fileId" | "deletedAt" | "updatedAt">>,
+		patch: Partial<
+			Pick<
+				Note,
+				"title" | "body" | "pinned" | "fileId" | "deletedAt" | "updatedAt"
+			>
+		>,
 	) {
 		await db
 			.update(notes)

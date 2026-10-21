@@ -1,6 +1,6 @@
+import type { Db } from "../db/database";
 import { noteRepository } from "../repositories/notes";
 import { type OutboxChange, outboxRepository } from "../repositories/outbox";
-import type { Db } from "../db/database";
 import type { Note } from "../schema";
 import { type DataContext, NotFoundError, ValidationError } from "./context";
 
@@ -14,10 +14,16 @@ function validate(input: { title?: string; body?: string }) {
 	if (title !== undefined) {
 		if (!title) throw new ValidationError("Title is required", "title");
 		if (title.length > NOTE_TITLE_MAX)
-			throw new ValidationError(`Title is over ${NOTE_TITLE_MAX} characters`, "title");
+			throw new ValidationError(
+				`Title is over ${NOTE_TITLE_MAX} characters`,
+				"title",
+			);
 	}
 	if (input.body !== undefined && input.body.length > NOTE_BODY_MAX)
-		throw new ValidationError(`Body is over ${NOTE_BODY_MAX} characters`, "body");
+		throw new ValidationError(
+			`Body is over ${NOTE_BODY_MAX} characters`,
+			"body",
+		);
 	return { title, body: input.body };
 }
 
@@ -41,10 +47,17 @@ export async function createNote(
 	profileId: string,
 	input: NoteInput,
 ): Promise<Note> {
-	const { title, body } = validate({ title: input.title, body: input.body ?? "" });
+	const { title, body } = validate({
+		title: input.title,
+		body: input.body ?? "",
+	});
 	const clientKey = input.clientKey ?? ctx.newId();
 	return ctx.database.write(async (db) => {
-		const existing = await noteRepository.getByClientKey(db, profileId, clientKey);
+		const existing = await noteRepository.getByClientKey(
+			db,
+			profileId,
+			clientKey,
+		);
 		if (existing) return existing;
 		const now = ctx.clock();
 		const note: Note = {
@@ -60,14 +73,19 @@ export async function createNote(
 			updatedAt: now,
 		};
 		await noteRepository.insert(db, note);
-		await recordChange(ctx, db, {
-			profileId,
-			entity: "note",
-			entityId: note.id,
-			op: "create",
-			idempotencyKey: `note:${note.id}:create`,
-			payload: note,
-		}, now);
+		await recordChange(
+			ctx,
+			db,
+			{
+				profileId,
+				entity: "note",
+				entityId: note.id,
+				op: "create",
+				idempotencyKey: `note:${note.id}:create`,
+				payload: note,
+			},
+			now,
+		);
 		return note;
 	});
 }
@@ -90,33 +108,50 @@ export async function updateNote(
 			updatedAt: now,
 		};
 		await noteRepository.update(db, profileId, id, next);
-		await recordChange(ctx, db, {
-			profileId,
-			entity: "note",
-			entityId: id,
-			op: "update",
-			idempotencyKey: `note:${id}:update:${now}`,
-			payload: next,
-		}, now);
+		await recordChange(
+			ctx,
+			db,
+			{
+				profileId,
+				entity: "note",
+				entityId: id,
+				op: "update",
+				idempotencyKey: `note:${id}:update:${now}`,
+				payload: next,
+			},
+			now,
+		);
 		return { ...current, ...next };
 	});
 }
 
 /** Soft delete, so a later sync can propagate the tombstone. Deleting twice is a no-op. */
-export async function deleteNote(ctx: DataContext, profileId: string, id: string) {
+export async function deleteNote(
+	ctx: DataContext,
+	profileId: string,
+	id: string,
+) {
 	await ctx.database.write(async (db) => {
 		const current = await noteRepository.get(db, profileId, id);
 		if (!current) throw new NotFoundError("Note");
 		if (current.deletedAt) return;
 		const now = Math.max(ctx.clock(), current.updatedAt + 1);
-		await noteRepository.update(db, profileId, id, { deletedAt: now, updatedAt: now });
-		await recordChange(ctx, db, {
-			profileId,
-			entity: "note",
-			entityId: id,
-			op: "delete",
-			idempotencyKey: `note:${id}:delete`,
-			payload: { deletedAt: now },
-		}, now);
+		await noteRepository.update(db, profileId, id, {
+			deletedAt: now,
+			updatedAt: now,
+		});
+		await recordChange(
+			ctx,
+			db,
+			{
+				profileId,
+				entity: "note",
+				entityId: id,
+				op: "delete",
+				idempotencyKey: `note:${id}:delete`,
+				payload: { deletedAt: now },
+			},
+			now,
+		);
 	});
 }

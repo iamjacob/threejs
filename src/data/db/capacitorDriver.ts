@@ -77,7 +77,10 @@ export async function openCapacitorDriver(
  * startup if a platform does not preserve SELECT column order, instead of silently swapping fields.
  */
 export async function assertColumnOrder(driver: SqlDriver) {
-	const [row] = await driver.query("SELECT 1 AS zeta, 2 AS alpha, 3 AS mid", []);
+	const [row] = await driver.query(
+		"SELECT 1 AS zeta, 2 AS alpha, 3 AS mid",
+		[],
+	);
 	const values = row ? Object.values(row) : [];
 	if (values.join(",") !== "1,2,3") {
 		throw new Error(

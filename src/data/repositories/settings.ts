@@ -12,12 +12,21 @@ export const settingsRepository = {
 			.select()
 			.from(profileSettings)
 			.where(
-				and(eq(profileSettings.profileId, profileId), eq(profileSettings.key, key)),
+				and(
+					eq(profileSettings.profileId, profileId),
+					eq(profileSettings.key, key),
+				),
 			)
 			.get();
 		return row ? (JSON.parse(row.valueJson) as T) : undefined;
 	},
-	async set(db: Db, profileId: string, key: string, value: unknown, now: number) {
+	async set(
+		db: Db,
+		profileId: string,
+		key: string,
+		value: unknown,
+		now: number,
+	) {
 		const valueJson = JSON.stringify(value);
 		await db
 			.insert(profileSettings)
