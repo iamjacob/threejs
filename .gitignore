@@ -12,3 +12,6 @@ worker-configuration.d.ts
 .vinxi
 __unconfig*
 todos.json
+# Copied from node_modules by scripts/copy-sql-wasm.mjs
+public/assets/sql-wasm.wasm
+dist-native
