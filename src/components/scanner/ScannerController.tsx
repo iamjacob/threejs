@@ -66,18 +66,6 @@ const ACTIONS = [
 		icon: <path d="M12 5v14M5 12h14" />,
 	},
 	{
-		id: "sound",
-		label: "Sound",
-		toggle: true,
-		on: true,
-		icon: (
-			<>
-				<path d="M4 9h4l5-4v14l-5-4H4z" />
-				<path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" />
-			</>
-		),
-	},
-	{
 		id: "shelf",
 		label: "To shelf",
 		icon: <path d="M4 20h16M6 20V6M10 20V4M14 20l3-14 3 .7-3 13.3" />,

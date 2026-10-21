@@ -1,10 +1,12 @@
 import { Stats } from "@react-three/drei";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useThree } from "@react-three/fiber";
 import { createFileRoute } from "@tanstack/react-router";
-import { Sparkles } from "lucide-react";
+import { Pause, Sparkles } from "lucide-react";
 import BoooksController from "../components/layout/BoooksController";
+import MessagesOverlay from "../components/layout/MessagesOverlay";
 import RenderStats from "../components/layout/RenderStats";
 import ShaderWarmup from "../components/layout/ShaderWarmup";
+import TimerOverlay from "../components/layout/TimerOverlay";
 import { currentRenderQuality } from "../lib/renderQuality";
 import { watchLibraryLoops } from "../lib/syncLibraryLoops";
 
@@ -14,6 +16,7 @@ import { type MouseEvent, Suspense, useEffect, useRef, useState } from "react";
 import { useShelfControlsStore } from "../../stores/useShelfControlsStore";
 import Header from "../components/layout/header/header";
 import LibraryMenus from "../components/layout/LibraryMenus";
+import MarkLoader from "../components/layout/MarkLoader";
 import SceneEnvironment from "../components/layout/SceneEnvironment";
 import SceneToolbar from "../components/layout/SceneToolbar";
 import ShelfControls from "../components/layout/ShelfControls";
@@ -41,6 +44,7 @@ import { useFeatureFlags } from "../lib/featureFlags";
 import {
 	ensureRuntimeAtlas,
 	registerInitialAtlasHydration,
+	useRuntimeAtlas,
 } from "../lib/runtimeAtlas";
 import { useBookStore, useSelectedBook } from "../stores/useBookStore";
 
@@ -50,6 +54,28 @@ import { useShelfPlatesStore } from "../stores/useShelfPlatesStore";
 import { useTourStore } from "../stores/useTourStore";
 
 export const Route = createFileRoute("/")({ component: Home });
+
+function SceneScreenshot({
+	onCaptured,
+}: {
+	onCaptured: (dataUrl: string) => void;
+}) {
+	const { gl, scene, camera } = useThree();
+	const screenshotKey = usePresentationStore((state) => state.screenshotKey);
+	const lastKey = useRef(screenshotKey);
+	useEffect(() => {
+		if (screenshotKey === lastKey.current) return;
+		lastKey.current = screenshotKey;
+		try {
+			gl.render(scene, camera);
+			const dataUrl = gl.domElement.toDataURL("image/png");
+			onCaptured(dataUrl);
+		} catch {
+			/* Fallback if canvas is tainted. */
+		}
+	}, [screenshotKey, gl, scene, camera, onCaptured]);
+	return null;
+}
 
 function hydrateInitialLibrary() {
 	return registerInitialAtlasHydration(async () => {
@@ -86,16 +112,29 @@ function hydrateInitialLibrary() {
 function Home() {
 	// Start IndexedDB + unified atlas hydration before Canvas/InstancedBooks render
 	// so `<Suspense>` waits for local books and reveals all books in the same frame.
-	if (typeof indexedDB !== "undefined") {
+	if (typeof window !== "undefined") {
 		void hydrateInitialLibrary();
 	}
 	const { SHOW_DEMO_UI, SHOW_HELIX_NAV } = useFeatureFlags();
+	const atlasReady = useRuntimeAtlas((state) => state.ready);
+	const sceneReady = useTourStore((state) => state.ready);
+	const [sceneBooted, setSceneBooted] = useState(
+		() => atlasReady && sceneReady,
+	);
+	useEffect(() => {
+		if (!sceneBooted && atlasReady && sceneReady) {
+			setSceneBooted(true);
+		}
+	}, [sceneBooted, atlasReady, sceneReady]);
 
 	const platesOpen = useShelfPlatesStore((state) => state.editorOpen);
 	const showStats =
 		typeof window !== "undefined" &&
 		new URLSearchParams(window.location.search).has("controls");
 	const [scanning, setScanning] = useState(false);
+	const [messagesOpen, setMessagesOpen] = useState(false);
+	const [timerOpen, setTimerOpen] = useState(false);
+	const [shutterFlash, setShutterFlash] = useState(false);
 	const scannerOpener = useRef<HTMLElement | null>(null);
 	const [notice, setNotice] = useState("");
 	const stage = useTourStore((state) => state.stage);
@@ -106,6 +145,9 @@ function Home() {
 	const book = useSelectedBook();
 	const editing = useShelfControlsStore((state) => state.editing);
 	const environment = usePresentationStore((state) => state.environment);
+	const cinematicPlaying = usePresentationStore(
+		(state) => state.cinematicPlaying,
+	);
 
 	const editableStage = stage === "library" || stage === "pick";
 	const showShelfControls = !scanning && editing && editableStage;
@@ -210,6 +252,32 @@ function Home() {
 			case "scan":
 				openScanner();
 				break;
+			case "play": {
+				let playing = false;
+				if (typeof on === "boolean") {
+					usePresentationStore.getState().setCinematicPlaying(on);
+					playing = on;
+				} else {
+					playing = usePresentationStore.getState().toggleCinematicPlaying();
+				}
+				if (playing) {
+					if (tour.bookPanel !== "closed") tour.dismissPreview();
+					useTourStore.setState({ paused: false });
+					setNotice("Playing Hollywood · Zen shelf reel");
+				} else {
+					useTourStore.setState({ paused: true });
+					setNotice("Paused shelf reel");
+				}
+				break;
+			}
+			case "screenshot":
+				setShutterFlash(true);
+				window.setTimeout(() => setShutterFlash(false), 320);
+				usePresentationStore.getState().requestScreenshot();
+				break;
+			case "chat":
+				setMessagesOpen(true);
+				break;
 			case "zoom":
 				setControllerJoystickMode(on ? "zoom" : "look");
 				break;
@@ -231,13 +299,14 @@ function Home() {
 				usePresentationStore.getState().toggleLighting();
 				break;
 			case "home":
+				usePresentationStore.getState().setCinematicPlaying(false);
 				useTourStore.setState((state) => ({
 					paused: true,
 					focusRevision: state.focusRevision + 1,
 				}));
 				break;
 			case "timer":
-				tour.togglePause();
+				setTimerOpen(true);
 				break;
 			case "shelf":
 				if (tour.bookPanel !== "closed") tour.dismissPreview();
@@ -274,7 +343,7 @@ function Home() {
 					: undefined
 			}
 		>
-			{!scanning && (
+			{sceneBooted && !scanning && (
 				<button
 					type="button"
 					className="menu-logo fixed left-3 top-[calc(0.5rem+env(safe-area-inset-top))] z-[1600]"
@@ -299,7 +368,8 @@ function Home() {
 					</span>
 				</button>
 			)}
-			{SHOW_DEMO_UI &&
+			{sceneBooted &&
+				SHOW_DEMO_UI &&
 				!scanning &&
 				!showShelfControls &&
 				bookPanel === "closed" && (
@@ -313,16 +383,53 @@ function Home() {
 						</Header>
 					</div>
 				)}
-			{!scanning &&
+			{sceneBooted &&
+				!scanning &&
 				!editing &&
 				reader === "closed" &&
 				["library", "pick", "end", "grow"].includes(stage) && (
-					<BoooksController onAction={controllerAction} />
+					<BoooksController
+						onAction={controllerAction}
+						activeToggles={{ play: cinematicPlaying }}
+					/>
 				)}
+			{cinematicPlaying && !scanning && reader === "closed" && (
+				<>
+					<div className="pointer-events-none fixed inset-x-0 top-0 z-[1400] h-12 bg-gradient-to-b from-black/80 to-transparent transition-opacity duration-700" />
+					<div className="pointer-events-none fixed inset-x-0 bottom-0 z-[1400] h-12 bg-gradient-to-t from-black/80 to-transparent transition-opacity duration-700" />
+					<button
+						type="button"
+						onClick={() => {
+							usePresentationStore.getState().setCinematicPlaying(false);
+							useTourStore.setState({ paused: true });
+						}}
+						className="fixed bottom-[calc(1rem+env(safe-area-inset-bottom))] left-1/2 z-[1650] flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/15 bg-[#0b1022]/85 px-4 py-1.5 text-xs font-medium text-[#f5efe2] shadow-lg backdrop-blur-md transition hover:border-[#e22424]/60"
+					>
+						<Pause size={13} className="text-[#e22424]" />
+						<span>Hollywood · Zen Reel</span>
+					</button>
+				</>
+			)}
+			{shutterFlash && (
+				<div className="pointer-events-none fixed inset-0 z-[2400] bg-white/80 animate-out fade-out duration-300" />
+			)}
+			{messagesOpen && !scanning && (
+				<MessagesOverlay onClose={() => setMessagesOpen(false)} />
+			)}
+			{sceneBooted && !scanning && (
+				<TimerOverlay
+					open={timerOpen}
+					onClose={() => setTimerOpen(false)}
+					onOpen={() => setTimerOpen(true)}
+					onComplete={(minutes) =>
+						setNotice(`Completed ${minutes}-minute reading session!`)
+					}
+				/>
+			)}
 			{scanning && <BookScanner onClose={closeScanner} onAdd={addBook} />}
 			{showShelfControls && <ShelfControls />}
 			{platesOpen && !scanning && <ShelfPlateEditor />}
-			{reader === "closed" && !scanning && (
+			{sceneBooted && reader === "closed" && !scanning && (
 				<LibraryMenus
 					scanning={scanning}
 					showActions={!scanning && editableStage}
@@ -333,7 +440,8 @@ function Home() {
 				!editing &&
 				reader === "closed" &&
 				bookPanel !== "closed" && <BookInfoCard />}
-			{SHOW_HELIX_NAV &&
+			{sceneBooted &&
+				SHOW_HELIX_NAV &&
 				!scanning &&
 				!editing &&
 				reader === "closed" &&
@@ -349,32 +457,46 @@ function Home() {
 			{!scanning && bookPanel === "closed" && notice && (
 				<output className="library-notice">{notice}</output>
 			)}
+			{!scanning && reader === "closed" && <MarkLoader />}
 			<div
-				className="fixed inset-0"
+				className={`fixed inset-0 transition-opacity duration-700 ease-out ${
+					sceneBooted ? "opacity-100" : "opacity-0"
+				}`}
 				data-scene={stage}
-				inert={scanning || reader !== "closed"}
-				aria-hidden={scanning || reader !== "closed"}
+				inert={scanning || reader !== "closed" || !sceneBooted}
+				aria-hidden={scanning || reader !== "closed" || !sceneBooted}
 			>
-				<Canvas
-					frameloop={scanning || reader === "open" ? "never" : "always"}
-					shadows={renderQuality.shadows ? "percentage" : false}
-					dpr={renderQuality.dpr}
-					// A transparent canvas forces per-frame page compositing and locks many
-					// phones to 30 fps; the scene paints its own background instead.
-					gl={{ alpha: false, powerPreference: "high-performance" }}
-					camera={{ position: [0, 4, 8], fov: 45, near: 0.01, far: 500 }}
-				>
-					<Suspense fallback={null}>
-						<SceneEnvironment />
-						<TourScene />
-					</Suspense>
-					<TourCamera />
-					<TourDirector />
-					<Lightning />
-					<ShaderWarmup />
-					{showStats && <Stats />}
-					{showStats && <RenderStats />}
-				</Canvas>
+				{atlasReady && (
+					<Canvas
+						frameloop={scanning || reader === "open" ? "never" : "always"}
+						shadows={renderQuality.shadows ? "percentage" : false}
+						dpr={renderQuality.dpr}
+						// A transparent canvas forces per-frame page compositing and locks many
+						// phones to 30 fps; the scene paints its own background instead.
+						gl={{ alpha: false, powerPreference: "high-performance" }}
+						camera={{ position: [0, 4, 8], fov: 45, near: 0.01, far: 500 }}
+					>
+						<Suspense fallback={null}>
+							<SceneEnvironment />
+							<TourScene />
+							<Lightning />
+							<ShaderWarmup />
+						</Suspense>
+						<TourCamera />
+						<TourDirector />
+						<SceneScreenshot
+							onCaptured={(dataUrl) => {
+								const link = document.createElement("a");
+								link.href = dataUrl;
+								link.download = `boooks-shelf-${Date.now()}.png`;
+								link.click();
+								setNotice("Screenshot saved!");
+							}}
+						/>
+						{showStats && <Stats />}
+						{showStats && <RenderStats />}
+					</Canvas>
+				)}
 			</div>
 			{SHOW_DEMO_UI &&
 				!scanning &&

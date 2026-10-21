@@ -1,6 +1,6 @@
 import { Edges, Html, OrbitControls } from "@react-three/drei";
 import { Canvas, useFrame, useThree } from "@react-three/fiber";
-import { BookOpen, ChevronDown, Ruler } from "lucide-react";
+import { BookOpen, ChevronDown } from "lucide-react";
 import {
 	type PointerEvent as ReactPointerEvent,
 	useEffect,

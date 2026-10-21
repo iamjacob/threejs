@@ -30,6 +30,16 @@ interface ShelfProps {
 	radius: number;
 }
 
+const SHELF_TEXTURES = [
+	"/experience/shelf/Wood051_1K-JPG_Color.webp",
+	"/experience/shelf/Wood051_1K-JPG_NormalGL.webp",
+	"/experience/shelf/Wood051_1K-JPG_Roughness.webp",
+];
+useLoader.preload(
+	THREE.TextureLoader,
+	SHELF_TEXTURES.map((url) => publicAssetUrl(url)),
+);
+
 const Shelf = ({
 	position = [0, 0, 0],
 	rotation = [-Math.PI / 2, 0, 0],
@@ -42,11 +52,7 @@ const Shelf = ({
 
 	const textures = useLoader(
 		THREE.TextureLoader,
-		[
-			"/experience/shelf/Wood051_1K-JPG_Color.webp",
-			"/experience/shelf/Wood051_1K-JPG_NormalGL.webp",
-			"/experience/shelf/Wood051_1K-JPG_Roughness.webp",
-		].map((url) => publicAssetUrl(url)),
+		SHELF_TEXTURES.map((url) => publicAssetUrl(url)),
 	);
 
 	const [colorMap, normalMap, roughnessMap] = useMemo(() => {

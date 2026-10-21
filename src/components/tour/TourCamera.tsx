@@ -66,6 +66,7 @@ export default function TourCamera() {
 	);
 	const level = useLevelStore((state) => state.levelIndex);
 	const cameraMode = usePresentationStore((state) => state.cameraMode);
+	const cinematicTime = useRef(0);
 	const editing = useShelfControlsStore((state) => state.editing);
 	const shelfDocument = useShelfControlsStore((state) => state.document);
 	const selectedIds = useShelfControlsStore((state) => state.selectedIds);
@@ -238,6 +239,9 @@ export default function TourCamera() {
 			state.y = event.clientY;
 			state.wanted = 0;
 			state.speed = 0;
+			if (usePresentationStore.getState().cinematicPlaying) {
+				usePresentationStore.getState().setCinematicPlaying(false);
+			}
 		};
 		const up = () => {
 			centerTurn.current.dragging = false;
@@ -332,6 +336,60 @@ export default function TourCamera() {
 		if (!orbit || !tour.ready || tour.reader === "open") return;
 		const controller = getControllerJoystick();
 		const joystickMode = getControllerJoystickMode();
+		if (
+			controller.mag > 0 &&
+			usePresentationStore.getState().cinematicPlaying
+		) {
+			usePresentationStore.getState().setCinematicPlaying(false);
+		}
+		if (
+			usePresentationStore.getState().cinematicPlaying &&
+			reader === "closed" &&
+			!editing &&
+			!drag &&
+			["library", "pick", "end"].includes(stage)
+		) {
+			cinematicTime.current += Math.min(delta, 0.1);
+			const t = cinematicTime.current;
+			// Alternate smoothly between Zen and Library moods during the cinematic reel.
+			const desiredEnv = Math.floor(t / 14) % 2 === 0 ? "zen" : "library";
+			if (usePresentationStore.getState().environment !== desiredEnv) {
+				usePresentationStore.getState().setEnvironment(desiredEnv);
+			}
+			const maxSweep = Math.max(
+				0.45,
+				Math.min(1.35, arcFraction * Math.PI * 0.72),
+			);
+			const yaw = Math.sin(t * 0.32) * maxSweep;
+			const craneY = 0.22 + Math.sin(t * 0.48) * 0.78;
+			const dolly = 1.9 + Math.sin(t * 0.27 + 0.8) * 1.35;
+			const lookAhead = yaw + Math.cos(t * 0.32) * 0.16;
+			const ease = reducedMotion
+				? 1
+				: 1 - Math.exp(-Math.min(delta, 0.05) * 3.2);
+
+			position.set(Math.sin(yaw) * dolly, craneY, -Math.cos(yaw) * dolly);
+			camera.position.lerp(position, ease);
+
+			target.set(
+				Math.sin(lookAhead) * 7.4,
+				0.2 + Math.sin(t * 0.37 + 1.1) * 0.55,
+				-Math.cos(lookAhead) * 7.4,
+			);
+			orbit.target.lerp(target, ease);
+
+			const bank = reducedMotion ? 0 : Math.cos(t * 0.32) * -0.028;
+			camera.up.set(Math.cos(yaw) * bank, 1, Math.sin(yaw) * bank).normalize();
+			if ("fov" in camera && typeof camera.fov === "number") {
+				const targetFov = 39 + Math.sin(t * 0.24) * 5;
+				camera.fov += (targetFov - camera.fov) * ease;
+				camera.updateProjectionMatrix();
+			}
+			centerTurn.current.yaw = yaw;
+			centerTurn.current.pitch = 0;
+			orbit.update();
+			return;
+		}
 		if (
 			!centered &&
 			controller.mag > 0 &&
@@ -691,6 +749,9 @@ export default function TourCamera() {
 				browsingFocus.current = false;
 				if (editing) editorGesture.current = true;
 				useTourStore.setState({ paused: true });
+				if (usePresentationStore.getState().cinematicPlaying) {
+					usePresentationStore.getState().setCinematicPlaying(false);
+				}
 			}}
 			onEnd={() => {
 				const orbit = controls.current;

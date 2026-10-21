@@ -17,13 +17,10 @@ import {
 import { type ReactNode, useEffect, useRef } from "react";
 import { useParticleStore } from "../../../stores/useParticleStore";
 import { useShelfControlsStore } from "../../../stores/useShelfControlsStore";
-
+import { useFeatureFlags } from "../../lib/featureFlags";
 import { useLibraryBooks, useSelectedBook } from "../../stores/useBookStore";
 import { useTourStore } from "../../stores/useTourStore";
-import MarkLoader from "../layout/MarkLoader";
 import BookPageSwiper from "../openbook/BookPageSwiper";
-
-import { useFeatureFlags } from "../../lib/featureFlags";
 
 import ShakeToRead from "../reader/ShakeToRead";
 import ControlHint from "./ControlHint";
@@ -175,8 +172,7 @@ export default function TourOverlay() {
 				: stage === "delete"
 					? "Tap any book to delete it."
 					: null;
-	if (editing && (stage === "library" || stage === "pick"))
-		return <MarkLoader />;
+	if (editing && (stage === "library" || stage === "pick")) return null;
 	return (
 		<>
 			<ShakeToRead />
@@ -244,7 +240,9 @@ export default function TourOverlay() {
 							openReader();
 						}}
 						disabled={
-							loading || reader !== "closed" || (!book.epub && !book.pdf && !book.scanPages?.length)
+							loading ||
+							reader !== "closed" ||
+							(!book.epub && !book.pdf && !book.scanPages?.length)
 						}
 						hint={
 							usedHints.includes("drag") && showHint("reader")
@@ -372,7 +370,6 @@ export default function TourOverlay() {
 					{paused ? <Play size={18} /> : <Pause size={18} />}
 				</IconButton>
 			</aside>
-			<MarkLoader />
 			<Timeline />
 		</>
 	);

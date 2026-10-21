@@ -42,7 +42,11 @@ import {
 	maxShelfImageLevel,
 	shelfAnisotropy,
 } from "../../lib/renderQuality";
-import { ensureRuntimeAtlas, useRuntimeAtlas } from "../../lib/runtimeAtlas";
+import {
+	ensureRuntimeAtlas,
+	suspendUntilAtlasReady,
+	useRuntimeAtlas,
+} from "../../lib/runtimeAtlas";
 import { moveShelfBooks } from "../../lib/shelfDrag";
 import { useBookStore } from "../../stores/useBookStore";
 import { useLevelStore } from "../../stores/useLevelStore";
@@ -437,6 +441,11 @@ export default function Bookshelves({
 	// so all books (catalog + local) appear together in a single frame.
 	useRuntimeAtlas((state) => state.version);
 	const atlasReady = useRuntimeAtlas((state) => state.ready);
+	if (instancedShelf) {
+		suspendUntilAtlasReady(
+			shelfBooks.flatMap((book) => coverFacesOutsideAtlas(book.cover)),
+		);
+	}
 	useEffect(() => {
 		if (!instancedShelf) return;
 		void ensureRuntimeAtlas(
@@ -587,37 +596,35 @@ export default function Bookshelves({
 						<CollectionBlur placements={blurredPlacements} />
 					))}
 				{instanced.length > 0 && (
-					<Suspense fallback={null}>
-						<InstancedBooks
-							placements={instanced}
-							onPointerOver={(_, event) => {
-								if (!onBookSelect) return;
+					<InstancedBooks
+						placements={instanced}
+						onPointerOver={(_, event) => {
+							if (!onBookSelect) return;
+							event.stopPropagation();
+							hoveredInstance.current = _.book.id;
+							globalThis.document.body.style.cursor = "pointer";
+						}}
+						onPointerOut={(placement) => {
+							if (hoveredInstance.current !== placement.book.id) return;
+							hoveredInstance.current = null;
+							globalThis.document.body.style.cursor = "";
+							instanceLongPress.cancel();
+						}}
+						onPointerDown={(placement, event) => {
+							if (!canEdit) return;
+							event.stopPropagation();
+							instanceLongPress.start(placement.book.id, event.nativeEvent);
+						}}
+						onClick={(placement, event) => {
+							if (instanceLongPress.consumeClick()) {
 								event.stopPropagation();
-								hoveredInstance.current = _.book.id;
-								globalThis.document.body.style.cursor = "pointer";
-							}}
-							onPointerOut={(placement) => {
-								if (hoveredInstance.current !== placement.book.id) return;
-								hoveredInstance.current = null;
-								globalThis.document.body.style.cursor = "";
-								instanceLongPress.cancel();
-							}}
-							onPointerDown={(placement, event) => {
-								if (!canEdit) return;
-								event.stopPropagation();
-								instanceLongPress.start(placement.book.id, event.nativeEvent);
-							}}
-							onClick={(placement, event) => {
-								if (instanceLongPress.consumeClick()) {
-									event.stopPropagation();
-									return;
-								}
-								if (!onBookSelect || event.delta > 5) return;
-								event.stopPropagation();
-								onBookSelect(placement.book.id, arrangedBookPose(placement));
-							}}
-						/>
-					</Suspense>
+								return;
+							}
+							if (!onBookSelect || event.delta > 5) return;
+							event.stopPropagation();
+							onBookSelect(placement.book.id, arrangedBookPose(placement));
+						}}
+					/>
 				)}
 				{visible.map((placement) => (
 					<AnimatedPlacement key={placement.book.id} placement={placement}>

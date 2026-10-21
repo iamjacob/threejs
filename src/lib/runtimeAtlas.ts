@@ -111,10 +111,9 @@ let initialHydrationDone = false;
  */
 export function registerInitialAtlasHydration(task: () => Promise<void>) {
 	if (!initialHydration) {
-		void getBaseAtlasImage();
 		initialHydration = (async () => {
 			try {
-				await task();
+				await Promise.all([getBaseAtlasImage(), task()]);
 			} catch {
 				/* Keep shelf working even if device storage is unavailable. */
 			} finally {
