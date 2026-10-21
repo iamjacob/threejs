@@ -3,15 +3,13 @@ import { useEffect, useState } from "react";
 import { useRuntimeAtlas } from "../../lib/runtimeAtlas";
 import { useTourStore } from "../../stores/useTourStore";
 
-const FADE_OUT_MS = 1150;
+const FADE_OUT_MS = 650;
 
 export default function MarkLoader() {
 	const [{ active, progress }, setLoading] = useState(useProgress.getState);
 	const atlasReady = useRuntimeAtlas((state) => state.ready);
 	const sceneReady = useTourStore((state) => state.ready);
-	const [booted, setBooted] = useState(
-		() => atlasReady && sceneReady && !useProgress.getState().active,
-	);
+	const [booted, setBooted] = useState(() => atlasReady && sceneReady);
 	useEffect(() => {
 		let frame: number | null = null;
 		// Many cached covers can finish together; paint their progress once per frame.
@@ -30,10 +28,10 @@ export default function MarkLoader() {
 		};
 	}, []);
 	useEffect(() => {
-		if (!booted && atlasReady && sceneReady && !active) {
+		if (!booted && atlasReady && sceneReady) {
 			setBooted(true);
 		}
-	}, [booted, atlasReady, sceneReady, active]);
+	}, [booted, atlasReady, sceneReady]);
 
 	const loading = !booted || active;
 	const [mounted, setMounted] = useState(!booted);
@@ -85,7 +83,7 @@ export default function MarkLoader() {
 	return (
 		<output
 			aria-label="Loading books"
-			className={`pointer-events-none fixed inset-0 z-[2500] flex flex-col items-center justify-center transition-opacity duration-[1150ms] ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+			className={`pointer-events-none fixed inset-0 z-[2500] flex flex-col items-center justify-center transition-opacity duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
 				fadingOut ? "opacity-0" : "opacity-100"
 			}`}
 			style={{
@@ -94,7 +92,7 @@ export default function MarkLoader() {
 			}}
 		>
 			<div
-				className={`flex flex-col items-center gap-5 transition-all duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
+				className={`flex flex-col items-center gap-5 transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none ${
 					fadingOut
 						? "scale-[1.04] opacity-0 blur-[2px]"
 						: "scale-100 opacity-100 blur-0"

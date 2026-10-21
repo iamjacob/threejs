@@ -1,147 +1,13 @@
-import {
-	BookOpen,
-	CheckCheck,
-	MessageSquarePlus,
-	Search,
-	Send,
-	Sparkles,
-	UserPlus,
-	Users,
-	X,
-} from "lucide-react";
+import { BookOpen, CheckCheck, Send, Sparkles, X } from "lucide-react";
 import { type FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { useLibraryBooks, useSelectedBook } from "../../stores/useBookStore";
-
-type ChatMessage = {
-	id: string;
-	sender: "me" | "friend";
-	text: string;
-	time: string;
-	bookTitle?: string;
-};
-
-type FriendThread = {
-	id: string;
-	name: string;
-	handle: string;
-	avatarBg: string;
-	initials: string;
-	status: "online" | "reading" | "offline";
-	readingBook: string;
-	messages: ChatMessage[];
-};
-
-const STORAGE_KEY = "boooks-messages-v1";
-
-const INITIAL_FRIENDS: FriendThread[] = [
-	{
-		id: "freja",
-		name: "Freja Lindqvist",
-		handle: "@freja.reads",
-		avatarBg: "from-[#e22424] to-[#7c1414]",
-		initials: "FL",
-		status: "reading",
-		readingBook: "Shaolin Spirit",
-		messages: [
-			{
-				id: "m1",
-				sender: "friend",
-				text: "Have you tried the new 3D shelf view yet? The lighting on the spines looks unreal.",
-				time: "18:14",
-			},
-			{
-				id: "m2",
-				sender: "me",
-				text: "Yes! Just arranged my top shelf and started reading Shaolin Spirit.",
-				time: "18:16",
-				bookTitle: "Shaolin Spirit",
-			},
-			{
-				id: "m3",
-				sender: "friend",
-				text: "Send me your favorite quote when you reach chapter 4!",
-				time: "18:19",
-			},
-		],
-	},
-	{
-		id: "mikkel",
-		name: "Mikkel Sørensen",
-		handle: "@mikkels",
-		avatarBg: "from-[#2563eb] to-[#1e3a8a]",
-		initials: "MS",
-		status: "online",
-		readingBook: "Discipline Is Destiny",
-		messages: [
-			{
-				id: "m4",
-				sender: "me",
-				text: "Finished the chapter on daily rituals—definitely made me rethink my morning routine.",
-				time: "Yesterday",
-				bookTitle: "Discipline Is Destiny",
-			},
-			{
-				id: "m5",
-				sender: "friend",
-				text: "Right? Let's do a 25-minute reading sprint tonight.",
-				time: "Yesterday",
-			},
-		],
-	},
-	{
-		id: "astrid",
-		name: "Astrid Nørgaard",
-		handle: "@astrid.n",
-		avatarBg: "from-[#10b981] to-[#065f46]",
-		initials: "AN",
-		status: "reading",
-		readingBook: "Behave",
-		messages: [
-			{
-				id: "m6",
-				sender: "friend",
-				text: "Scanned two hardcovers from my desk onto my shelf—worked on the first try!",
-				time: "Tue",
-			},
-			{
-				id: "m7",
-				sender: "me",
-				text: "Love that! Share a screenshot of your shelf setup when you're done.",
-				time: "Tue",
-			},
-		],
-	},
-	{
-		id: "kasper",
-		name: "Kasper Holm",
-		handle: "@kholm",
-		avatarBg: "from-[#f59e0b] to-[#92400e]",
-		initials: "KH",
-		status: "offline",
-		readingBook: "What's Your Dream?",
-		messages: [
-			{
-				id: "m8",
-				sender: "me",
-				text: "Recommended this one for your weekend reading list.",
-				time: "Mon",
-				bookTitle: "What's Your Dream?",
-			},
-		],
-	},
-];
-
-function loadThreads(): FriendThread[] {
-	try {
-		const raw = localStorage.getItem(STORAGE_KEY);
-		if (!raw) return INITIAL_FRIENDS;
-		const parsed = JSON.parse(raw);
-		if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-	} catch {
-		/* Use defaults when storage is unavailable. */
-	}
-	return INITIAL_FRIENDS;
-}
+import MessagesSidebar from "./MessagesSidebar";
+import {
+	type ChatMessage,
+	type FriendThread,
+	loadThreads,
+	MESSAGES_STORAGE_KEY,
+} from "./messagesData";
 
 export default function MessagesOverlay({ onClose }: { onClose: () => void }) {
 	const [threads, setThreads] = useState<FriendThread[]>(loadThreads);
@@ -152,15 +18,13 @@ export default function MessagesOverlay({ onClose }: { onClose: () => void }) {
 	const [query, setQuery] = useState("");
 	const [draft, setDraft] = useState("");
 	const [attachCurrentBook, setAttachCurrentBook] = useState(false);
-	const [newFriendName, setNewFriendName] = useState("");
-	const [addingFriend, setAddingFriend] = useState(false);
 	const selectedBook = useSelectedBook();
 	const books = useLibraryBooks();
 	const listRef = useRef<HTMLDivElement>(null);
 
 	useEffect(() => {
 		try {
-			localStorage.setItem(STORAGE_KEY, JSON.stringify(threads));
+			localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(threads));
 		} catch {
 			/* Keep in-memory state for this session. */
 		}
@@ -224,10 +88,7 @@ export default function MessagesOverlay({ onClose }: { onClose: () => void }) {
 		setAttachCurrentBook(false);
 	};
 
-	const handleAddFriend = (event: FormEvent) => {
-		event.preventDefault();
-		const name = newFriendName.trim();
-		if (!name) return;
+	const handleAddFriend = (name: string) => {
 		const initials = name
 			.split(/\s+/)
 			.map((part) => part[0]?.toUpperCase() ?? "")
@@ -257,8 +118,6 @@ export default function MessagesOverlay({ onClose }: { onClose: () => void }) {
 		};
 		setThreads((current) => [created, ...current]);
 		setActiveId(id);
-		setNewFriendName("");
-		setAddingFriend(false);
 		setTab("messages");
 	};
 	return (
@@ -275,149 +134,20 @@ export default function MessagesOverlay({ onClose }: { onClose: () => void }) {
 			}}
 		>
 			<div className="flex h-[min(640px,88vh)] w-full max-w-4xl overflow-hidden rounded-3xl border border-white/12 bg-[#0b1022]/95 text-[#f5efe2] shadow-[0_32px_90px_rgba(0,0,0,0.75)]">
-				<aside className="flex w-72 shrink-0 flex-col border-r border-white/10 bg-[#080c1a]/80 sm:w-80">
-					<div className="flex items-center justify-between border-b border-white/10 px-4 py-3.5">
-						<div className="flex items-center gap-2">
-							<span className="inline-flex h-2.5 w-2.5 rounded-full bg-[#e22424] shadow-[0_0_8px_#e22424]" />
-							<h2 className="font-semibold text-sm tracking-wide uppercase text-white/90">
-								Boooks Social
-							</h2>
-						</div>
-						<button
-							type="button"
-							onClick={() => setAddingFriend((v) => !v)}
-							className="inline-flex items-center gap-1 rounded-full border border-white/12 bg-white/5 px-2.5 py-1 text-xs text-white/80 transition hover:bg-white/10 hover:text-white"
-							title="Add friend"
-						>
-							<UserPlus size={13} />
-							<span>Add</span>
-						</button>
-					</div>
-
-					<div className="grid grid-cols-2 gap-1 border-b border-white/10 p-2">
-						<button
-							type="button"
-							onClick={() => setTab("messages")}
-							className={`flex items-center justify-center gap-1.5 rounded-xl py-1.5 text-xs font-medium transition ${
-								tab === "messages"
-									? "bg-gradient-to-r from-[#7C1414] to-[#E22424] text-white shadow"
-									: "text-white/60 hover:bg-white/5 hover:text-white"
-							}`}
-						>
-							<MessageSquarePlus size={14} />
-							<span>Messages</span>
-						</button>
-						<button
-							type="button"
-							onClick={() => setTab("friends")}
-							className={`flex items-center justify-center gap-1.5 rounded-xl py-1.5 text-xs font-medium transition ${
-								tab === "friends"
-									? "bg-gradient-to-r from-[#7C1414] to-[#E22424] text-white shadow"
-									: "text-white/60 hover:bg-white/5 hover:text-white"
-							}`}
-						>
-							<Users size={14} />
-							<span>Friends ({threads.length})</span>
-						</button>
-					</div>
-
-					{addingFriend && (
-						<form
-							onSubmit={handleAddFriend}
-							className="flex items-center gap-1.5 border-b border-white/10 bg-white/[0.03] px-3 py-2.5"
-						>
-							<input
-								type="text"
-								value={newFriendName}
-								onChange={(e) => setNewFriendName(e.target.value)}
-								placeholder="Friend's name..."
-								className="min-w-0 flex-1 rounded-lg border border-white/15 bg-[#050813] px-2.5 py-1.5 text-xs text-white placeholder:text-white/40 focus:border-[#e22424] focus:outline-none"
-							/>
-							<button
-								type="submit"
-								className="rounded-lg bg-[#e22424] px-2.5 py-1.5 text-xs font-medium text-white hover:bg-[#c81e1e]"
-							>
-								Connect
-							</button>
-						</form>
-					)}
-
-					<div className="px-3 py-2.5">
-						<div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-1.5">
-							<Search size={14} className="text-white/45" />
-							<input
-								type="search"
-								value={query}
-								onChange={(e) => setQuery(e.target.value)}
-								placeholder="Search messages or friends..."
-								className="w-full bg-transparent text-xs text-white placeholder:text-white/40 focus:outline-none"
-							/>
-						</div>
-					</div>
-
-					<div className="flex-1 space-y-1 overflow-y-auto px-2 pb-3">
-						{filteredThreads.map((friend) => {
-							const lastMsg = friend.messages.at(-1);
-							const active = friend.id === activeThread?.id;
-							return (
-								<button
-									key={friend.id}
-									type="button"
-									onClick={() => {
-										setActiveId(friend.id);
-										setTab("messages");
-									}}
-									className={`flex w-full items-start gap-3 rounded-2xl p-2.5 text-left transition ${
-										active
-											? "bg-white/[0.11] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.14)]"
-											: "hover:bg-white/[0.05]"
-									}`}
-								>
-									<div className="relative shrink-0">
-										<div
-											className={`flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br ${friend.avatarBg} text-xs font-bold text-white shadow`}
-										>
-											{friend.initials}
-										</div>
-										<span
-											className={`absolute right-0 bottom-0 h-2.5 w-2.5 rounded-full ring-2 ring-[#080c1a] ${
-												friend.status === "online"
-													? "bg-emerald-400"
-													: friend.status === "reading"
-														? "bg-[#e22424]"
-														: "bg-white/30"
-											}`}
-										/>
-									</div>
-									<div className="min-w-0 flex-1">
-										<div className="flex items-center justify-between gap-1">
-											<span className="truncate font-medium text-sm text-white">
-												{friend.name}
-											</span>
-											<span className="shrink-0 text-[10px] text-white/45">
-												{lastMsg?.time}
-											</span>
-										</div>
-										{tab === "friends" ? (
-											<p className="mt-0.5 flex items-center gap-1 truncate text-xs text-white/65">
-												<BookOpen
-													size={11}
-													className="shrink-0 text-[#e22424]"
-												/>
-												<span className="truncate">{friend.readingBook}</span>
-											</p>
-										) : (
-											<p className="mt-0.5 truncate text-xs text-white/60">
-												{lastMsg?.sender === "me" ? "You: " : ""}
-												{lastMsg?.text}
-											</p>
-										)}
-									</div>
-								</button>
-							);
-						})}
-					</div>
-				</aside>
+				<MessagesSidebar
+					threads={threads}
+					filteredThreads={filteredThreads}
+					activeId={activeThread?.id}
+					tab={tab}
+					query={query}
+					onSelectThread={(id) => {
+						setActiveId(id);
+						setTab("messages");
+					}}
+					onChangeTab={setTab}
+					onChangeQuery={setQuery}
+					onAddFriend={handleAddFriend}
+				/>
 
 				<section className="flex min-w-0 flex-1 flex-col bg-gradient-to-b from-[#0e152d]/60 to-[#080c1a]/90">
 					<header className="flex items-center justify-between border-b border-white/10 px-5 py-3.5">

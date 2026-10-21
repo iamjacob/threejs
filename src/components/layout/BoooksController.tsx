@@ -1,24 +1,4 @@
 // @ts-nocheck
-// BoooksController.jsx
-// One floating logo control: drag = joystick, tap = radial menu, hold = pick up & move.
-// The radial menu is an infinite dial: spin it to reveal more buttons.
-//
-// <BoooksController
-//   onJoystick={({ x, y, mag }) => {}}   // x right+, y up+, both -1..1, fires every move + 0,0 on release
-//   onAction={(id, on) => {}}            // menu pick; `on` is the new state for toggle actions
-//   actions={[...]}                      // optional, defaults below (any length, loops forever)
-// />
-//
-// Menu gestures (once open):
-//   swipe along the ring     → spin the dial (momentum + snap)
-//   mouse wheel / trackpad   → spin
-//   tap a button             → fire it
-//   press logo, slide out    → pick in one move; hold at either end of the arc to auto-spin
-//   ← → / ↑ ↓ keys           → step one button
-//
-// Built-in action ids: "home" re-docks the controller, "sound" toggles the click sounds.
-// Position is remembered in localStorage under `storageKey`.
-
 import {
 	useCallback,
 	useEffect,
@@ -27,164 +7,33 @@ import {
 	useState,
 } from "react";
 import { setControllerJoystick } from "../tour/controllerJoystick";
+import {
+	arcPath,
+	type BoooksControllerProps,
+	type ControllerActionItem,
+	DEFAULT_ACTIONS,
+	DRAG_PX,
+	defaultHome,
+	EDGE,
+	HALF,
+	HOLD_MS,
+	JR,
+	LOGO_D,
+	MENU_R,
+	mod,
+	SPREAD,
+	STEP,
+	VIS,
+	WH,
+	wrap,
+} from "./boooksControllerActions";
+import { CONTROLLER_CSS } from "./boooksControllerStyles";
 
-const LOGO_D =
-	"M129.636 69.2931C116.863 60.7237 102.441 57.3581 87.7081 59.4667C90.952 52.1272 92.5335 44.5985 92.3037 37.4754C91.8847 24.3509 85.3427 13.3215 73.8943 6.42809C59.3506 -2.33057 37.1837 -2.11431 21.1937 6.92819C7.63677 14.592 0.1757 27.311 0.1757 42.7603C0.1757 52.6949 0.0540583 134.361 0.013509 155.339L0 160.232C0 164.53 3.48723 168.112 7.78545 168.193L88.1947 169.815C88.7894 169.828 89.3841 169.828 89.9788 169.828C120.58 169.828 142.382 156.271 149.803 132.645C157.061 109.559 148.194 81.7417 129.636 69.2931ZM59.4993 70.442C58.8235 70.9151 58.4315 71.2124 58.3369 71.28C54.8902 73.9292 54.1874 78.7546 56.7555 82.2689C59.3236 85.7832 64.1355 86.5942 67.7038 84.1206C68.0552 83.8773 68.4066 83.6205 68.704 83.4043C73.1374 80.3901 96.4803 66.1978 120.783 82.4987C133.583 91.0816 139.8 111.437 134.651 127.873C129.379 144.674 113.552 153.92 90.0735 153.92C89.5598 153.92 89.0327 153.92 88.5326 153.906L15.9494 152.446V150.811C15.9899 124.562 16.0981 52.0866 16.0981 42.7468C16.0981 30.6225 23.1401 24.0941 29.0333 20.7555C40.1573 14.4704 55.931 14.1595 65.7034 20.0392C72.5697 24.1617 76.1651 30.2035 76.4219 37.9755C76.7868 49.3158 69.6502 62.9674 59.4993 70.442Z";
-
-export const DEFAULT_ACTIONS = [
-	// The camera comes first, so it is the button under your thumb when the dial opens.
-	{
-		id: "scan",
-		label: "Scan a book",
-		icon: (
-			<>
-				<path d="M3 8h3l2-3h8l2 3h3v11H3z" />
-				<circle cx="12" cy="13" r="3.5" />
-			</>
-		),
-	},
-	{
-		id: "play",
-		label: "Play",
-		activeLabel: "Pause",
-		toggle: true,
-		icon: <path d="M7 5v14l12-7z" />,
-		activeIcon: (
-			<>
-				<rect x="6" y="5" width="4" height="14" rx="1" />
-				<rect x="14" y="5" width="4" height="14" rx="1" />
-			</>
-		),
-	},
-	{
-		id: "screenshot",
-		label: "Screenshot",
-		icon: (
-			<>
-				<path d="M4 8V6a2 2 0 0 1 2-2h2M4 16v2a2 2 0 0 0 2 2h2M16 4h2a2 2 0 0 1 2 2v2M16 20h2a2 2 0 0 0 2-2v-2" />
-				<circle cx="12" cy="12" r="3.2" />
-			</>
-		),
-	},
-	{
-		id: "chat",
-		label: "Messages",
-		icon: <path d="M21 12a8 8 0 0 1-11.8 7L4 20l1.3-4.6A8 8 0 1 1 21 12z" />,
-	},
-	{
-		id: "timer",
-		label: "Timer",
-		icon: (
-			<>
-				<circle cx="12" cy="13" r="7" />
-				<path d="M12 9v4l2.5 2M10 3h4" />
-			</>
-		),
-	},
-	{
-		id: "jump",
-		label: "Jump",
-		icon: <path d="M12 19V7M7 11l5-5 5 5M6 21h12" />,
-	},
-	{
-		id: "zoom",
-		label: "Zoom stick",
-		toggle: true,
-		icon: (
-			<>
-				<circle cx="11" cy="11" r="7" />
-				<path d="M21 21l-4.3-4.3M11 8v6M8 11h6" />
-			</>
-		),
-	},
-	{
-		id: "cam",
-		label: "Overview",
-		toggle: true,
-		icon: <path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" />,
-	},
-	{
-		id: "lamp",
-		label: "Lamplight",
-		toggle: true,
-		icon: (
-			<path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2.1h5c0-.9.4-1.6 1-2.1A6 6 0 0 0 12 3z" />
-		),
-	},
-	{
-		id: "home",
-		label: "Re-dock",
-		icon: (
-			<>
-				<circle cx="12" cy="12" r="8" />
-				<circle cx="12" cy="12" r="2.5" />
-				<path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
-			</>
-		),
-	},
-	{
-		id: "shelf",
-		label: "Shelf",
-		icon: <path d="M4 20h16M6 20V6M10 20V4M14 20l3-14 3 .7-3 13.3" />,
-	},
-	{
-		id: "quote",
-		label: "Quotes",
-		icon: <path d="M7 11h3v6H5v-4c0-3 1-5 4-6M16 11h3v6h-5v-4c0-3 1-5 4-6" />,
-	},
-	{
-		id: "map",
-		label: "Map",
-		icon: <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14" />,
-	},
-];
-
-const JR = 44; // joystick travel radius (px)
-const MENU_R = 96; // radial menu radius
-const SPREAD = (150 * Math.PI) / 180; // visible arc
-const HALF = SPREAD / 2;
-const STEP = SPREAD / 4; // angle between buttons (5 fully visible)
-const VIS = 3; // slots rendered each side of focus
-const WH = MENU_R + 60; // wheel layer half-size
-const EDGE = 56; // min distance from viewport edge
-const HOLD_MS = 420; // long-press to pick up
-const DRAG_PX = 7; // movement before joystick engages
-
-const mod = (a, n) => ((a % n) + n) % n;
-const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
-const arcPath = (r, a0, a1) => {
-	const x0 = WH + r * Math.cos(a0),
-		y0 = WH + r * Math.sin(a0);
-	const x1 = WH + r * Math.cos(a1),
-		y1 = WH + r * Math.sin(a1);
-	return `M${x0.toFixed(1)} ${y0.toFixed(1)} A${r} ${r} 0 ${a1 - a0 > Math.PI ? 1 : 0} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+export {
+	type BoooksControllerProps,
+	type ControllerActionItem,
+	DEFAULT_ACTIONS,
 };
-
-const defaultHome = () => ({
-	x: Math.max(EDGE + 20, Math.min(110, window.innerWidth * 0.22)),
-	y: window.innerHeight - 120,
-});
-
-export type ControllerActionItem = {
-	id: string;
-	label: string;
-	activeLabel?: string;
-	toggle?: boolean;
-	on?: boolean;
-	icon: React.ReactNode;
-	activeIcon?: React.ReactNode;
-};
-
-export type BoooksControllerProps = {
-	actions?: ControllerActionItem[];
-	onJoystick?: (input: { x: number; y: number; mag: number }) => void;
-	onAction?: (id: string, on?: boolean) => void;
-	activeToggles?: Record<string, boolean>;
-	storageKey?: string;
-	home?: () => { x: number; y: number };
-	haptics?: boolean;
-};
-
 export default function BoooksController({
 	actions = DEFAULT_ACTIONS,
 	onJoystick = setControllerJoystick,
@@ -745,7 +594,7 @@ export default function BoooksController({
 		<div
 			className={`bc-root${open ? " bc-open" : ""}${active !== null ? " bc-picking" : ""}`}
 		>
-			<style>{CSS}</style>
+			<style>{CONTROLLER_CSS}</style>
 			<div className="bc-scrim" onPointerDown={() => setOpen(false)} />
 			<div className="bc-dock" ref={dockRef}>
 				<div className="bc-base" ref={baseRef}>
@@ -875,87 +724,3 @@ export default function BoooksController({
 		</div>
 	);
 }
-
-const CSS = `
-@property --pz{syntax:'<length>';inherits:true;initial-value:0px}
-.bc-root{--bc-panel:#151a2e;--bc-fg:#f3ead8;--bc-red-1:#7c1414;--bc-red-2:#e22424;--bc-cream:#f3ead8;--bc-ink:#1d1a16;--bc-line:rgba(255,255,255,.12);
-  --bc-spring:cubic-bezier(.34,1.56,.64,1);--bc-out:cubic-bezier(.22,1,.36,1);
-  font-family:"IBM Plex Mono",ui-monospace,Menlo,monospace;-webkit-tap-highlight-color:transparent;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-.bc-scrim{position:fixed;inset:0;background:transparent;opacity:0;pointer-events:none;z-index:50}
-.bc-open .bc-scrim{opacity:1;pointer-events:auto}
-.bc-dock{position:fixed;left:0;top:0;width:0;height:0;z-index:51;will-change:transform}
-.bc-dock.bc-glide{transition:transform .55s var(--bc-spring)}
-
-/* joystick gate */
-.bc-base{position:absolute;left:-60px;top:-60px;width:120px;height:120px;border-radius:50%;pointer-events:none;
-  background:rgba(13,16,32,.16);box-shadow:inset 0 0 0 1px rgba(243,234,216,.03);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);
-  opacity:0;transform:scale(.74);transition:transform .5s var(--bc-spring),opacity .2s}
-.bc-joy .bc-base{opacity:1;transform:scale(1)}
-.bc-lifted .bc-base{opacity:0;transform:scale(.6)}
-.bc-ticks{position:absolute;inset:0;border-radius:50%;opacity:0;transition:opacity .3s;
-  background:repeating-conic-gradient(rgba(243,234,216,.06) 0 1.1deg,transparent 1.1deg 15deg);
-  -webkit-mask:radial-gradient(circle,transparent 0 50px,#000 51px 55px,transparent 56px);mask:radial-gradient(circle,transparent 0 50px,#000 51px 55px,transparent 56px)}
-.bc-joy .bc-ticks{opacity:1}
-.bc-arc{position:absolute;inset:0;border-radius:50%;opacity:var(--mag,0);
-  background:conic-gradient(from calc(var(--ang,0deg) - 45deg),transparent 0deg,rgba(255,70,70,1) 45deg,transparent 90deg);
-  -webkit-mask:radial-gradient(circle,transparent 0 50px,#000 51px 57px,transparent 58px);mask:radial-gradient(circle,transparent 0 50px,#000 51px 57px,transparent 58px);
-  filter:drop-shadow(0 0 6px rgba(226,36,36,.9))}
-
-/* logo knob */
-.bc-btn{position:absolute;left:-36px;top:-36px;width:72px;height:72px;border-radius:50%;border:0;padding:0;cursor:grab;touch-action:none;outline:none;
-  background:none;perspective:240px;display:grid;place-items:center;
-  transform:translate(var(--kx,0px),var(--ky,0px)) scale(var(--s,1));transition:--pz .14s var(--bc-out)}
-.bc-down .bc-btn{--pz:3px}
-.bc-lifted .bc-btn{cursor:grabbing}
-.bc-cshadow{position:absolute;inset:14px;border-radius:50%;background:rgba(0,0,0,.35);filter:blur(10px);pointer-events:none;
-  transform:translate(var(--shx,0px),calc(var(--shy,9px) - var(--pz)));transition:opacity .2s}
-.bc-lifted .bc-cshadow{--shy:26px;opacity:.75}
-.bc-cap{position:absolute;inset:0;border-radius:50%;pointer-events:none;
-  background:radial-gradient(circle at var(--hx,35%) var(--hy,28%),rgba(255,255,255,.10) 0%,rgba(255,255,255,.025) 55%,rgba(255,255,255,0) 100%);
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.07);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
-  transform:translateY(var(--pz)) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg))}
-.bc-cap::after{content:"";position:absolute;left:var(--gx,16%);top:var(--gy,9%);width:44%;height:28%;border-radius:50%;
-  background:radial-gradient(ellipse,rgba(255,255,255,.14),rgba(255,255,255,0) 70%);transform:rotate(-24deg)}
-.bc-btn:focus-visible .bc-cap{box-shadow:0 0 0 3px var(--bc-red-2)}
-.bc-lifted .bc-cap{box-shadow:0 0 0 1px rgba(243,234,216,.5)}
-.bc-logo{position:relative;z-index:1;width:32px;height:36px;pointer-events:none;
-  transform:translateY(var(--pz)) rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transition:rotate .45s var(--bc-spring),scale .45s var(--bc-spring);
-  filter:drop-shadow(0 6px 8px rgba(0,0,0,.45)) drop-shadow(0 0 14px rgba(226,36,36,.28))}
-.bc-open .bc-logo{rotate:-12deg;scale:.9}
-.bc-glow{position:absolute;inset:-14px;border-radius:50%;background:radial-gradient(circle,rgba(226,36,36,.45),transparent 65%);opacity:0;transition:opacity .25s;pointer-events:none}
-.bc-open .bc-glow,.bc-joy .bc-glow{opacity:1}
-.bc-ring{position:absolute;inset:-6px;width:84px;height:84px;pointer-events:none;transform:rotate(-90deg)}
-.bc-ring circle{fill:none;stroke:var(--bc-cream);stroke-width:2.5;stroke-linecap:round;stroke-dasharray:258;stroke-dashoffset:258;opacity:0;transition:opacity .1s}
-.bc-arming .bc-ring circle{opacity:1;stroke-dashoffset:0;transition:stroke-dashoffset .28s linear,opacity .1s}
-.bc-ripple{position:absolute;left:-36px;top:-36px;width:72px;height:72px;border-radius:50%;border:2px solid var(--bc-red-2);pointer-events:none;animation:bc-rip .55s var(--bc-out) forwards}
-@keyframes bc-rip{from{transform:scale(1);opacity:.9}to{transform:scale(2.2);opacity:0}}
-
-/* infinite dial */
-.bc-wheel{position:absolute;left:-${WH}px;top:-${WH}px;width:${WH * 2}px;height:${WH * 2}px;pointer-events:none;touch-action:none}
-.bc-open .bc-wheel{pointer-events:auto}
-.bc-track{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none;opacity:0;transition:opacity .25s var(--bc-out)}
-.bc-open .bc-track{opacity:1}
-.bc-band{fill:none;stroke:rgba(13,16,32,.38);stroke-width:66;stroke-linecap:round}
-.bc-rail{fill:none;stroke:rgba(243,234,216,.07);stroke-width:1}
-.bc-thumb{fill:rgba(243,234,216,.55)}
-
-.bc-item{position:absolute;left:calc(50% - 27px);top:calc(50% - 27px);width:54px;height:54px;border-radius:50%;border:0;padding:0;cursor:pointer;
-  background:var(--bc-panel);color:var(--bc-fg);box-shadow:0 0 0 1px var(--bc-line),0 10px 24px rgba(0,0,0,.45);
-  display:grid;place-items:center;opacity:0;pointer-events:none;
-  transform:translate(0,0) scale(.3);transition:transform .4s var(--bc-spring),opacity .18s,background .15s}
-.bc-item svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
-.bc-open .bc-item{opacity:var(--o,1);transform:translate(var(--x),var(--y)) scale(var(--k,1))}
-.bc-open .bc-item.bc-focus{transform:translate(var(--x),var(--y)) scale(calc(var(--k,1) * 1.08));box-shadow:0 0 0 1px rgba(243,234,216,.28),0 12px 28px rgba(0,0,0,.5)}
-.bc-open .bc-item.bc-active{background:linear-gradient(135deg,var(--bc-red-1),var(--bc-red-2));transform:translate(calc(var(--x)*1.1),calc(var(--y)*1.1)) scale(1.18)}
-.bc-scrolling .bc-item{transition:background .15s;transition-delay:0ms!important}
-.bc-item.bc-on::before{content:"";position:absolute;top:6px;right:8px;width:6px;height:6px;border-radius:50%;background:var(--bc-red-2);box-shadow:0 0 0 2px var(--bc-panel)}
-.bc-item:focus-visible{box-shadow:0 0 0 3px var(--bc-fg)}
-.bc-label{position:absolute;left:50%;top:50%;white-space:nowrap;font-size:10px;letter-spacing:.06em;text-transform:uppercase;
-  color:var(--bc-fg);background:rgba(13,16,32,.8);padding:3px 6px;border-radius:5px;pointer-events:none;opacity:0;
-  transform:translate(calc(-50% + var(--lx)),calc(-50% + var(--ly)));transition:opacity .15s}
-.bc-focus .bc-label,.bc-active .bc-label{opacity:1}
-.bc-picking .bc-item:not(.bc-active) .bc-label{opacity:0}
-.bc-item.bc-active .bc-label{background:var(--bc-cream);color:var(--bc-ink)}
-
-@media (prefers-reduced-motion:reduce){.bc-root *{transition-duration:.01ms!important;animation-duration:.01ms!important}}
-`;

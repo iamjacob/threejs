@@ -113,7 +113,7 @@ export function registerInitialAtlasHydration(task: () => Promise<void>) {
 	if (!initialHydration) {
 		initialHydration = (async () => {
 			try {
-				await Promise.all([getBaseAtlasImage(), task()]);
+				await task();
 			} catch {
 				/* Keep shelf working even if device storage is unavailable. */
 			} finally {
