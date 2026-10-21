@@ -36,8 +36,14 @@ import TourDirector from "../components/tour/TourDirector";
 import TourOverlay from "../components/tour/TourOverlay";
 import TourScene from "../components/tour/TourScene";
 import { REMOVED_BOOKS_KEY, readBookIds } from "../lib/bookPreferences";
+import { coverFacesOutsideAtlas } from "../lib/coverAtlas";
 import { useFeatureFlags } from "../lib/featureFlags";
+import {
+	ensureRuntimeAtlas,
+	registerInitialAtlasHydration,
+} from "../lib/runtimeAtlas";
 import { useBookStore, useSelectedBook } from "../stores/useBookStore";
+
 import { useLevelStore } from "../stores/useLevelStore";
 import { usePresentationStore } from "../stores/usePresentationStore";
 import { useShelfPlatesStore } from "../stores/useShelfPlatesStore";
@@ -45,8 +51,46 @@ import { useTourStore } from "../stores/useTourStore";
 
 export const Route = createFileRoute("/")({ component: Home });
 
+function hydrateInitialLibrary() {
+	return registerInitialAtlasHydration(async () => {
+		const shelf = useShelfControlsStore.getState();
+		if (!shelf.initialized) {
+			shelf.initialize(useBookStore.getState().books);
+		}
+		const saved = await loadScannedBooks();
+		if (!saved.length) return;
+		await ensureRuntimeAtlas(
+			saved.flatMap((entry) => coverFacesOutsideAtlas(entry.cover)),
+		);
+		useBookStore.setState((state) => ({
+			books: [
+				...state.books,
+				...saved.filter(
+					(entry) => !state.books.some((book) => book.id === entry.id),
+				),
+			],
+		}));
+		const selection = useShelfControlsStore.getState().selectedIds;
+		const removed = readBookIds(REMOVED_BOOKS_KEY);
+		for (const entry of saved) {
+			if (!removed.includes(entry.id)) shelf.insertBook(entry.id);
+		}
+		useShelfControlsStore.setState({
+			selectedIds: selection,
+			past: [],
+			future: [],
+		});
+	});
+}
+
 function Home() {
+	// Start IndexedDB + unified atlas hydration before Canvas/InstancedBooks render
+	// so `<Suspense>` waits for local books and reveals all books in the same frame.
+	if (typeof indexedDB !== "undefined") {
+		void hydrateInitialLibrary();
+	}
 	const { SHOW_DEMO_UI, SHOW_HELIX_NAV } = useFeatureFlags();
+
 	const platesOpen = useShelfPlatesStore((state) => state.editorOpen);
 	const showStats =
 		typeof window !== "undefined" &&
@@ -92,41 +136,18 @@ function Home() {
 	}, [adding, book.title]);
 	useEffect(() => {
 		const shelf = useShelfControlsStore.getState();
-		shelf.initialize(useBookStore.getState().books);
+		if (!shelf.initialized) {
+			shelf.initialize(useBookStore.getState().books);
+		}
 		const stopLoops = watchLibraryLoops();
 		useTourStore.getState().start();
 		useTourStore.setState({ paused: true });
-		let active = true;
-		void loadScannedBooks()
-			.then((saved) => {
-				if (!active) return;
-				useBookStore.setState((state) => ({
-					books: [
-						...state.books,
-						...saved.filter(
-							(entry) => !state.books.some((book) => book.id === entry.id),
-						),
-					],
-				}));
-				const selection = useShelfControlsStore.getState().selectedIds;
-				const removed = readBookIds(REMOVED_BOOKS_KEY);
-				for (const entry of saved) {
-					if (!removed.includes(entry.id)) shelf.insertBook(entry.id);
-				}
-				useShelfControlsStore.setState({
-					selectedIds: selection,
-					past: [],
-					future: [],
-				});
-			})
-			.catch(() => {
-				/* Scanning still works if private browsing disables storage. */
-			});
+		void hydrateInitialLibrary();
 		return () => {
 			stopLoops();
-			active = false;
 		};
 	}, []);
+
 	useEffect(() => {
 		if (!editableStage) useShelfControlsStore.getState().setEditing(false);
 	}, [editableStage]);
@@ -167,11 +188,12 @@ function Home() {
 	const addBook = async (scan: BookScan) => {
 		const newBook = await scannedBook(scan);
 		let saved = true;
-		try {
-			await saveScannedBook(newBook);
-		} catch {
-			saved = false;
-		}
+		await Promise.all([
+			saveScannedBook(newBook).catch(() => {
+				saved = false;
+			}),
+			ensureRuntimeAtlas(coverFacesOutsideAtlas(newBook.cover)),
+		]);
 		useBookStore.getState().addBook(newBook);
 		useShelfControlsStore.getState().insertBook(newBook.id);
 		useShelfControlsStore.getState().setEditing(false);
@@ -181,6 +203,7 @@ function Home() {
 			saved ? "" : "Added for this visit. Device storage is unavailable.",
 		);
 	};
+
 	const controllerAction = (id: string, on?: boolean) => {
 		const tour = useTourStore.getState();
 		switch (id) {

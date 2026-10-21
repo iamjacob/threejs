@@ -1,11 +1,19 @@
 import manifest from "./coverAtlas.json";
 
 export type AtlasRect = [number, number, number, number];
-type Region = { offset: number[]; repeat: number[] };
-const regions: Record<string, Region> = manifest.regions;
+export type CoverAtlasRegion = {
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	offset: number[];
+	repeat: number[];
+};
+const regions: Record<string, CoverAtlasRegion> = manifest.regions;
 
 export const COVER_ATLAS_PATH: string = manifest.path;
 export const COVER_ATLAS_SIZE: number = manifest.size;
+export const COVER_ATLAS_REGIONS: Record<string, CoverAtlasRegion> = regions;
 export const FULL_RECT: AtlasRect = [0, 0, 1, 1];
 
 /** UV rectangle (offset.xy, repeat.xy) of a source cover inside the atlas. */
@@ -35,6 +43,6 @@ export function coverFacesOutsideAtlas(cover: {
 	spine: string;
 }) {
 	return [cover.front, cover.back, cover.spine].filter(
-		(path) => !(path in regions),
+		(path) => Boolean(path) && !(path in regions),
 	);
 }

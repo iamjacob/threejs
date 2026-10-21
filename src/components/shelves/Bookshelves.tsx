@@ -1,4 +1,3 @@
-import { useLevelStore } from "../../stores/useLevelStore";
 import { Html, Line } from "@react-three/drei";
 import {
 	type ThreeEvent,
@@ -16,14 +15,14 @@ import {
 	useState,
 } from "react";
 import {
-	Frustum,
-	Matrix4,
-	Sphere,
 	Euler,
+	Frustum,
 	type Group,
 	LoadingManager,
+	Matrix4,
 	type Mesh,
 	Quaternion,
+	Sphere,
 	SRGBColorSpace,
 	TextureLoader,
 	Vector3,
@@ -35,21 +34,22 @@ import {
 	bookImagePath,
 } from "../../lib/bookImages";
 import { createBookLongPress, vibrateBookEdit } from "../../lib/bookLongPress";
+import { coverFacesOutsideAtlas } from "../../lib/coverAtlas";
+import { useFeatureFlags } from "../../lib/featureFlags";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
 import {
 	currentRenderQuality,
 	maxShelfImageLevel,
 	shelfAnisotropy,
 } from "../../lib/renderQuality";
+import { ensureRuntimeAtlas, useRuntimeAtlas } from "../../lib/runtimeAtlas";
 import { moveShelfBooks } from "../../lib/shelfDrag";
 import { useBookStore } from "../../stores/useBookStore";
+import { useLevelStore } from "../../stores/useLevelStore";
 import { useTourStore } from "../../stores/useTourStore";
 import { BOOK_MATERIAL } from "../book/bookAppearance";
 import { getBookTextureUrls } from "../book/bookTextures";
 import type { BookPose } from "../tour/tourStages";
-import { coverFacesOutsideAtlas } from "../../lib/coverAtlas";
-import { ensureRuntimeAtlas, useRuntimeAtlas } from "../../lib/runtimeAtlas";
-import { useFeatureFlags } from "../../lib/featureFlags";
 import CollectionBlur from "./CollectionBlur";
 import InstancedBooks, { coverInstanceable } from "./InstancedBooks";
 import InstancedCollectionBlur from "./InstancedCollectionBlur";
@@ -66,15 +66,15 @@ import {
 	pictureFrameSlot,
 } from "./shelfArrangement";
 import {
-	currentShelfArcFraction,
-	PICTURE_FRAME_WIDTH,
-	useShelfArcFraction,
-} from "./useShelfArc";
-import {
 	BOOKS_SHELF_LEVEL,
 	layoutShelfBooks,
 	type ShelfBook,
 } from "./shelfBooks";
+import {
+	currentShelfArcFraction,
+	PICTURE_FRAME_WIDTH,
+	useShelfArcFraction,
+} from "./useShelfArc";
 import { useShelfBookDrag } from "./useShelfBookDrag";
 
 const renderQuality = currentRenderQuality();
@@ -433,9 +433,10 @@ export default function Bookshelves({
 	// Keep receivers still while dragging so the drop target does not move away.
 	// Static books share one instanced draw per sector; anything interactive,
 	// highlighted, or animating keeps its own mesh so existing behaviour holds.
-	// Scanned covers live only on this device; pack them into a runtime atlas so
-	// they can join the instanced batches instead of costing 6 textures each.
+	// Scanned covers live only on this device; pack them into the unified atlas
+	// so all books (catalog + local) appear together in a single frame.
 	useRuntimeAtlas((state) => state.version);
+	const atlasReady = useRuntimeAtlas((state) => state.ready);
 	useEffect(() => {
 		if (!instancedShelf) return;
 		void ensureRuntimeAtlas(
@@ -455,18 +456,18 @@ export default function Bookshelves({
 			!hiddenBookIds.includes(book.id),
 	);
 	const instanced = shown.filter(isInstanced);
-	// While the runtime atlas is still packing, hold scanned books back instead
+	// While the runtime atlas is still packing, hold local books back instead
 	// of briefly mounting six-texture meshes that would then be thrown away.
 	const runtimeRejected = useRuntimeAtlas((state) => state.rejected);
 	const awaitingAtlas = (placement: ArrangedBook) =>
 		instancedShelf &&
 		!editing &&
-		coverFacesOutsideAtlas(placement.book.cover).some(
-			(face) =>
-				(face.startsWith("data:") || face.startsWith("blob:")) &&
-				!runtimeRejected.has(face),
-		) &&
-		!coverInstanceable(placement.book.cover);
+		(!atlasReady ||
+			(coverFacesOutsideAtlas(placement.book.cover).some(
+				(face) => !runtimeRejected.has(face),
+			) &&
+				!coverInstanceable(placement.book.cover)));
+
 	const visible = shown.filter(
 		(placement) =>
 			!isInstanced(placement) &&
@@ -476,6 +477,7 @@ export default function Bookshelves({
 				selectedIds.includes(placement.book.id) ||
 				deletingBooks[placement.book.id] !== undefined),
 	);
+
 	const hoveredInstance = useRef<string | null>(null);
 	useEffect(
 		() => () => {
@@ -528,14 +530,21 @@ export default function Bookshelves({
 			window.removeEventListener("pointercancel", press.end, true);
 			window.removeEventListener("pointerdown", press.additionalPointer, true);
 			window.removeEventListener("blur", press.cancel);
-			globalThis.document.removeEventListener("visibilitychange", cancelWhenHidden);
+			globalThis.document.removeEventListener(
+				"visibilitychange",
+				cancelWhenHidden,
+			);
 		};
 	}, [canEdit, instanced.length, instanceLongPress]);
-	const blurredPlacements = [...instanced, ...visible].filter(
-		({ book }) =>
-			blurredBookIds.includes(book.id) &&
-			deletingBooks[book.id] === undefined,
-	);
+	const blurredPlacements =
+		instancedShelf && !atlasReady
+			? []
+			: [...instanced, ...visible].filter(
+					({ book }) =>
+						blurredBookIds.includes(book.id) &&
+						deletingBooks[book.id] === undefined,
+				);
+
 	const stackTarget = drag?.drop.stackOnId
 		? placements.find((entry) => entry.book.id === drag.drop.stackOnId)
 		: undefined;

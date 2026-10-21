@@ -14,7 +14,6 @@ import {
 	MeshStandardMaterial,
 	Quaternion,
 	SRGBColorSpace,
-	type Texture,
 	TextureLoader,
 	Vector3,
 } from "three";
@@ -26,7 +25,13 @@ import {
 	FULL_RECT,
 } from "../../lib/coverAtlas";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
-import { runtimeAtlasRect, useRuntimeAtlas } from "../../lib/runtimeAtlas";
+import {
+	runtimeAtlasRect,
+	setBaseAtlasImage,
+	suspendUntilAtlasReady,
+	useRuntimeAtlas,
+} from "../../lib/runtimeAtlas";
+
 import { BOOK_MATERIAL } from "../book/bookAppearance";
 import { getBookTextureUrls } from "../book/bookTextures";
 import type { ArrangedBook } from "./shelfArrangement";
@@ -55,19 +60,16 @@ const unitBox = new BoxGeometry(1, 1, 1);
 /** World units; the shelf radius is 7.4 so this spans roughly the visible arc. */
 const shadowDistance = 9;
 const atlasLoader = new TextureLoader();
+useLoader.preload(atlasLoader, publicAssetUrl(COVER_ATLAS_PATH));
 
 /**
- * One material samples two atlases: the build-time cover atlas (`map`) and the
- * runtime atlas of device-only scanned covers (`uRuntimeAtlas`). A negative
- * rect width marks a face that lives in the runtime atlas.
+ * One material samples a single unified atlas (`map`) that holds every
+ * build-time catalog cover plus any local/scanned covers packed at runtime.
  */
 function createAtlasMaterial(anisotropy: number) {
 	const material = new MeshStandardMaterial({ ...BOOK_MATERIAL });
-	const uniforms = { uRuntimeAtlas: { value: null as Texture | null } };
-	material.userData.uniforms = uniforms;
-	material.customProgramCacheKey = () => "shelf-cover-atlas-v2";
+	material.customProgramCacheKey = () => "shelf-cover-atlas-v3";
 	material.onBeforeCompile = (shader) => {
-		shader.uniforms.uRuntimeAtlas = uniforms.uRuntimeAtlas;
 		shader.vertexShader = shader.vertexShader
 			.replace(
 				"#include <common>",
@@ -78,7 +80,6 @@ function createAtlasMaterial(anisotropy: number) {
 				attribute vec4 aRectBottom;
 				attribute vec4 aRectFront;
 				attribute vec4 aRectBack;
-				varying float vRuntimeAtlas;
 				vec4 bookFaceRect() {
 					vec3 n = abs(normal);
 					if (n.x > 0.5) return normal.x > 0.0 ? aRectEdge : aRectSpine;
@@ -92,29 +93,7 @@ function createAtlasMaterial(anisotropy: number) {
 				#ifdef USE_MAP
 				{
 					vec4 rect = bookFaceRect();
-					vRuntimeAtlas = rect.z < 0.0 ? 1.0 : 0.0;
-					vMapUv = rect.xy + uv * vec2(abs(rect.z), rect.w);
-				}
-				#endif`,
-			);
-		shader.fragmentShader = shader.fragmentShader
-			.replace(
-				"#include <common>",
-				`#include <common>
-				uniform sampler2D uRuntimeAtlas;
-				varying float vRuntimeAtlas;`,
-			)
-			.replace(
-				"#include <map_fragment>",
-				`#ifdef USE_MAP
-				{
-					vec4 sampledDiffuseColor = vRuntimeAtlas > 0.5
-						? texture2D( uRuntimeAtlas, vMapUv )
-						: texture2D( map, vMapUv );
-					#ifdef DECODE_VIDEO_TEXTURE
-						sampledDiffuseColor = sRGBTransferEOTF( sampledDiffuseColor );
-					#endif
-					diffuseColor *= sampledDiffuseColor;
+					vMapUv = rect.xy + uv * rect.zw;
 				}
 				#endif`,
 			);
@@ -124,17 +103,12 @@ function createAtlasMaterial(anisotropy: number) {
 }
 
 function rectsFor(placement: ArrangedBook): AtlasRect[] {
-	return getBookTextureUrls(placement.book.cover).map((url) => {
-		const built = coverAtlasRect(url);
-		if (built) return built;
-		const runtime = runtimeAtlasRect(url);
-		// Negative width flags the runtime atlas for the shader.
-		if (runtime) return [runtime[0], runtime[1], -runtime[2], runtime[3]];
-		return FULL_RECT;
-	});
+	return getBookTextureUrls(placement.book.cover).map(
+		(url) => runtimeAtlasRect(url) ?? coverAtlasRect(url) ?? FULL_RECT,
+	);
 }
 
-/** Instanced when every face is in either atlas. */
+/** Instanced when every face is in the unified atlas. */
 export function coverInstanceable(cover: {
 	front: string;
 	back: string;
@@ -242,30 +216,31 @@ function SectorBatch({
  * batched per ring sector so off-screen sectors cost nothing.
  */
 export default function InstancedBooks({ placements, ...handlers }: Props) {
-	const anisotropy = useThree((state) =>
-		Math.min(4, state.gl.capabilities.getMaxAnisotropy()),
-	);
+	const gl = useThree((state) => state.gl);
+	const anisotropy = Math.min(4, gl.capabilities.getMaxAnisotropy());
 	const atlas = useLoader(atlasLoader, publicAssetUrl(COVER_ATLAS_PATH));
-	const material = useMemo(() => createAtlasMaterial(anisotropy), [anisotropy]);
-	useEffect(() => {
-		atlas.colorSpace = SRGBColorSpace;
-		atlas.anisotropy = anisotropy;
-		atlas.generateMipmaps = true;
-		atlas.needsUpdate = true;
-		material.map = atlas;
-		material.needsUpdate = true;
-	}, [atlas, material, anisotropy]);
-	useEffect(() => () => material.dispose(), [material]);
+	setBaseAtlasImage(atlas.image);
+	suspendUntilAtlasReady(
+		placements.flatMap(({ book }) => coverFacesOutsideAtlas(book.cover)),
+	);
 	const runtimeTexture = useRuntimeAtlas((state) => state.texture);
+	const active = runtimeTexture ?? atlas;
+	const material = useMemo(() => createAtlasMaterial(anisotropy), [anisotropy]);
+	// Bind and upload the active atlas synchronously during render so vertex UV
+	// attributes and `material.map` always commit on the exact same frame.
+	active.colorSpace = SRGBColorSpace;
+	active.anisotropy = anisotropy;
+	active.generateMipmaps = true;
+	if (material.map !== active) {
+		active.needsUpdate = true;
+		material.map = active;
+		material.needsUpdate = true;
+		gl.initTexture(active);
+	}
 	useEffect(() => {
-		// Bind the runtime atlas (or the main atlas as a harmless placeholder so
-		// the sampler is never empty).
-		const uniforms = material.userData.uniforms as {
-			uRuntimeAtlas: { value: Texture | null };
-		};
-		if (runtimeTexture) runtimeTexture.anisotropy = anisotropy;
-		uniforms.uRuntimeAtlas.value = runtimeTexture ?? atlas;
-	}, [runtimeTexture, atlas, material, anisotropy]);
+		if (runtimeTexture) atlas.dispose();
+	}, [atlas, runtimeTexture]);
+	useEffect(() => () => material.dispose(), [material]);
 	const sectors = useMemo(
 		() => groupBySector(placements.map((placement) => ({ placement }))),
 		[placements],

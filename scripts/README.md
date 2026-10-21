@@ -19,10 +19,13 @@ cache headers. The header and book bar use small covers.
 `npm run atlas` packs every small shelf cover into a single opaque RGB
 `public/book-images/cover-atlas.webp` (smallest power-of-two square that fits,
 2 px padding) and writes `src/lib/coverAtlas.json` with each source path's
-pixel rectangle plus ready-to-use `offset`/`repeat` UV transforms. The atlas
-lets instanced shelves draw all books with one texture bind. Rerun it after
-`npm run images`. Packing logic lives in `src/lib/atlasPacking.ts`
-(`npm run test:atlas`).
+pixel rectangle plus ready-to-use `offset`/`repeat` UV transforms. At runtime,
+`src/lib/runtimeAtlas.ts` merges any device-local/scanned book covers with the
+build-time catalog regions into a single unified `map` texture so instanced
+shelves draw all books (catalog + local) from one texture bind. Rerun
+`npm run atlas` after `npm run images`. Packing logic lives in
+`src/lib/atlasPacking.ts` (`npm run test:atlas`).
+
 
 Append `?controls` to the URL to show FPS, draw calls, triangles, and
 texture counts in the top-left corner while optimising.

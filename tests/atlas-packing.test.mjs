@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import { test } from "node:test";
 import { atlasUvTransform, packAtlas } from "../src/lib/atlasPacking.ts";
+
 
 function overlaps(a, b) {
 	return (
@@ -63,3 +65,61 @@ test("uv transform maps a region to offset/repeat with flipped Y", () => {
 	assert.deepEqual(uv.repeat, [0.25, 0.5]);
 	assert.deepEqual(uv.offset, [0.25, 0.5]);
 });
+
+test("tucks narrow spines and local covers into leftover row gaps without growing the atlas", () => {
+	// Seven 260x384 covers leave a ~220px gap at the right edge of row 1 in a 2048 atlas;
+	// narrow spines should fill that gap instead of forcing a new row.
+	const covers = Array.from({ length: 7 }, (_, i) => ({
+		id: `cover-${i}`,
+		width: 260,
+		height: 384,
+	}));
+	const spines = [
+		{ id: "spine-a", width: 100, height: 384 },
+		{ id: "spine-b", width: 90, height: 384 },
+	];
+	const { regions } = packAtlas([...covers, ...spines], {
+		padding: 2,
+		maxSize: 2048,
+	});
+	for (const region of regions) {
+		assert.equal(
+			region.y,
+			2,
+			`expected ${region.id} to pack into row y=2, got y=${region.y}`,
+		);
+	}
+});
+
+test("packs all catalog covers plus local scanned books into one unified atlas", async () => {
+	const manifest = JSON.parse(
+		await readFile(new URL("../src/lib/coverAtlas.json", import.meta.url), "utf8"),
+	);
+	const catalogInputs = Object.entries(manifest.regions).map(([id, region]) => ({
+		id,
+		width: region.width,
+		height: region.height,
+	}));
+	const localInputs = [
+		{ id: "data:image/webp;base64,local-front", width: 256, height: 384 },
+		{ id: "data:image/webp;base64,local-back", width: 256, height: 384 },
+		{ id: "data:image/webp;base64,local-spine", width: 42, height: 384 },
+	];
+	const { size, regions } = packAtlas([...catalogInputs, ...localInputs], {
+		padding: 2,
+		maxSize: 4096,
+	});
+	assert.equal(regions.length, catalogInputs.length + localInputs.length);
+	// Thanks to gap packing, a full scanned book (front + back + spine) fits inside the 2048² atlas alongside all 53 catalog textures.
+	assert.equal(size, 2048);
+	for (let i = 0; i < regions.length; i++) {
+		for (let j = i + 1; j < regions.length; j++) {
+			assert.ok(
+				!overlaps(regions[i], regions[j]),
+				`${regions[i].id} overlaps ${regions[j].id}`,
+			);
+		}
+	}
+});
+
+

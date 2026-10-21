@@ -465,13 +465,13 @@
       ]
     },
     "/blockchain/a/c/a course in miracles/a_course_in_miracles.spine.webp": {
-      "x": 481,
-      "y": 1546,
+      "x": 1832,
+      "y": 2,
       "width": 104,
       "height": 384,
       "offset": [
-        0.23486328125,
-        0.0576171875
+        0.89453125,
+        0.8115234375
       ],
       "repeat": [
         0.05078125,
@@ -479,13 +479,13 @@
       ]
     },
     "/experience/books/assets/booktextureSide.webp": {
-      "x": 587,
-      "y": 1546,
+      "x": 1938,
+      "y": 2,
       "width": 90,
       "height": 384,
       "offset": [
-        0.28662109375,
-        0.0576171875
+        0.9462890625,
+        0.8115234375
       ],
       "repeat": [
         0.0439453125,
@@ -493,13 +493,13 @@
       ]
     },
     "/blockchain/b/e/behave/Behave.spine.webp": {
-      "x": 679,
-      "y": 1546,
+      "x": 1972,
+      "y": 1160,
       "width": 74,
       "height": 384,
       "offset": [
-        0.33154296875,
-        0.0576171875
+        0.962890625,
+        0.24609375
       ],
       "repeat": [
         0.0361328125,
@@ -507,12 +507,12 @@
       ]
     },
     "/blockchain/t/h/the_daily_stoic/The_Daily_Stoic.spine.webp": {
-      "x": 755,
+      "x": 481,
       "y": 1546,
       "width": 47,
       "height": 384,
       "offset": [
-        0.36865234375,
+        0.23486328125,
         0.0576171875
       ],
       "repeat": [
@@ -521,12 +521,12 @@
       ]
     },
     "/blockchain/d/i/discipline is destiny/discipline_is_destiny.spine.webp": {
-      "x": 804,
+      "x": 530,
       "y": 1546,
       "width": 44,
       "height": 384,
       "offset": [
-        0.392578125,
+        0.2587890625,
         0.0576171875
       ],
       "repeat": [
@@ -535,12 +535,12 @@
       ]
     },
     "/blockchain/e/m/empowered.spine.webp": {
-      "x": 850,
+      "x": 576,
       "y": 1546,
       "width": 43,
       "height": 384,
       "offset": [
-        0.4150390625,
+        0.28125,
         0.0576171875
       ],
       "repeat": [
@@ -549,13 +549,13 @@
       ]
     },
     "/blockchain/s/t/stilness is the key/stilness_is_the_key.spine.webp": {
-      "x": 895,
-      "y": 1546,
+      "x": 2005,
+      "y": 774,
       "width": 41,
       "height": 384,
       "offset": [
-        0.43701171875,
-        0.0576171875
+        0.97900390625,
+        0.4345703125
       ],
       "repeat": [
         0.02001953125,
@@ -563,12 +563,12 @@
       ]
     },
     "/blockchain/w/h/whats your dream/What_s_your_dream.spine.webp": {
-      "x": 938,
+      "x": 621,
       "y": 1546,
       "width": 41,
       "height": 384,
       "offset": [
-        0.4580078125,
+        0.30322265625,
         0.0576171875
       ],
       "repeat": [
@@ -577,12 +577,12 @@
       ]
     },
     "/blockchain/b/l/blitzscaling/Blitzscaling.spine.webp": {
-      "x": 981,
+      "x": 664,
       "y": 1546,
       "width": 37,
       "height": 384,
       "offset": [
-        0.47900390625,
+        0.32421875,
         0.0576171875
       ],
       "repeat": [
@@ -591,12 +591,12 @@
       ]
     },
     "/blockchain/b/e/be useful/Be_useful.spine.webp": {
-      "x": 1020,
+      "x": 703,
       "y": 1546,
       "width": 36,
       "height": 384,
       "offset": [
-        0.498046875,
+        0.34326171875,
         0.0576171875
       ],
       "repeat": [
@@ -605,12 +605,12 @@
       ]
     },
     "/blockchain/s/h/shaolin_spirit.spine.webp": {
-      "x": 1058,
+      "x": 741,
       "y": 1546,
       "width": 36,
       "height": 384,
       "offset": [
-        0.5166015625,
+        0.36181640625,
         0.0576171875
       ],
       "repeat": [
@@ -619,12 +619,12 @@
       ]
     },
     "/blockchain/f/o/four thousand weeks/four_thousand_weeks.spine.webp": {
-      "x": 1096,
+      "x": 779,
       "y": 1546,
       "width": 34,
       "height": 384,
       "offset": [
-        0.53515625,
+        0.38037109375,
         0.0576171875
       ],
       "repeat": [
@@ -633,12 +633,12 @@
       ]
     },
     "/blockchain/s/m/small data/Small_data.spine.webp": {
-      "x": 1132,
+      "x": 815,
       "y": 1546,
       "width": 34,
       "height": 384,
       "offset": [
-        0.552734375,
+        0.39794921875,
         0.0576171875
       ],
       "repeat": [
@@ -647,12 +647,12 @@
       ]
     },
     "/blockchain/t/h/the_source/the_source.spine.webp": {
-      "x": 1168,
+      "x": 851,
       "y": 1546,
       "width": 33,
       "height": 384,
       "offset": [
-        0.5703125,
+        0.41552734375,
         0.0576171875
       ],
       "repeat": [
@@ -661,12 +661,12 @@
       ]
     },
     "/blockchain/h/o/how big things get done/how_big_things_get_done.spine.webp": {
-      "x": 1203,
+      "x": 886,
       "y": 1546,
       "width": 32,
       "height": 384,
       "offset": [
-        0.58740234375,
+        0.4326171875,
         0.0576171875
       ],
       "repeat": [
@@ -675,12 +675,12 @@
       ]
     },
     "/blockchain/t/r/traction.spine.webp": {
-      "x": 1237,
+      "x": 920,
       "y": 1546,
       "width": 29,
       "height": 384,
       "offset": [
-        0.60400390625,
+        0.44921875,
         0.0576171875
       ],
       "repeat": [
@@ -689,12 +689,12 @@
       ]
     },
     "/blockchain/m/i/mit_liv_med_fangekoret-00000001/cover/spine.webp": {
-      "x": 1268,
+      "x": 951,
       "y": 1546,
       "width": 25,
       "height": 384,
       "offset": [
-        0.619140625,
+        0.46435546875,
         0.0576171875
       ],
       "repeat": [
@@ -703,13 +703,13 @@
       ]
     },
     "/blockchain/s/e/seneca on the shortness of life/Seneca_on_the_shortness_of_life.spine.webp": {
-      "x": 1295,
-      "y": 1546,
+      "x": 2030,
+      "y": 2,
       "width": 14,
       "height": 384,
       "offset": [
-        0.63232421875,
-        0.0576171875
+        0.9912109375,
+        0.8115234375
       ],
       "repeat": [
         0.0068359375,
@@ -717,12 +717,12 @@
       ]
     },
     "/blockchain/m/i/mit_liv_med_fangekoret-00000001/cover/front.webp": {
-      "x": 1311,
+      "x": 978,
       "y": 1546,
       "width": 235,
       "height": 365,
       "offset": [
-        0.64013671875,
+        0.4775390625,
         0.06689453125
       ],
       "repeat": [
@@ -731,12 +731,12 @@
       ]
     },
     "/experience/books/assets/booktexture.webp": {
-      "x": 1548,
+      "x": 1215,
       "y": 1546,
       "width": 384,
       "height": 90,
       "offset": [
-        0.755859375,
+        0.59326171875,
         0.201171875
       ],
       "repeat": [
