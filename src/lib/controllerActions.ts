@@ -1,6 +1,7 @@
 import { useShelfControlsStore } from "../../stores/useShelfControlsStore";
 import { BOOKS_SHELF_LEVEL } from "../components/shelves/shelfBooks";
 import { setControllerJoystickMode } from "../components/tour/controllerJoystick";
+import { sceneTransition } from "../stores/sceneTransition";
 import { useBookStore } from "../stores/useBookStore";
 import { useLevelStore } from "../stores/useLevelStore";
 import { usePresentationStore } from "../stores/usePresentationStore";
@@ -99,6 +100,12 @@ export function runControllerAction(
 			if (tour.bookPanel === "closed")
 				tour.previewBook(useBookStore.getState().selectedBookId);
 			else tour.openReader();
+			break;
+		case "go-map":
+			// Stop the reel so nothing keeps animating under the transition overlay.
+			presentation.setCinematicPlaying(false);
+			useTourStore.setState({ paused: true });
+			sceneTransition.go("/play");
 			break;
 		case "map": {
 			const next =

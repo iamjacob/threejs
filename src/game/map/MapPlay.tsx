@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import MapGL, { type MapRef } from "react-map-gl/maplibre";
 import { Canvas } from "react-three-map/maplibre";
 import BoooksController from "../../components/layout/BoooksController";
+import { useArriveWhen } from "../../components/layout/SceneTransition";
+import { sceneTransition } from "../../stores/sceneTransition";
 import { useMapPlayStore } from "../../stores/useMapPlayStore";
 import { HOME, HOME_VIEW } from "../core/config.ts";
 import { MAP_PLAY_ACTIONS, MapPlayHud } from "./MapPlayHud";
@@ -69,9 +71,18 @@ export default function MapPlay() {
 				runtime.setFollowing(true);
 				useMapPlayStore.getState().setFollowing(true);
 			}
+			if (id === "go-shelves") {
+				// Leaving unmounts the runtime, whose dispose() writes the exit checkpoint.
+				sceneTransition.go("/");
+			}
 		},
 		[runtime],
 	);
+
+	// Reveal once the game runtime is ready and the map has drawn its first style (or errored).
+	const status = useMapPlayStore((s) => s.status);
+	const [mapDrawn, setMapDrawn] = useState(false);
+	useArriveWhen("/play", status !== "loading" && mapDrawn);
 
 	return (
 		<main
@@ -103,9 +114,11 @@ export default function MapPlay() {
 					polishMap(e.target);
 					attachCamera();
 					registerProbe({ map: e.target });
+					e.target.once("idle", () => setMapDrawn(true));
 				}}
 				onError={() => {
 					if (mapStyle === REMOTE_MAP_STYLE) goOffline();
+					else setMapDrawn(true); // offline style failed too: never keep the overlay up
 				}}
 				onDragStart={() => {
 					// A user pan detaches the camera; the "follow" action re-attaches it.

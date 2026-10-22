@@ -336,3 +336,47 @@ errors). There is no `AGENTS.md`, no installed offline-first skill and no Supaba
 5. Remote messaging is not started. It needs a new `scope`/`status` set, a separate adapter, and real Supabase Auth
    configuration, none of which exist in the repo.
 
+
+# Slice: back-and-forth loader + shelves ⇄ map transition (same branch, after `2793601`)
+
+## What changed
+
+- **Loader:** `LoaderMark` (wordmark plus a glowing segment that slides back and forth with CSS `alternate`, 1.1 s per
+  leg; 2.4 s with reduced motion). It is used by the shelves `MarkLoader`, the `/play` Suspense fallback and the
+  transition overlay. `MarkLoader` no longer fakes a percentage (the old fill crept forward on a timer). Its
+  mount and fade-out timing are unchanged.
+- **Transition:** `src/stores/sceneTransition.ts` is a small state machine:
+  `idle → cover (320 ms iris from the tapped button) → wait → reveal (480 ms fade) → idle`. Navigation runs only after
+  the screen is covered, and the destination's code is preloaded during the cover. The destination calls
+  `useArriveWhen(path, ready)`: the shelves page when `sceneBooted`, the map when the runtime is ready **and** MapLibre
+  has fired its first `idle` (or the offline style failed). There is a 10 s safety reveal, and double taps are ignored.
+  Root-level `<SceneTransition/>` registers the router's navigate/preload.
+- **Joystick menu:** the shelves menu gains **"Open map"** (`go-map`; it pauses the cinematic reel first). The map menu
+  gains **"Shelves"** (`go-shelves`). The old shelves item labelled "Map" only cycled the 3D environment, so it is
+  renamed **"Scenery"**. Its id `map` and its behaviour are unchanged.
+- Leaving the map unmounts the runtime, whose existing `dispose()` writes the exit checkpoint (verified on web and
+  Android).
+
+## Results
+
+| Check | Result |
+|---|---|
+| `npm run typecheck` | exit 0 |
+| `node --test tests/*.test.mjs` | **285/285** (+5 `scene-transition`: order, double tap, stuck/failed navigation, no navigator, back-and-forth) |
+| `npm run build` | exit 0; 58 precache entries; test hooks in dist: 0 |
+| Chrome `npm run test:scene-switch` (build:test) | **4/4**: the bar moves both ways (sampled `transform`), 3 joystick round trips, checkpoint restored, no page errors |
+| Chrome regressions `map-play` / `tornado-books` | 11/11, 9/9 |
+| Android emulator `npm run test:android:scene` | **3/3** (2 round trips + native checkpoint) |
+| `npm run cap:sync` (final) | exit 0; hooks in Android assets: 0 |
+| Lint (repo) | 32 errors / 76 warnings = baseline; changed files clean |
+| iOS / physical device | not run |
+
+## Notes / risks
+
+- On Android the menu was driven through its keyboard path (Enter on focused buttons). Real touch on the dial is
+  covered only for steering, by `android-map-play`.
+- In headless Chrome the boot loader was sometimes gone before sampling (cached assets). The back-and-forth motion
+  was then asserted on the transition overlay, which uses the same component.
+- The map style is fetched online on each visit (existing behaviour). With a slow network the overlay waits for the
+  first `idle`, for at most 10 s.
+

@@ -1,4 +1,5 @@
 import type { ControllerActionItem } from "../../components/layout/BoooksController";
+import { GO_SHELVES_ACTION } from "../../components/layout/boooksControllerActions";
 import { useMapPlayStore } from "../../stores/useMapPlayStore";
 
 /** Controller actions on this route. `play` reuses the controller's existing toggle UI. */
@@ -26,6 +27,7 @@ export const MAP_PLAY_ACTIONS: ControllerActionItem[] = [
 			</>
 		),
 	},
+	GO_SHELVES_ACTION,
 ];
 
 /** Low-frequency status line. Re-renders only on GameEvents, never per frame. */

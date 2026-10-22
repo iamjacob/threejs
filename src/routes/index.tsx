@@ -16,6 +16,7 @@ import LibraryScene from "../components/layout/LibraryScene";
 import MarkLoader from "../components/layout/MarkLoader";
 import { CinematicReelBar } from "../components/layout/SceneScreenshot";
 import SceneToolbar from "../components/layout/SceneToolbar";
+import { useArriveWhen } from "../components/layout/SceneTransition";
 import BookInfoCard from "../components/library/BookInfoCard";
 import type { BookScan } from "../components/scanner/scannedBook";
 import { runControllerAction } from "../lib/controllerActions";
@@ -122,6 +123,8 @@ function Home() {
 	const showShelfControls = !scanning && editing && editableStage;
 	const readerClosed = reader === "closed";
 	const chrome = sceneBooted && !scanning;
+	// Coming back from the map: keep the transition overlay until the shelves have booted.
+	useArriveWhen("/", sceneBooted);
 
 	const wasEditing = useRef(editing);
 	useEffect(() => {
