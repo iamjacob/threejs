@@ -37,6 +37,13 @@ export async function ensureActiveProfile(ctx: DataContext): Promise<Profile> {
 	});
 }
 
+/** The currently active profile id (read-only; no guest is created). */
+export function getActiveProfileId(
+	ctx: DataContext,
+): Promise<string | undefined> {
+	return ctx.database.read((db) => profileRepository.getActiveId(db));
+}
+
 /** Profiles a user can switch to (merged guests are archived and hidden). */
 export async function listProfiles(ctx: DataContext): Promise<Profile[]> {
 	const all = await ctx.database.read((db) => profileRepository.list(db));

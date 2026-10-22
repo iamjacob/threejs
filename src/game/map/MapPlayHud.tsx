@@ -39,6 +39,7 @@ export function MapPlayHud() {
 		mapMode,
 		checkpoint,
 		error,
+		library,
 	} = useMapPlayStore();
 	const label =
 		status === "loading"
@@ -60,6 +61,18 @@ export function MapPlayHud() {
 			<span className="text-[10px] text-slate-300" data-testid="map-play-meta">
 				{mapMode === "offline" ? "Offline map" : "Map"} ·{" "}
 				{following ? "Following" : "Free camera"} · checkpoint {checkpoint}
+			</span>
+			<span
+				className="text-[10px] text-slate-300"
+				data-testid="map-play-library"
+			>
+				{library.state === "loading"
+					? "Loading your books…"
+					: library.state === "unavailable"
+						? "Books unavailable (local storage not open)"
+						: library.count === 0
+							? "Your library is empty: scan or add a book"
+							: `${library.count} book${library.count === 1 ? "" : "s"} in your tornado${library.hidden ? ` (+${library.hidden} more)` : ""}`}
 			</span>
 		</div>
 	);

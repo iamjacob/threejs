@@ -1,6 +1,6 @@
 import type { Map as MapLibreMap } from "maplibre-gl";
-import type { Object3D } from "three";
-import { Vector3 } from "three";
+import type { InstancedMesh, Object3D } from "three";
+import { Matrix4, Vector3 } from "three";
 import { HOME } from "../core/config.ts";
 import { geoToScene, type LngLat } from "../core/geo.ts";
 import {
@@ -34,11 +34,20 @@ export type MapProbe = {
 	playerPx: { x: number; y: number };
 	screenCenter: { x: number; y: number };
 	maxObservedSpeed: number;
+	/** Books in the rendered tornado: active profile id, book ids, and how each cover resolved. */
+	library?: { profileId: string; sources: string[]; ids: string[] };
+	/** Rendered tornado: instanced meshes under the entity and their total instance count. */
+	booksMeshes: number;
+	booksInstances: number;
+	/** Largest instance distance from the tornado axis / height, from the live instance matrices. */
+	booksMaxRadius: number;
+	booksMaxHeight: number;
 };
 
 export const testHooksEnabled = import.meta.env.VITE_BOOOKS_TEST_HOOKS === "1";
 
 type Probe = {
+	library?: { profileId: string; sources: string[]; ids: string[] };
 	map?: MapLibreMap;
 	runtime?: MapPlayRuntime;
 	entity?: Object3D;
@@ -109,5 +118,31 @@ function read(): MapProbe | undefined {
 		playerPx: { x: projected.x, y: projected.y },
 		screenCenter: { x: w / 2, y: h / 2 },
 		maxObservedSpeed: probe.maxSpeed,
+		library: probe.library,
+		...countBookMeshes(entity),
 	};
+}
+
+function countBookMeshes(entity: Object3D) {
+	let booksMeshes = 0;
+	let booksInstances = 0;
+	let booksMaxRadius = 0;
+	let booksMaxHeight = 0;
+	const m4 = new Matrix4();
+	const p = new Vector3();
+	entity.traverse((o) => {
+		const m = o as InstancedMesh;
+		if (m.isInstancedMesh && o.name === "tornado-books") {
+			booksMeshes++;
+			booksInstances += m.count;
+			// Actual instance matrices on the GPU-bound mesh, so "all books at the origin" is caught.
+			for (let i = 0; i < m.count; i++) {
+				m.getMatrixAt(i, m4);
+				p.setFromMatrixPosition(m4);
+				booksMaxRadius = Math.max(booksMaxRadius, Math.hypot(p.x, p.z));
+				booksMaxHeight = Math.max(booksMaxHeight, p.y);
+			}
+		}
+	});
+	return { booksMeshes, booksInstances, booksMaxRadius, booksMaxHeight };
 }

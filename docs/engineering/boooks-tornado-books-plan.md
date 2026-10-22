@@ -57,8 +57,14 @@ unique(profile_id, client_key); index(profile_id, deleted_at, added_at)
 - **Recoverable:** each scan is imported as bytes → FileStore (idempotent), then one SQLite transaction for the file
   rows and the book row. A crash between scans leaves completed scans done; the next run continues.
 - **Verified before release:** after import, each row and its cover files are read back (bytes present, sha256
-  matches). Only then is the legacy record marked imported, in an `imported` marker store inside the **same IndexedDB**
-  database (version bump 1 → 2). The original `books` records are **kept**; deleting them is a later, separate cleanup.
+  matches). Only then is the legacy record marked imported, in a **separate** IndexedDB database `boooks-scans-import`.
+  *Revised during implementation:* the scanner opens `boooks-scans` with `indexedDB.open(name, 1)`, so bumping that
+  database to version 2 would make the scanner fail with `VersionError`. The original `books` records are **kept**;
+  deleting them is a later, separate cleanup.
+- **The scanner still writes new scans only to IndexedDB** (`scannedBook.ts` is out of scope). New scans are picked up
+  by the same import the next time `/play` loads, as long as the active profile is the guest. Scans made while an
+  account is active are not imported yet (reported as `skipped_not_guest`); routing new scans to the active profile is
+  a follow-up.
 - **Never silent:** scans with no or invalid front image, or undecodable data URLs, are reported as `failed` with a
   reason, and their IndexedDB record is untouched.
 

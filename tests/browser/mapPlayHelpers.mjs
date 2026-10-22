@@ -1,7 +1,14 @@
 // Page helpers for tests/browser/map-play.mjs.
 import { BASE } from "./harness.mjs";
 
-export const probe = (page) => page.evaluate(() => window.__boooksMapProbe?.());
+/**
+ * Reads the in-page probe, waiting (≤ 10 s) until it is complete: right after a remount the new
+ * camera has not been synced by react-three-map yet, and the probe reports undefined until it is.
+ */
+export async function probe(page) {
+	const handle = await page.waitForFunction(() => window.__boooksMapProbe?.(), null, { timeout: 10_000 });
+	return handle.jsonValue();
+}
 export const pxDist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
 /** Opens /play and waits until the probe is live (and the remote style loaded, if online). */

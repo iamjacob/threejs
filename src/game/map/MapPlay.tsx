@@ -9,8 +9,12 @@ import { HOME, HOME_VIEW } from "../core/config.ts";
 import { MAP_PLAY_ACTIONS, MapPlayHud } from "./MapPlayHud";
 import { OFFLINE_MAP_STYLE, polishMap, REMOTE_MAP_STYLE } from "./mapStyle";
 import { HomeMarker, TornadoPlayer } from "./TornadoPlayer";
+import { installTestActions } from "./testActions";
 import { registerProbe } from "./testProbe";
 import { useMapPlayRuntime } from "./useMapPlayRuntime";
+import { useTornadoLibrary } from "./useTornadoLibrary";
+
+installTestActions();
 
 const STYLE_TIMEOUT_MS = 8000;
 
@@ -21,6 +25,7 @@ const STYLE_TIMEOUT_MS = 8000;
 export default function MapPlay() {
 	const mapRef = useRef<MapRef>(null);
 	const runtime = useMapPlayRuntime();
+	const library = useTornadoLibrary();
 	const paused = useMapPlayStore((s) => s.paused);
 	const [mapStyle, setMapStyle] = useState<string | StyleSpecification>(
 		REMOTE_MAP_STYLE,
@@ -117,7 +122,12 @@ export default function MapPlay() {
 							position={[12, 34, 18]}
 						/>
 						<HomeMarker at={HOME} origin={HOME} />
-						<TornadoPlayer runtime={runtime} origin={HOME} />
+						<TornadoPlayer
+							runtime={runtime}
+							origin={HOME}
+							books={library.books}
+							sheet={library.sheet}
+						/>
 					</Canvas>
 				)}
 			</MapGL>

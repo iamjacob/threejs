@@ -14,6 +14,16 @@ type MapPlayState = {
 	atBoundary: boolean;
 	mapMode: "online" | "offline";
 	checkpoint: "none" | "restored" | "saved" | "unsaved";
+	/** Library shown in the tornado (counts only; book rows never live in Zustand). */
+	library: {
+		state: "loading" | "ready" | "unavailable";
+		count: number;
+		hidden: number;
+		error?: string;
+	};
+	legacyImport?: { status: string; imported: number; failed: number };
+	setLibrary: (library: MapPlayState["library"]) => void;
+	setImport: (status: string, imported: number, failed: number) => void;
 	setStatus: (status: MapPlayState["status"], error?: string) => void;
 	setMapMode: (mode: MapPlayState["mapMode"]) => void;
 	setFollowing: (following: boolean) => void;
@@ -31,6 +41,8 @@ const initial = {
 	atBoundary: false,
 	mapMode: "online" as const,
 	checkpoint: "none" as const,
+	library: { state: "loading" as const, count: 0, hidden: 0 },
+	legacyImport: undefined,
 };
 
 export const useMapPlayStore = create<MapPlayState>()((set) => ({
@@ -39,6 +51,9 @@ export const useMapPlayStore = create<MapPlayState>()((set) => ({
 	setMapMode: (mapMode) => set({ mapMode }),
 	setFollowing: (following) => set({ following }),
 	setCheckpoint: (checkpoint) => set({ checkpoint }),
+	setLibrary: (library) => set({ library }),
+	setImport: (status, imported, failed) =>
+		set({ legacyImport: { status, imported, failed } }),
 	applyEvent: (event) => {
 		switch (event.type) {
 			case "moving-started":
