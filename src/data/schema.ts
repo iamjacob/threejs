@@ -5,6 +5,7 @@ import {
 	index,
 	integer,
 	primaryKey,
+	real,
 	sqliteTable,
 	text,
 	uniqueIndex,
@@ -112,6 +113,44 @@ export const profileMerges = sqliteTable("profile_merges", {
 	...timestamps,
 });
 
+/**
+ * A profile's library membership (migration 0002). Catalog books stay shared in the bundle and are
+ * referenced by `catalogId`; scanned books are personal and their covers are `files` rows.
+ * `clientKey` = 'catalog:<catalogId>' | 'scan:<legacyScanId>' is the natural key used for
+ * idempotent import and for merge conflict detection.
+ */
+export const libraryBooks = sqliteTable(
+	"library_books",
+	{
+		id: text("id").primaryKey(),
+		profileId: text("profile_id")
+			.notNull()
+			.references(() => profiles.id),
+		clientKey: text("client_key").notNull(),
+		source: text("source", { enum: ["catalog", "scan"] }).notNull(),
+		catalogId: text("catalog_id"),
+		title: text("title").notNull(),
+		author: text("author").notNull().default(""),
+		widthCm: real("width_cm"),
+		heightCm: real("height_cm"),
+		thicknessCm: real("thickness_cm"),
+		color: text("color"),
+		coverFrontFileId: text("cover_front_file_id").references(() => files.id),
+		coverBackFileId: text("cover_back_file_id").references(() => files.id),
+		coverSpineFileId: text("cover_spine_file_id").references(() => files.id),
+		addedAt: integer("added_at").notNull(),
+		deletedAt: integer("deleted_at"),
+		...timestamps,
+	},
+	(t) => [
+		uniqueIndex("library_books_profile_client_key").on(
+			t.profileId,
+			t.clientKey,
+		),
+		index("library_books_profile_idx").on(t.profileId, t.deletedAt, t.addedAt),
+	],
+);
+
 /** Per-profile settings. Seam for moving localStorage keys (e.g. boooks-shelf-level) later. */
 export const profileSettings = sqliteTable(
 	"profile_settings",
@@ -130,3 +169,4 @@ export type Profile = typeof profiles.$inferSelect;
 export type Note = typeof notes.$inferSelect;
 export type FileRecord = typeof files.$inferSelect;
 export type OutboxEntry = typeof outbox.$inferSelect;
+export type LibraryBook = typeof libraryBooks.$inferSelect;

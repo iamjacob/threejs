@@ -14,6 +14,8 @@ export * as schema from "./schema";
 export * from "./usecases/accounts";
 export * from "./usecases/context";
 export * from "./usecases/files";
+export * from "./usecases/legacyScanImport";
+export * from "./usecases/libraryBooks";
 export * from "./usecases/notes";
 export * from "./usecases/outbox";
 export * from "./usecases/profiles";
