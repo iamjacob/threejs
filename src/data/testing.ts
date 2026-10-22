@@ -1,6 +1,7 @@
 // Test entry point: exports the platform-independent data layer for node --test.
 // Not imported by the app.
 
+export * from "../game/checkpoint";
 export { createMemoryFileStore } from "../platform/files/fileStore";
 export { Database, DatabaseError } from "./db/database";
 export { migrate } from "./db/migrate";
