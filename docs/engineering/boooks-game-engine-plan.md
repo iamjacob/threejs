@@ -94,7 +94,7 @@ After any `*:test` / `test:android:play` build, run `npm run build` / `npm run c
 
 Each slice touches only `src/game/**` plus its tests unless stated otherwise, and keeps all `game-*` tests green.
 
-1. **Library-backed tornado:** instances colored and sized from `useBookStore` (capped at 72). *Accept:* one instance per book up to the cap, with a headless test of the book → instance mapping.
+1. **✅ Done in `boooks/tornado-library-books`** (see `boooks-tornado-books-plan.md`; adds migration 0002). **Library-backed tornado:** instances colored and sized from `useBookStore` (capped at 72). *Accept:* one instance per book up to the cap, with a headless test of the book → instance mapping.
 2. **Zoom → pitch camera curve** (port `PokemonGoCameraController`). *Accept:* pitch follows the S-curve on zoom, the curve function is unit-tested, and zoom and pitch events don't trigger each other recursively.
 3. **Optional GPS input:** an explicit "Use my location" action, using `getPosition()`, feeds commands; no location history is stored. *Accept:* geolocation is never called until that action is used, and a denied permission leaves joystick play unchanged.
 4. **Reading places:** hold-to-place pins saved per profile through a use case (new table + migration). *Accept:* a pin survives restart, another profile can't see it, and the alignment probe passes under rotation.

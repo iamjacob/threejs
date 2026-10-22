@@ -198,3 +198,90 @@ commit `dd3ea26`. This agent never ran `git push`. Repo and global git config ha
 5. **The Android test's touch geometry** derives the WebView top from the nav-bar inset; other devices may need tuning.
 6. **The background checkpoint is best-effort:** `pagehide`/`visibilitychange` may not fire when the OS kills the app.
    At worst the last pause or background position is restored.
+
+---
+
+# Slice: tornado from the active profile's books (branch `boooks/tornado-library-books`)
+
+Plan and decisions: `boooks-tornado-books-plan.md`. Based on `boooks/game-engine` @ `c81c2f2`. Local branch, no upstream.
+
+## Pre-work checks
+
+- **Auto-push:** still unexplained, so it **could not be confirmed disabled**. The repo and global git config have no
+  push settings, aliases or hooks; `~/.cline` has no push hooks (only session-shutdown logs). `ls-remote` showed
+  `boooks/game-engine` was never pushed. The new branch was created with `git switch --no-track`
+  (`branch.boooks/tornado-library-books.remote` is empty).
+- **Status:** clean tree on `boooks/game-engine` (`c81c2f2`). Unrelated: `threejs-data-foundation` still has an
+  uncommitted `agent-log-opus.md` rewrite this agent did not make.
+- **Baseline:** `npx tsc --noEmit` exit 0; `node --test tests/*.test.mjs` 245/245; `npx biome lint` 32 errors / 76 warnings.
+- **Contract gap (reported, then approved as Option 1):** there was no SQLite book model. Books came from
+  `public/books.json`, the IndexedDB `boooks-scans` store and `useBookStore`, none of them profile-scoped.
+
+## Checkpoints
+
+| Commit | Scope |
+|--------|-------|
+| `1a82152` | plan: ownership, schema 0002, import, merge rules |
+| `644f283` | migration 0002 `library_books`, repository, use cases, legacy import, merge copies books, 11 data tests |
+| `b58950a` | pure `tornadoBooks` mapping + 6 tests, cover sheet, `TornadoBooks` instanced mesh, `useTornadoLibrary`, HUD, Chrome test |
+| (next) | Android library check, docs |
+
+## Bugs found and fixed
+
+- **Books collapsed at the origin:** the first `TornadoBooks` passed the per-sheet geometry through `args`, so R3F recreated
+  the InstancedMesh when the cover sheet arrived and the matrices reset to identity. Seen in a screenshot. Geometry is
+  now swapped in place, and the probe reads the live instance matrices (`booksMaxRadius/Height`) to catch a regression.
+- **Instance color tinted the covers:** a `color_fragment` patch now applies the book color only to sides/edges (three 0.185 chunk).
+- **The empty-profile switch published stale probe data:** the library publish now runs on every outcome, including empty.
+- **A slice-1 test race:** right after a remount the probe is briefly undefined until react-three-map syncs the new
+  camera. `probe()` now waits for it; the 11 `map-play` checks pass again.
+- **Plan revised:** import markers are kept in a separate IndexedDB database `boooks-scans-import`, because bumping
+  `boooks-scans` to version 2 would break the scanner's `open(name, 1)`.
+
+## Results
+
+| Check | Command | Result |
+|-------|---------|--------|
+| Types | `npx tsc --noEmit` | exit 0 |
+| Unit tests | `node --test tests/*.test.mjs` | **262 pass, 0 fail** (245 + 6 data-library + 5 legacy + 6 tornado mapping) |
+| Lint (repo) | `npx biome lint` | 32 errors / 76 warnings = baseline |
+| Lint (changed) | `npx biome check src/game src/data src/platform src/stores/useMapPlayStore.ts` | clean |
+| Web build | `npm run build` | exit 0; precache 54 entries (4166 KiB); test hooks in bundle: 0 files |
+| Native build | `npm run build:native`, `npm run cap:sync` | exit 0; hooks in synced Android assets: 0 files |
+| Chrome `/play` books | `npm run build:test && node tests/browser/tornado-books.mjs` | **9/9** |
+| Chrome `/play` (slice 1) | `node tests/browser/map-play.mjs` | 11/11 |
+| Chrome data regression | `node tests/browser/web-restart.mjs` | 7/7 |
+| Android emulator (API 36) | `npm run test:android:play` | **5/5** (adds the library check) |
+| iOS | not run | Xcode not installed |
+
+## How books reach the tornado
+
+`useTornadoLibrary` (outside the frame loop) → `bootstrapData()` → `getActiveProfileId` → (guest only, first load)
+`importLegacyScans` → `listLibraryBooks(ctx, profileId)` (rows + cover `files` rows in one read) → `toTornadoSource` (catalog →
+bundled atlas path, scan → FileStore blob key) → pure `tornadoInstances` (stable slots, cap 72) → `buildCoverSheet`
+(fallback cell, then atlas region or local bytes; never a remote URL) → `TornadoPlayer` props → one InstancedMesh.
+Zustand gets counts only. A profile change clears the books first, and a request token drops stale results.
+
+## Performance observations (headless Chrome, SwiftShader software GL, 1280×720)
+
+- 18 books (whole catalog): 181 frames / 3 s, median 16.7 ms, p95 16.7 ms. A 150-book library (72 drawn): median 16.7 ms,
+  p95 16.7 ms. Both are vsync-bound, with no measurable cost from the books.
+- Books are **one draw call** (InstancedMesh). The cover sheet is a single texture of up to 12×6 cells of 96×144 px
+  (1152×864), built once per library load. There is no per-frame allocation, React state, Zustand write or DB access
+  in `useFrame` (reviewed: the frame callback touches only position and spin).
+- **Not measured:** real mobile GPUs, cover decode time for large real photos (the test images are 1×1 px).
+
+## Remaining risks
+
+1. **New scans still go only to IndexedDB** (the scanner is out of scope). They are imported on the next `/play` load
+   while a guest is active; scans made while an account is active are **not imported** yet (`skipped_not_guest`).
+2. **There is no UI to add catalog books yet.** `addCatalogBook` exists and is tested, but it is reachable only from
+   the test hooks. New profiles see an empty tornado.
+3. **The merge copies books** and so doubles cover file rows (blobs are shared). Removing guest rows is a later cleanup.
+4. **The catalog cover depends on the prebuilt atlas** (`/book-images/cover-atlas.webp`, precached). If it is missing, the
+   cell keeps the metadata fallback.
+5. **Profile switches are detected on focus/visibility.** Switching from another tab while `/play` stays focused isn't
+   observed (the single-tab lock makes this unlikely).
+6. **The legacy import runs on the main thread;** many large scans may delay the first `/play` load once.
+7. **Auto-push is still unexplained.** Keep the branch local until it is found.
+

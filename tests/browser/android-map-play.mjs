@@ -90,6 +90,44 @@ try {
 	assert.ok(Math.abs(p.player.lat - saved.lat) < 1e-7 && Math.abs(p.player.lng - saved.lng) < 1e-7, "restored");
 	step("android: checkpoint written on background survives force-stop and is restored (native SQLite)");
 
+	// Library books (native SQLite + native Filesystem FileStore).
+	const libFor = () => page.evaluate(() => window.__boooksMapProbe?.()?.library);
+	const waitBooks = (n) =>
+		page.waitForFunction((n) => window.__boooksMapProbe?.()?.library?.ids.length === n, n, { timeout: 60_000 });
+	await waitBooks(0);
+	await page.evaluate(() => window.__boooksTest.addCatalogBooks(1));
+	await page.evaluate(
+		(png) =>
+			new Promise((resolve, reject) => {
+				const r = indexedDB.open("boooks-scans", 1);
+				r.onupgradeneeded = () => r.result.createObjectStore("books", { keyPath: "id" });
+				r.onsuccess = () => {
+					const tx = r.result.transaction("books", "readwrite");
+					tx.objectStore("books").put({ id: "android-scan-1", title: "Phone Scan", author: "Me", cover: { front: png }, dimensions: [0.4, 0.6, 0.05] });
+					tx.oncomplete = () => {
+						r.result.close();
+						resolve();
+					};
+					tx.onerror = () => reject(tx.error);
+				};
+			}),
+		"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+	);
+	await kill();
+	page = await launch();
+	await waitBooks(2);
+	let lib = await libFor();
+	assert.deepEqual(lib.sources, ["atlas", "file"], "catalog cover from atlas, scan cover from the native FileStore");
+	const ids = lib.ids;
+	await kill();
+	page = await launch();
+	await waitBooks(2);
+	lib = await libFor();
+	assert.deepEqual(lib.ids, ids, "same books and slots after force-stop; no duplicate import");
+	p = await probe(page);
+	assert.ok(p.booksInstances === 2 && p.booksMaxRadius > 8, "two instances placed on the spiral");
+	step("android: active profile's books (catalog + imported scan) render; stable across force-stop");
+
 	assert.equal(await shell(`dumpsys package ${APP} | grep -c 'ACCESS_FINE_LOCATION: granted=true' || true`), "0", "location never granted");
 	step("android: location permission not granted/requested by /play");
 	console.log(`\nandroid-map-play: ${passed} checks passed`);
