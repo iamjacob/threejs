@@ -113,3 +113,88 @@ Move **one** existing localStorage key into SQLite through the `profile_settings
 `boooks-shelf-plates-v1` (no ownership conflict) as the pilot, then `boooks-shelf-level` per the plan's seam section. Keep
 the synchronous localStorage read for first paint and reconcile after `bootstrapData()`.
 
+
+---
+
+# Game engine (branch `boooks/game-engine`, worktree `threejs-game-engine`)
+
+Plan and contract: `boooks-game-engine-plan.md`. Based on `boooks/data-foundation` @ `dd3ea26`. This agent did not push.
+
+## Push observation (data-foundation branch)
+
+`git reflog` shows `origin/boooks/data-foundation` was updated "by push" at 01:00 and again at 02:32, a minute after
+commit `dd3ea26`. This agent never ran `git push`. Repo and global git config have no push hooks or aliases, and
+`.git/hooks` has only samples, so an editor or agent integration most likely pushed. The new branch was created with
+`--no-track`, and `git ls-remote --heads origin boooks/game-engine` was empty after each commit.
+
+## Baseline (worktree at `dd3ea26`, before edits)
+
+| Check | Result |
+|-------|--------|
+| `npx tsc --noEmit` | exit 0 |
+| `node --test tests/*.test.mjs` | 214 pass, 0 fail |
+| `npm run build` | exit 0, PWA precache 48 entries |
+| `npm run build:native` | exit 0 |
+| `npx biome lint` | 32 errors / 76 warnings (pre-existing) |
+
+## Checkpoints
+
+| Commit | Scope |
+|--------|-------|
+| `1a77c39` | headless core: `geo.ts`, `simulation.ts`, `loop.ts`, `types.ts`, `config.ts`, `checkpoint.ts` + 25 tests |
+| `80d45b4` | `/play` slice: deps, `MapPlayRuntime`, `TornadoPlayer`, `MapPlay`, HUD, store, offline style, Chrome test |
+| `2eceb4f` | Android WebView test |
+| (next) | docs |
+
+## Bugs found and fixed
+
+- **Dropped step at exact 60 fps:** frames of 1000/60 ms summed to slightly less than n·dt in floating point, so
+  30 fps and 60 fps differed by one step. Fixed with an accumulator epsilon; covered by the frame-rate test.
+- **The alignment probe read the wrong matrix:** in react-three-map 1.0.1 `camera.projectionMatrix` is
+  projByView·cameraMatrix; the scene → clip matrix is `camera.userData.projByView`. Rendering was correct (the
+  screenshot shows the tornado at screen center); only the probe was wrong.
+- **The offline fallback test was wrong:** with the network off, the remote style still loaded from the HTTP cache.
+  The bundled-style fallback is now tested by blocking `tiles.openfreemap.org` on a fresh profile.
+
+
+
+## Results (final, game engine)
+
+| Check | Command | Result |
+|-------|---------|--------|
+| Types | `npx tsc --noEmit` | exit 0 |
+| Game tests (headless) | `npm run test:game` | **31 pass, 0 fail** |
+| All unit tests | `node --test tests/*.test.mjs` | **245 pass, 0 fail** (214 baseline + 31) |
+| Lint (repo) | `npx biome lint` | 32 errors / 76 warnings = baseline |
+| Lint (changed) | `npx biome check src/game src/stores/useMapPlayStore.ts src/routes/play.tsx` | clean |
+| Web build | `npm run build` | exit 0; precache 55 entries (4152 KiB); 1.07 MB MapPlay chunk loads only on `/play` |
+| Native build | `npm run build:native` | exit 0 |
+| Test hooks absent | `grep -l __boooksMapProbe dist/assets/*.js dist-native/assets/*.js` | 0 files |
+| Chrome (real WebGL) | `npm run build:test && npm run test:map-play` | **11/11** |
+| Data regression | `npm run test:web-restart` | 7/7 |
+| Android emulator (API 36) | `npm run test:android:play` | **4/4** |
+| Capacitor | `npx cap sync`; `npx cap doctor` | exit 0; iOS and Android "looking great" |
+| iOS | not run | **Xcode not installed** |
+
+## Verified per platform
+
+- **Chrome (desktop, headless):** joystick → command → movement; camera follow; the entity is within 2 px of
+  `map.project` at 3 pitch/zoom/bearing combinations and after a free pan; rotated-map steering; controller
+  pause/resume; route remount (one driver, top speed not doubled); checkpoint restored after SIGKILL; visibility
+  pause/resume; network-off reload; bundled style when tiles are unreachable; zero geolocation calls.
+- **Android (emulator API 36, debug APK, `swiftshader_indirect` GPU):** WebGL in the WebView; real touch through
+  `adb input swipe` moves the tornado; aligned at 2 views; a checkpoint written on background survives `am force-stop`
+  through native SQLite; location permission not granted.
+- **Not verified:** real phones, iOS (no Xcode), Safari/WebKit, pinch on a real touch screen, frame rate on low-end
+  devices, OS-killed backgrounding.
+
+## Remaining risks
+
+1. **react-three-map 1.0.1 internals:** the probe and the single-driver guarantee rely on its `syncCamera`/`userData`
+   behavior. The geo contract test pins the math, but any upgrade must rerun `test:map-play`.
+2. **The offline map is a blank ground**, not streets, until tile caching exists (follow-up 11).
+3. **The MapPlay chunk is 1.07 MB** (MapLibre). It is lazy and precached, so first install downloads about 1 MB more.
+4. **The play area is fixed to 5 km around HOME (Vejle).** Checkpoints outside it are ignored by design.
+5. **The Android test's touch geometry** derives the WebView top from the nav-bar inset; other devices may need tuning.
+6. **The background checkpoint is best-effort:** `pagehide`/`visibilitychange` may not fire when the OS kills the app.
+   At worst the last pause or background position is restored.
