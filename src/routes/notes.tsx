@@ -131,9 +131,10 @@ function Shell({ children }: { children: ReactNode }) {
 			<div className="mx-auto max-w-xl">
 				<header className="mb-4 flex items-center justify-between">
 					<h1 className="text-xl font-semibold">Notes (offline)</h1>
-					<Link to="/" className="text-sm text-sky-300">
-						Library
-					</Link>
+					<nav className="flex gap-3 text-sm text-sky-300">
+						<Link to="/people">People</Link>
+						<Link to="/">Library</Link>
+					</nav>
 				</header>
 				{children}
 			</div>

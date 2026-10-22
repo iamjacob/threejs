@@ -285,3 +285,54 @@ Zustand gets counts only. A profile change clears the books first, and a request
 6. **The legacy import runs on the main thread;** many large scans may delay the first `/play` load once.
 7. **Auto-push is still unexplained.** Keep the branch local until it is found.
 
+
+# Slice: several people on one device, offline (branch `boooks/offline-shared-device`)
+
+Plan and policy: `docs/engineering/boooks-shared-device-plan.md`. Based on `f56bf20`; local only, not pushed.
+
+## Baseline before edits (at `f56bf20`)
+
+`test:data` 42/42, `test:game` 37/37, `npx tsc --noEmit` exit 0, `npx biome lint` 32 errors / 76 warnings
+(pre-existing; `useNotesStore.ts` had one format diagnostic, `useLevelStore.ts`/`useTourStore.ts` have import-order
+errors). There is no `AGENTS.md`, no installed offline-first skill and no Supabase/Hono configuration in the repo.
+
+## Bugs found and fixed along the way
+
+- **A stale profile after a switch on another route.** `/play`'s checkpoint loader used `boot.profile` (cached at page
+  load), so it could load or save the map checkpoint under the previous person. The `/notes` store also booted from
+  `boot.profile`. All of these now read the active profile from SQLite (`resolveActiveProfile`).
+- **A notes reload race.** A reload that finished after a switch could write the previous profile's notes into the
+  store. It is now dropped when the profile changed.
+- **Two test-tool issues (not app bugs).** zsh heredocs were garbled in the shared terminal, so files were edited with
+  the editor instead. `getByText("Reader 1")` also matched "Reader 10" and "Reader 11", so the test now asserts on the
+  directory element.
+
+## Results
+
+| Check | Command | Result |
+|-------|---------|--------|
+| Types | `npm run typecheck` | exit 0 |
+| Unit tests | `node --test tests/*.test.mjs` | **280 pass, 0 fail** (262 + 18 new shared-device) |
+| Lint (repo) | `npx biome lint` | 32 errors / 76 warnings = baseline |
+| Lint (changed) | `npx biome check` on changed/new files | clean (only the pre-existing `useLevelStore`/`useTourStore` import order remains in `src/stores`) |
+| Web build | `npm run build` | exit 0; precache 57 entries (4186 KiB); test hooks in `dist`: 0 files |
+| Chrome `/people` | `npm run build && npm run test:shared-device` | **8/8** (11 people offline, directory, message, MutationObserver leak check with a canary self-test, SIGKILL, opt-out, restart, offline SW reload) |
+| Chrome regressions | `web-restart` / `tornado-books` (build:test) / `map-play` | 7/7, 9/9, 11/11 |
+| Android emulator (API 36, `Boooks_pixel_9`) | `npm run test:android:people` | **2/2** (native SQLite; message survives `am force-stop`; nonparticipant sees nothing) |
+| Android regression | `npm run test:android` | 4/4 |
+| Native sync | `npm run cap:sync` (final, no hooks) | exit 0; hooks in Android assets: 0 files |
+| iOS | not run | Xcode build not attempted in this slice (`cap sync` copied assets only) |
+| Physical device | not run | only the emulator was available |
+
+## Remaining risks / open decisions
+
+1. **Policy for opting out:** existing conversations stay readable by their members. Confirm this, or decide to
+   hide them.
+2. **There is no profile lock.** Anyone holding the device can switch to any person. A PIN would be UI gating only,
+   not encryption.
+3. Avatars, group conversations, message deletion and profile removal are not implemented.
+4. `listConversations` reads the last message once per conversation (N+1 inside a single serialized read). That is
+   fine at shared-device scale and was not measured beyond the test sizes.
+5. Remote messaging is not started. It needs a new `scope`/`status` set, a separate adapter, and real Supabase Auth
+   configuration, none of which exist in the repo.
+

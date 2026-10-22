@@ -15,7 +15,7 @@ test("0002 upgrades a populated 0001 database without touching existing rows", a
 	});
 	await v1.database.close();
 	const v2 = await openDb(data, store);
-	assert.deepEqual(v2.result.applied, ["0002_library_books"]);
+	assert.deepEqual(v2.result.applied, ["0002_library_books", "0003_shared_device"]);
 	const [{ c }] = await v2.database.queryRaw("SELECT count(*) AS c FROM notes");
 	assert.equal(c, 1);
 	const cols = (await v2.database.queryRaw("SELECT name FROM pragma_table_info('library_books')")).map((r) => r.name);

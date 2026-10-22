@@ -3,6 +3,7 @@
 
 export * from "../game/checkpoint";
 export { createMemoryFileStore } from "../platform/files/fileStore";
+export * as profileSession from "../stores/profileSession";
 export { Database, DatabaseError } from "./db/database";
 export { migrate } from "./db/migrate";
 export { migrations } from "./db/migrations.gen";
@@ -16,6 +17,8 @@ export * from "./usecases/context";
 export * from "./usecases/files";
 export * from "./usecases/legacyScanImport";
 export * from "./usecases/libraryBooks";
+export * from "./usecases/localMessages";
+export * from "./usecases/localProfiles";
 export * from "./usecases/notes";
 export * from "./usecases/outbox";
 export * from "./usecases/profiles";

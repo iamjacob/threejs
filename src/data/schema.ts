@@ -16,10 +16,15 @@ const timestamps = {
 	updatedAt: integer("updated_at").notNull(),
 };
 
-/** One row per person on this device. A guest exists from first launch. */
+/**
+ * One row per person on this device. A guest exists from first launch.
+ * kind: 'guest' = the persistent first-launch guest (owns legacy device-wide scans);
+ * 'local' = another person on this shared device (0003; no account, never remote);
+ * 'account' = linked/linkable account profile.
+ */
 export const profiles = sqliteTable("profiles", {
 	id: text("id").primaryKey(),
-	kind: text("kind", { enum: ["guest", "account"] }).notNull(),
+	kind: text("kind", { enum: ["guest", "local", "account"] }).notNull(),
 	displayName: text("display_name").notNull(),
 	/** Remote account id once linked. Null for guests and not-yet-linked accounts. */
 	remoteAccountId: text("remote_account_id"),
@@ -165,7 +170,93 @@ export const profileSettings = sqliteTable(
 	(t) => [primaryKey({ columns: [t.profileId, t.key] })],
 );
 
+/**
+ * Consented "On this device" directory (migration 0003). A row exists only while the profile owner
+ * has opted in; no row = not discoverable (the default for every existing and new profile).
+ * Holds ONLY the public name the owner chose. Turning visibility off deletes this row; the
+ * profile, its library and its conversations are untouched. Never synced or uploaded.
+ */
+export const deviceDirectory = sqliteTable("device_directory", {
+	profileId: text("profile_id")
+		.primaryKey()
+		.references(() => profiles.id),
+	publicName: text("public_name").notNull(),
+	...timestamps,
+});
+
+/**
+ * A conversation between profiles on THIS device (0003). scope 'local' = same database only;
+ * it is never written to the outbox and never uploaded. Remote conversations would need a
+ * separate scope and adapter.
+ */
+export const conversations = sqliteTable("conversations", {
+	id: text("id").primaryKey(),
+	scope: text("scope", { enum: ["local"] }).notNull(),
+	createdByProfileId: text("created_by_profile_id")
+		.notNull()
+		.references(() => profiles.id),
+	...timestamps,
+});
+
+/** Explicit participants. Every conversation/message read checks membership here. */
+export const conversationMembers = sqliteTable(
+	"conversation_members",
+	{
+		conversationId: text("conversation_id")
+			.notNull()
+			.references(() => conversations.id),
+		profileId: text("profile_id")
+			.notNull()
+			.references(() => profiles.id),
+		/** Public name snapshot from the directory when the member joined (never the private name). */
+		publicName: text("public_name").notNull(),
+		joinedAt: integer("joined_at").notNull(),
+	},
+	(t) => [
+		primaryKey({ columns: [t.conversationId, t.profileId] }),
+		index("conversation_members_profile_idx").on(t.profileId),
+	],
+);
+
+/**
+ * Messages. Ordered by (created_at, id). (author, client_key) is the sender's idempotency key, so
+ * a double-submit or retry stores one message. scope 'local' + status 'saved' = committed and
+ * flushed to this device's database; there is no network delivery or read receipt for it.
+ */
+export const messages = sqliteTable(
+	"messages",
+	{
+		id: text("id").primaryKey(),
+		conversationId: text("conversation_id")
+			.notNull()
+			.references(() => conversations.id),
+		authorProfileId: text("author_profile_id")
+			.notNull()
+			.references(() => profiles.id),
+		clientKey: text("client_key").notNull(),
+		body: text("body").notNull(),
+		scope: text("scope", { enum: ["local"] }).notNull(),
+		status: text("status", { enum: ["saved"] }).notNull(),
+		createdAt: integer("created_at").notNull(),
+	},
+	(t) => [
+		uniqueIndex("messages_author_client_key").on(
+			t.authorProfileId,
+			t.clientKey,
+		),
+		index("messages_conversation_order_idx").on(
+			t.conversationId,
+			t.createdAt,
+			t.id,
+		),
+	],
+);
+
 export type Profile = typeof profiles.$inferSelect;
+export type DeviceDirectoryRow = typeof deviceDirectory.$inferSelect;
+export type Conversation = typeof conversations.$inferSelect;
+export type ConversationMember = typeof conversationMembers.$inferSelect;
+export type Message = typeof messages.$inferSelect;
 export type Note = typeof notes.$inferSelect;
 export type FileRecord = typeof files.$inferSelect;
 export type OutboxEntry = typeof outbox.$inferSelect;

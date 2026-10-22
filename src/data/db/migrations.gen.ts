@@ -30,5 +30,17 @@ export const migrations: ReadonlyArray<{ id: string; statements: readonly string
 			"CREATE UNIQUE INDEX `library_books_profile_client_key` ON `library_books` (`profile_id`,`client_key`);",
 			"CREATE INDEX `library_books_profile_idx` ON `library_books` (`profile_id`,`deleted_at`,`added_at`);"
 		]
+	},
+	{
+		"id": "0003_shared_device",
+		"statements": [
+			"CREATE TABLE `conversation_members` (\n\t`conversation_id` text NOT NULL,\n\t`profile_id` text NOT NULL,\n\t`public_name` text NOT NULL,\n\t`joined_at` integer NOT NULL,\n\tPRIMARY KEY(`conversation_id`, `profile_id`),\n\tFOREIGN KEY (`conversation_id`) REFERENCES `conversations`(`id`) ON UPDATE no action ON DELETE no action,\n\tFOREIGN KEY (`profile_id`) REFERENCES `profiles`(`id`) ON UPDATE no action ON DELETE no action\n);",
+			"CREATE INDEX `conversation_members_profile_idx` ON `conversation_members` (`profile_id`);",
+			"CREATE TABLE `conversations` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`scope` text NOT NULL,\n\t`created_by_profile_id` text NOT NULL,\n\t`created_at` integer NOT NULL,\n\t`updated_at` integer NOT NULL,\n\tFOREIGN KEY (`created_by_profile_id`) REFERENCES `profiles`(`id`) ON UPDATE no action ON DELETE no action\n);",
+			"CREATE TABLE `device_directory` (\n\t`profile_id` text PRIMARY KEY NOT NULL,\n\t`public_name` text NOT NULL,\n\t`created_at` integer NOT NULL,\n\t`updated_at` integer NOT NULL,\n\tFOREIGN KEY (`profile_id`) REFERENCES `profiles`(`id`) ON UPDATE no action ON DELETE no action\n);",
+			"CREATE TABLE `messages` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`conversation_id` text NOT NULL,\n\t`author_profile_id` text NOT NULL,\n\t`client_key` text NOT NULL,\n\t`body` text NOT NULL,\n\t`scope` text NOT NULL,\n\t`status` text NOT NULL,\n\t`created_at` integer NOT NULL,\n\tFOREIGN KEY (`conversation_id`) REFERENCES `conversations`(`id`) ON UPDATE no action ON DELETE no action,\n\tFOREIGN KEY (`author_profile_id`) REFERENCES `profiles`(`id`) ON UPDATE no action ON DELETE no action\n);",
+			"CREATE UNIQUE INDEX `messages_author_client_key` ON `messages` (`author_profile_id`,`client_key`);",
+			"CREATE INDEX `messages_conversation_order_idx` ON `messages` (`conversation_id`,`created_at`,`id`);"
+		]
 	}
 ];

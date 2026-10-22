@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { bootstrapData } from "../../data/bootstrap";
 import type { DataContext } from "../../data/usecases/context";
+import { resolveActiveProfile } from "../../data/usecases/profiles";
 import { useMapPlayStore } from "../../stores/useMapPlayStore";
 import {
 	loadMapCheckpoint,
@@ -54,8 +55,12 @@ export function useMapPlayRuntime() {
 			let restore: LngLat | undefined;
 			if (boot.status === "ready") {
 				ctx = boot.ctx;
-				profileId = boot.profile.id;
-				last = await loadMapCheckpoint(ctx, profileId, {
+				// Not boot.profile: that is cached from page load and is stale after a profile switch
+				// on another route, which would load/save this checkpoint under the previous person.
+				const active = (await resolveActiveProfile(ctx)).id;
+				if (cancelled) return;
+				profileId = active;
+				last = await loadMapCheckpoint(ctx, active, {
 					home: HOME,
 					maxDistance: DEFAULT_GAME_CONFIG.maxDistance,
 				}).catch(() => undefined);

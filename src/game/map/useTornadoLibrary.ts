@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { bootstrapData } from "../../data/bootstrap";
 import { importLegacyScans } from "../../data/usecases/legacyScanImport";
 import { listLibraryBooks } from "../../data/usecases/libraryBooks";
-import { getActiveProfileId } from "../../data/usecases/profiles";
+import { resolveActiveProfile } from "../../data/usecases/profiles";
 import { createLegacyScanSource } from "../../platform/legacyScanSource";
 import { useMapPlayStore } from "../../stores/useMapPlayStore";
 import {
@@ -49,7 +49,8 @@ export function useTornadoLibrary(): TornadoLibrary {
 				return;
 			}
 			const { ctx } = boot;
-			const profileId = (await getActiveProfileId(ctx)) ?? boot.profile.id;
+			// Never fall back to boot.profile (cached at page load; stale after a switch).
+			const profileId = (await resolveActiveProfile(ctx)).id;
 			if (disposed || mine !== token) return;
 			if (profileId !== shownProfile) {
 				// Profile changed (or first load): clear immediately; never show stale books.
