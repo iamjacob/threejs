@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Boooks</string>
+    <string name="title_activity_main">Boooks</string>
+    <string name="package_name">me.jacobg.boooks</string>
+    <string name="custom_url_scheme">me.jacobg.boooks</string>
+</resources>

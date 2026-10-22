@@ -45,6 +45,15 @@ type NotesState = {
 
 let ctx: DataContext | undefined;
 
+declare global {
+	interface Window {
+		/** Test hook for native device runs; never present in production web builds. */
+		__boooksDebug?: {
+			attachToFirstNote: (bytes: Uint8Array, mimeType: string) => Promise<boolean>;
+		};
+	}
+}
+
 export const useNotesStore = create<NotesState>()((set, get) => {
 	const reload = async () => {
 		const profile = get().profile;
@@ -109,6 +118,22 @@ export const useNotesStore = create<NotesState>()((set, get) => {
 				},
 			});
 			await reload();
+			// Opt-in only (VITE_BOOOKS_TEST_HOOKS=1 at build time, used by tests/browser/android-restart.mjs).
+			// Normal web and native builds never include it.
+			if (
+				import.meta.env.VITE_BOOOKS_TEST_HOOKS === "1" &&
+				typeof window !== "undefined"
+			) {
+				// Same use case as the Image button; only the picker is skipped.
+				window.__boooksDebug = {
+					attachToFirstNote: async (bytes, mimeType) => {
+						const first = get().notes[0];
+						return first
+							? act((c, pid) => attachImage(c, pid, first.id, { bytes, mimeType }))
+							: false;
+					},
+				};
+			}
 		},
 		add: (title, body) => act((c, pid) => createNote(c, pid, { title, body })),
 		edit: async (id, patch) => {
