@@ -16,6 +16,7 @@
     "test:game": "node --test tests/game-*.test.mjs",
     "build:test": "VITE_BOOOKS_TEST_HOOKS=1 npm run build",
     "test:map-play": "node tests/browser/map-play.mjs",
+    "test:android:play": "VITE_BOOOKS_TEST_HOOKS=1 npm run cap:sync && cd android && ./gradlew assembleDebug -q && adb install -r app/build/outputs/apk/debug/app-debug.apk && cd .. && node tests/browser/android-map-play.mjs",
     "build:native": "npm run sqlwasm && vite build --mode native",
     "cap:sync": "npm run build:native && cap sync",
     "test:android": "VITE_BOOOKS_TEST_HOOKS=1 npm run cap:sync && cd android && ./gradlew assembleDebug -q && adb install -r app/build/outputs/apk/debug/app-debug.apk && cd .. && node tests/browser/android-restart.mjs",
