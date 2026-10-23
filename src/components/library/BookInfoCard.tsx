@@ -1,14 +1,17 @@
+import { Link } from "@tanstack/react-router";
 import {
 	ArrowLeft,
 	BookOpen,
 	BookOpenText,
 	Check,
+	FolderCog,
 	LoaderCircle,
 	PanelTopClose,
 	PanelTopOpen,
 	SquarePen,
 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
+import { libraryEntryFor } from "../../lib/bookAccess";
 import { bookImagePath } from "../../lib/bookImages";
 import { publicAssetUrl } from "../../lib/publicAssetUrl";
 import { useSelectedBook } from "../../stores/useBookStore";
@@ -28,6 +31,19 @@ export default function BookInfoCard() {
 	const back = useTourStore((state) => state.dismissPreview);
 	const edit = useTourStore((state) => state.editPreview);
 	const [more, setMore] = useState(false);
+	/** The active person's library entry for this shelf book (SQLite), if they have one. */
+	const [manageId, setManageId] = useState<string>();
+	useEffect(() => {
+		if (!more) return;
+		let live = true;
+		const shelfId = book.loopSourceId ?? book.id;
+		void libraryEntryFor(shelfId)
+			.then((id) => live && setManageId(id))
+			.catch(() => live && setManageId(undefined));
+		return () => {
+			live = false;
+		};
+	}, [more, book.id, book.loopSourceId]);
 	const dragStart = useRef<{ y: number; pointerId: number } | null>(null);
 	const suppressHandleClick = useRef(false);
 	const [pullOffset, setPullOffset] = useState(0);
@@ -149,6 +165,22 @@ export default function BookInfoCard() {
 									Edit on shelf<small>Arrange, drag, or stack this book</small>
 								</span>
 							</button>
+							{manageId && (
+								<Link
+									to="/library/$bookId"
+									params={{ bookId: manageId }}
+									data-testid="manage-book"
+									className="book-info-manage"
+								>
+									<FolderCog size={17} aria-hidden="true" />
+									<span>
+										Manage this book
+										<small>
+											Your details, page scans and what is saved here
+										</small>
+									</span>
+								</Link>
+							)}
 							<BookSizeAdjuster book={book} />
 						</div>
 					)}

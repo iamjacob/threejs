@@ -13,6 +13,12 @@ export { noteRepository } from "./repositories/notes";
 export { settingsRepository } from "./repositories/settings";
 export * as schema from "./schema";
 export * from "./usecases/accounts";
+export * from "./usecases/bookFiles";
+export * from "./usecases/bookIntake";
+export * from "./usecases/bookManager";
+export * from "./usecases/bookMetadata";
+export * from "./usecases/bookPages";
+export * from "./usecases/bookStatus";
 export * from "./usecases/context";
 export * from "./usecases/files";
 export * from "./usecases/legacyScanImport";
@@ -23,6 +29,7 @@ export * from "./usecases/notes";
 export * from "./usecases/outbox";
 export * from "./usecases/profiles";
 export * from "./usecases/promoteGuest";
+export * from "./usecases/storageCleanup";
 
 import { sql } from "drizzle-orm";
 /** Raw SQL for test setup only (e.g. simulating a signed-out device). */

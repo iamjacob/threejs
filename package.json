@@ -39,7 +39,12 @@
     "check": "biome check",
     "images": "node scripts/generate-book-images.mjs",
     "atlas": "node scripts/generate-cover-atlas.mjs",
-    "test:atlas": "node --test tests/atlas-packing.test.mjs"
+    "test:atlas": "node --test tests/atlas-packing.test.mjs",
+    "test:routes": "node tests/browser/routes.mjs",
+    "test:book-routes": "node tests/browser/book-routes.mjs",
+    "test:android:book-routes": "npm run cap:sync && cd android && ./gradlew assembleDebug -q && adb install -r app/build/outputs/apk/debug/app-debug.apk && cd .. && node tests/browser/android-book-routes.mjs",
+    "test:book-manager": "node tests/browser/book-manager.mjs",
+    "test:book-files": "node tests/browser/book-files.mjs"
   },
   "dependencies": {
     "@capacitor-community/sqlite": "8.1.1",

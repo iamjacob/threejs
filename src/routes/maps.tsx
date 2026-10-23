@@ -5,9 +5,9 @@ import LoaderMark from "../components/layout/LoaderMark";
 // MapLibre + the map scene load only on this route, keeping the library's first bundle unchanged.
 const MapPlay = lazy(() => import("../game/map/MapPlay"));
 
-export const Route = createFileRoute("/play")({ component: PlayPage });
+export const Route = createFileRoute("/maps")({ component: MapsPage });
 
-function PlayPage() {
+function MapsPage() {
 	return (
 		<Suspense
 			fallback={

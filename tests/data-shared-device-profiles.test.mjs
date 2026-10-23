@@ -18,7 +18,7 @@ test("0003 upgrades a populated 0002 database; guest data and books kept; rerun 
 	});
 	await v2.database.close();
 	const v3 = await openDb(data, store);
-	assert.deepEqual(v3.result.applied, ["0003_shared_device"]);
+	assert.deepEqual(v3.result.applied, ["0003_shared_device", "0004_book_manager", "0005_digital_files"]);
 	await v3.database.close();
 	const { ctx } = await openCtx(data, { store });
 	const guest = await data.ensureActiveProfile(ctx);

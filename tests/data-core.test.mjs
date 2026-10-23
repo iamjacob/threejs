@@ -11,13 +11,13 @@ const note = (id, extra = {}) => ({ id, profileId: "g1", clientKey: id, title: i
 
 test("empty database: all migrations apply and are recorded", async () => {
 	const { database, result } = await openDb(data);
-	assert.deepEqual(result.applied, ["0000_init", "0001_note_pinned", "0002_library_books", "0003_shared_device"]);
+	assert.deepEqual(result.applied, ["0000_init", "0001_note_pinned", "0002_library_books", "0003_shared_device", "0004_book_manager", "0005_digital_files"]);
 	const tables = await database.queryRaw(
 		"SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name",
 	);
 	assert.deepEqual(tables.map((t) => t.name), [
-		"_migrations", "app_state", "conversation_members", "conversations", "device_directory", "files", "library_books",
-		"messages", "notes", "outbox", "profile_merges", "profile_settings", "profiles",
+		"_migrations", "app_state", "book_assets", "conversation_members", "conversations", "device_directory", "files",
+		"library_books", "messages", "notes", "outbox", "profile_merges", "profile_settings", "profiles", "sync_states",
 	]);
 	assert.deepEqual((await data.migrate(database)).applied, [], "re-running migrate is a no-op");
 });
@@ -34,7 +34,7 @@ test("prior schema (0000 only, with data) upgrades to 0001 without losing rows",
 	await first.database.close();
 
 	const second = await openDb(data, store);
-	assert.deepEqual(second.result.applied, ["0001_note_pinned", "0002_library_books", "0003_shared_device"]);
+	assert.deepEqual(second.result.applied, ["0001_note_pinned", "0002_library_books", "0003_shared_device", "0004_book_manager", "0005_digital_files"]);
 	const rows = await second.database.read((db) => db.select().from(notes));
 	assert.equal(rows.length, 1);
 	assert.equal(rows[0].title, "Old note");

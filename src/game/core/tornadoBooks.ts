@@ -19,7 +19,7 @@ export type TornadoSourceBook = {
 	title: string;
 	author: string;
 	addedAt: number;
-	source: "catalog" | "scan";
+	source: "catalog" | "scan" | "manual";
 	catalogId: string | null;
 	widthCm: number | null;
 	heightCm: number | null;

@@ -11,9 +11,9 @@ export async function probe(page) {
 }
 export const pxDist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
-/** Opens /play and waits until the probe is live (and the remote style loaded, if online). */
+/** Opens /maps and waits until the probe is live (and the remote style loaded, if online). */
 export async function openPlay(page, origin, { online = true } = {}) {
-	await page.goto(`${origin}${BASE}play`);
+	await page.goto(`${origin}${BASE}maps`);
 	await page
 		.getByTestId("map-play-status")
 		.filter({ hasNotText: "Loading" })
@@ -65,7 +65,7 @@ export function setHidden(page, hidden) {
 	}, hidden);
 }
 
-/** Records any use of the Geolocation API on the page (must stay 0 on /play). */
+/** Records any use of the Geolocation API on the page (must stay 0 on /maps). */
 export function trackGeolocation(page) {
 	return page.addInitScript(() => {
 		const g = navigator.geolocation;

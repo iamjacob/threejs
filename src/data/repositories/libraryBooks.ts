@@ -65,7 +65,22 @@ export const libraryBookRepository = {
 		db: Db,
 		profileId: string,
 		id: string,
-		patch: Partial<Pick<LibraryBook, "deletedAt" | "updatedAt" | "addedAt">>,
+		patch: Partial<
+			Pick<
+				LibraryBook,
+				| "deletedAt"
+				| "updatedAt"
+				| "addedAt"
+				| "title"
+				| "author"
+				| "subtitle"
+				| "isbn"
+				| "edition"
+				| "publisher"
+				| "expectedPageCount"
+				| "metadataRevision"
+			>
+		>,
 	) {
 		await db
 			.update(libraryBooks)

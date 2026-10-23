@@ -132,7 +132,8 @@ export const libraryBooks = sqliteTable(
 			.notNull()
 			.references(() => profiles.id),
 		clientKey: text("client_key").notNull(),
-		source: text("source", { enum: ["catalog", "scan"] }).notNull(),
+		/** 'manual' (0004, TS-only value; the column is plain text): added by hand in the Book Manager. */
+		source: text("source", { enum: ["catalog", "scan", "manual"] }).notNull(),
 		catalogId: text("catalog_id"),
 		title: text("title").notNull(),
 		author: text("author").notNull().default(""),
@@ -145,6 +146,25 @@ export const libraryBooks = sqliteTable(
 		coverSpineFileId: text("cover_spine_file_id").references(() => files.id),
 		addedAt: integer("added_at").notNull(),
 		deletedAt: integer("deleted_at"),
+		// 0004: the person's own metadata for THIS library entry (never shared catalog facts).
+		subtitle: text("subtitle"),
+		/** As the person entered it; not unique and may be absent. Helps matching, is not identity. */
+		isbn: text("isbn"),
+		edition: text("edition"),
+		publisher: text("publisher"),
+		/** Pages the person says this edition has. Required before content can be "complete". */
+		expectedPageCount: integer("expected_page_count"),
+		/** Bumped on every local metadata edit; a future sync compares it to the acknowledged one. */
+		metadataRevision: integer("metadata_revision").notNull().default(1),
+		/**
+		 * Edition/registry identity. 'unmatched' unless a real process set it. Catalog rows are a
+		 * bundled-catalog reference ('candidate' at most), never 'verified' by the app itself.
+		 */
+		catalogMatch: text("catalog_match", {
+			enum: ["unmatched", "candidate", "verified"],
+		})
+			.notNull()
+			.default("unmatched"),
 		...timestamps,
 	},
 	(t) => [
@@ -153,6 +173,86 @@ export const libraryBooks = sqliteTable(
 			t.clientKey,
 		),
 		index("library_books_profile_idx").on(t.profileId, t.deletedAt, t.addedAt),
+	],
+);
+
+/**
+ * Content manifest (0004): every cover, page scan or imported file for one library book.
+ * Bytes live in the FileStore under `sha256`; `file_id` is the existing `files` metadata row.
+ * `intake`: 'saved' only after the bytes were re-read and their hash matched AND this row
+ * committed; 'failed' keeps the reason so the UI can offer Retry. `removed_at` is a soft remove.
+ */
+export const bookAssets = sqliteTable(
+	"book_assets",
+	{
+		id: text("id").primaryKey(),
+		profileId: text("profile_id")
+			.notNull()
+			.references(() => profiles.id),
+		bookId: text("book_id")
+			.notNull()
+			.references(() => libraryBooks.id),
+		kind: text("kind", {
+			enum: ["cover", "page_scan", "digital_file"],
+		}).notNull(),
+		/** cover: front|back|spine; page_scan: null; digital_file: format (epub|pdf). */
+		role: text("role"),
+		/** 0-based page order for page scans; null otherwise. */
+		pageIndex: integer("page_index"),
+		fileId: text("file_id").references(() => files.id),
+		sha256: text("sha256").notNull(),
+		mimeType: text("mime_type").notNull(),
+		byteSize: integer("byte_size").notNull(),
+		originalName: text("original_name"),
+		/** Where the bytes came from: 'camera' | 'device_file' | 'legacy_scan' | 'catalog_bundle'. */
+		provenance: text("provenance").notNull(),
+		rightsNote: text("rights_note"),
+		/**
+		 * 0005, digital files: the basis the person stated for keeping this file on the device
+		 * (see DIGITAL_RIGHTS_BASES). It records their statement. The app does not verify it,
+		 * and nothing is shared or published.
+		 */
+		rightsBasis: text("rights_basis"),
+		/** 0005: where the person says the file came from (free text, e.g. "Project Gutenberg"). */
+		sourceNote: text("source_note"),
+		intake: text("intake", { enum: ["saved", "failed"] }).notNull(),
+		lastError: text("last_error"),
+		removedAt: integer("removed_at"),
+		...timestamps,
+	},
+	(t) => [
+		index("book_assets_book_idx").on(t.profileId, t.bookId, t.kind),
+		// One copy of the same bytes per book and kind (retry/duplicate pick stores one row).
+		uniqueIndex("book_assets_dedupe").on(
+			t.profileId,
+			t.bookId,
+			t.kind,
+			t.sha256,
+		),
+	],
+);
+
+/**
+ * Sync-readiness contract (0004). A row exists ONLY after a real remote target acknowledged a
+ * record or asset: never written by the local app today (no backend). No row = local only.
+ * A later local edit is detected by comparing the entity's current revision/hash with these.
+ */
+export const syncStates = sqliteTable(
+	"sync_states",
+	{
+		profileId: text("profile_id")
+			.notNull()
+			.references(() => profiles.id),
+		target: text("target").notNull(),
+		entity: text("entity", { enum: ["library_book", "book_asset"] }).notNull(),
+		entityId: text("entity_id").notNull(),
+		ackedRevision: integer("acked_revision"),
+		ackedSha256: text("acked_sha256"),
+		ackedAt: integer("acked_at").notNull(),
+		remoteVersion: text("remote_version"),
+	},
+	(t) => [
+		primaryKey({ columns: [t.profileId, t.target, t.entity, t.entityId] }),
 	],
 );
 
@@ -261,3 +361,5 @@ export type Note = typeof notes.$inferSelect;
 export type FileRecord = typeof files.$inferSelect;
 export type OutboxEntry = typeof outbox.$inferSelect;
 export type LibraryBook = typeof libraryBooks.$inferSelect;
+export type BookAsset = typeof bookAssets.$inferSelect;
+export type SyncState = typeof syncStates.$inferSelect;

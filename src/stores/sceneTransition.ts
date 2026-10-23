@@ -1,15 +1,29 @@
 import { createStore } from "zustand/vanilla";
 
 /**
- * Cross-route scene transition (shelves "/" ⇄ map "/play").
+ * Cross-route world transition (shelves "/" ⇄ Maps "/maps").
  *
- * idle → cover (overlay fades/irises in) → wait (route has changed; waiting for the destination to
- * call `arrive`, capped by maxWaitMs so it can never get stuck) → reveal (overlay fades out) → idle.
+ * idle → cover (overlay irises in) → wait (route has changed; waiting for the destination to call
+ * `arrive`) → reveal (overlay fades out) → idle.
+ *
+ * Failure paths never silently reveal an unready scene:
+ * - wait exceeds maxWaitMs → "slow": the overlay stays, with "Keep waiting" / "Show anyway".
+ *   A late `arrive` still reveals normally.
+ * - navigate rejects → "failed": "Try again" / "Close". (A route that errors while loading shows
+ *   the root error page instead, which calls `cancel`.)
+ * - the browser history moves mid-transition (Back/Forward) → `cancel`: the overlay is dropped
+ *   at once, so it never swallows Back.
  * Kept free of React/router imports so it runs under `node --test`; the root layout registers the
  * router's navigate/preload with `setNavigator`.
  */
-export type ScenePath = "/" | "/play";
-export type TransitionPhase = "idle" | "cover" | "wait" | "reveal";
+export type ScenePath = "/" | "/maps";
+export type TransitionPhase =
+	| "idle"
+	| "cover"
+	| "wait"
+	| "slow"
+	| "failed"
+	| "reveal";
 export type TransitionState = {
 	phase: TransitionPhase;
 	to?: ScenePath;
@@ -31,6 +45,7 @@ export type TransitionOptions = {
 
 export const COVER_MS = 320;
 export const REVEAL_MS = 480;
+/** After this long without `arrive`, the overlay offers "Keep waiting" / "Show anyway". */
 export const MAX_WAIT_MS = 10_000;
 
 const realTimers: TransitionTimers = {
@@ -63,6 +78,26 @@ export function createSceneTransition({
 		}, revealMs);
 	};
 
+	/** Enters "wait"; if `arrive` has not come after maxWaitMs, becomes "slow" (overlay stays). */
+	const armWait = (id: number) => {
+		store.setState({ phase: "wait" });
+		later(() => {
+			if (current(id) && store.getState().phase === "wait")
+				store.setState({ phase: "slow" });
+		}, maxWaitMs);
+	};
+	/** Navigates under the cover and waits for `arrive`. */
+	const waitFor = (id: number, to: ScenePath) => {
+		armWait(id);
+		void Promise.resolve()
+			.then(() => navigate?.(to))
+			.catch(() => {
+				if (!current(id)) return;
+				timers.clear(timer);
+				store.setState({ phase: "failed" });
+			});
+	};
+
 	return {
 		store,
 		/** Registered once by the root layout. Returns an unregister function. */
@@ -89,19 +124,35 @@ export function createSceneTransition({
 				.then(() => preload?.(to))
 				.catch(() => {});
 			later(() => {
-				if (!current(id)) return;
-				store.setState({ phase: "wait" });
-				later(() => reveal(id), maxWaitMs);
-				void Promise.resolve()
-					.then(() => navigate?.(to))
-					.catch(() => reveal(id));
+				if (current(id)) waitFor(id, to);
 			}, coverMs);
 			return true;
 		},
-		/** Called by a route once its scene is ready to be seen. */
+		/** Called by a route once its scene is ready to be seen (also accepted late, while "slow"). */
 		arrive(path: ScenePath) {
 			const { phase, to, id } = store.getState();
-			if (phase === "wait" && to === path) reveal(id);
+			if ((phase === "wait" || phase === "slow") && to === path) reveal(id);
+		},
+		/** "Keep waiting" (from slow) or "Try again" (from failed). */
+		retry() {
+			const { phase, to, id } = store.getState();
+			if (phase === "slow") armWait(id);
+			else if (phase === "failed" && to) waitFor(id, to);
+		},
+		/** "Show anyway" (slow) or "Close" (failed): the user chose to see the page as it is. */
+		dismiss() {
+			const { phase, id } = store.getState();
+			if (phase === "slow" || phase === "failed") reveal(id);
+		},
+		/**
+		 * Drops the overlay at once (browser Back/Forward mid-transition, or a route error page that
+		 * must be visible). Bumps the id so pending timers and navigations become stale.
+		 */
+		cancel() {
+			const { phase, id } = store.getState();
+			if (phase === "idle") return;
+			timers.clear(timer);
+			store.setState({ phase: "idle", to: undefined, id: id + 1 });
 		},
 	};
 }

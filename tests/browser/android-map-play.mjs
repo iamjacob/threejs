@@ -1,4 +1,4 @@
-// /play inside the Capacitor Android WebView (emulator or device). Uses the same probe as map-play.mjs.
+// /maps inside the Capacitor Android WebView (emulator or device). Uses the same probe as map-play.mjs.
 // Prereqs: VITE_BOOOKS_TEST_HOOKS=1 native build installed (npm run test:android:play), adb device online.
 import assert from "node:assert/strict";
 import { _android as android } from "playwright-core";
@@ -18,7 +18,7 @@ async function launch() {
 	await shell(`am start -n ${APP}/.MainActivity`);
 	const page = await (await device.webView({ pkg: APP }, { timeout: 60_000 })).page();
 	await page.evaluate(() => {
-		history.pushState({}, "", "/play");
+		history.pushState({}, "", "/maps");
 		dispatchEvent(new PopStateEvent("popstate"));
 	});
 	await page.waitForFunction(() => window.__boooksMapProbe?.(), null, { timeout: 90_000 });
@@ -59,7 +59,7 @@ try {
 	assert.ok(p.webgl, "WebGL in the Android WebView");
 	aligned(p, "initial");
 	const meta = await page.getByTestId("map-play-meta").innerText();
-	step(`android: /play loads in the Capacitor WebView with WebGL (${meta})`);
+	step(`android: /maps loads in the Capacitor WebView with WebGL (${meta})`);
 
 	const start = p.player;
 	// adb `input swipe` interpolates the finger linearly over the whole duration, so the stick is
@@ -129,7 +129,7 @@ try {
 	step("android: active profile's books (catalog + imported scan) render; stable across force-stop");
 
 	assert.equal(await shell(`dumpsys package ${APP} | grep -c 'ACCESS_FINE_LOCATION: granted=true' || true`), "0", "location never granted");
-	step("android: location permission not granted/requested by /play");
+	step("android: location permission not granted/requested by /maps");
 	console.log(`\nandroid-map-play: ${passed} checks passed`);
 } catch (error) {
 	console.error("✖ android-map-play failed:", error);

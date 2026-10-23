@@ -1,4 +1,4 @@
-// Real-browser check: shelves "/" ⇄ map "/play" through the joystick menu, with the transition
+// Real-browser check: shelves "/" ⇄ Maps "/maps" through the joystick menu, with the transition
 // overlay and the back-and-forth loader. Needs Chrome + WebGL. Not part of `node --test`.
 // Usage: npm run build:test && npm run test:scene-switch
 import assert from "node:assert/strict";
@@ -64,21 +64,21 @@ try {
 			assert.ok(moves.found && moves.right && moves.left, `transition bar goes back and forth: ${moves.xs}`);
 		}
 		await mapReady(page);
-		assert.match(page.url(), /\/play$/);
+		assert.match(page.url(), /\/maps$/);
 		const p = await probe(page);
 		assert.ok(p.webgl, "map scene drawn after the transition");
 
 		await controllerAction(page, "Shelves");
 		await overlay(page).waitFor({ timeout: 2_000 });
 		await shelvesReady(page);
-		assert.ok(!page.url().endsWith("/play"), "back on the shelves");
+		assert.ok(!page.url().endsWith("/maps"), "back on the shelves");
 		step(`round ${round}: shelves → map → shelves via the joystick menu; overlay covers then clears`);
 	}
 
 	const scenery = await page.locator('button.bc-item[aria-label="Scenery"]').count();
 	assert.ok(scenery > 0, "the scenery cycler is still in the shelves menu (renamed from 'Map')");
-	// The map checkpoint is written on leaving /play (runtime dispose) and lives in SQLite, so it
-	// is checked through the next /play mount instead of reading storage directly.
+	// The map checkpoint is written on leaving /maps (runtime dispose) and lives in SQLite, so it
+	// is checked through the next /maps mount instead of reading storage directly.
 	await controllerAction(page, "Open map");
 	await mapReady(page);
 	assert.match(await page.getByTestId("map-play-meta").innerText(), /checkpoint (restored|saved)/, "leaving the map saved the checkpoint");

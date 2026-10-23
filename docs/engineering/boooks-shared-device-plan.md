@@ -52,7 +52,7 @@ messages(id pk, conversation_id → conversations, author_profile_id → profile
 - `src/stores/profileSession.ts`: one switch path for all stores. It emits `clear` synchronously, then persists the
   switch, then emits `ready`. A `generation` counter lets loaders drop stale results. If a switch fails, it reopens the
   profile that is actually active in SQLite.
-- `useNotesStore` and `usePeopleStore` subscribe to it. `/play` loaders now read the active profile from SQLite
+- `useNotesStore` and `usePeopleStore` subscribe to it. `/maps` (was `/play`) loaders now read the active profile from SQLite
   (`resolveActiveProfile`) instead of the `boot.profile` value cached at page load. Before this change, a checkpoint
   could be loaded or saved under the previous person after a switch on another route.
 - `/people` route: who is using the device, add a person, the visibility toggle, the "On this device" directory,

@@ -1,4 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import {
+	createFileRoute,
+	Outlet,
+	useMatch,
+	useNavigate,
+	useRouter,
+} from "@tanstack/react-router";
 import { Sparkles } from "lucide-react";
 import {
 	lazy,
@@ -18,6 +24,8 @@ import { CinematicReelBar } from "../components/layout/SceneScreenshot";
 import SceneToolbar from "../components/layout/SceneToolbar";
 import { useArriveWhen } from "../components/layout/SceneTransition";
 import BookInfoCard from "../components/library/BookInfoCard";
+import BookRouteNotice from "../components/library/BookRouteNotice";
+import { useBookRouteSync } from "../components/library/useBookRouteSync";
 import type { BookScan } from "../components/scanner/scannedBook";
 import { runControllerAction } from "../lib/controllerActions";
 import { useFeatureFlags } from "../lib/featureFlags";
@@ -38,15 +46,17 @@ const ShelfControls = lazy(() => import("../components/layout/ShelfControls"));
 const ShelfPlateEditor = lazy(
 	() => import("../components/layout/ShelfPlateEditor"),
 );
-const MessagesOverlay = lazy(
-	() => import("../components/layout/MessagesOverlay"),
-);
 const TimerOverlay = lazy(() => import("../components/layout/TimerOverlay"));
 const HelixNav = lazy(() => import("../components/library/HelixNav"));
 const ReaderOverlay = lazy(() => import("../components/reader/ReaderOverlay"));
 const TourOverlay = lazy(() => import("../components/tour/TourOverlay"));
 
-export const Route = createFileRoute("/")({ component: Home });
+/**
+ * Pathless layout for the shelves world. "/" (Library), "/scan" (scanner), "/book/:id" (book card)
+ * and "/read/:id" (reader) are its children, so moving between them keeps the same 3D scene
+ * mounted; the URL and the scene's state are kept in sync by useBookRouteSync.
+ */
+export const Route = createFileRoute("/_shelves")({ component: Home });
 
 const CONTROLLER_STAGES = ["library", "pick", "end", "grow"];
 const HELIX_STAGES = ["library", "pick", "pull", "read", "return", "end"];
@@ -104,8 +114,12 @@ function Home() {
 	const showStats =
 		typeof window !== "undefined" &&
 		new URLSearchParams(window.location.search).has("controls");
-	const [scanning, setScanning] = useState(false);
-	const [messagesOpen, setMessagesOpen] = useState(false);
+	// The scanner is the /scan child route: deep-linkable, reload-safe, and closed by browser Back.
+	const scanning = !!useMatch({ from: "/_shelves/scan", shouldThrow: false });
+	const navigate = useNavigate();
+	const router = useRouter();
+	/** True when this page pushed /scan, so closing can pop history instead of adding to it. */
+	const pushedScan = useRef(false);
 	const [timerOpen, setTimerOpen] = useState(false);
 	const [shutterFlash, setShutterFlash] = useState(false);
 	const [notice, setNotice] = useState("");
@@ -125,6 +139,7 @@ function Home() {
 	const chrome = sceneBooted && !scanning;
 	// Coming back from the map: keep the transition overlay until the shelves have booted.
 	useArriveWhen("/", sceneBooted);
+	const bookRoute = useBookRouteSync(sceneBooted);
 
 	const wasEditing = useRef(editing);
 	useEffect(() => {
@@ -174,9 +189,23 @@ function Home() {
 		return () => window.clearTimeout(timer);
 	}, [notice]);
 
-	const closeScanner = () => {
-		setScanning(false);
-		useTourStore.setState({ paused: !SHOW_DEMO_UI || bookPanel !== "closed" });
+	// Entering/leaving /scan (button, deep link, reload, or browser Back/Forward).
+	const wasScanning = useRef(false);
+	useEffect(() => {
+		const was = wasScanning.current;
+		wasScanning.current = scanning;
+		if (scanning) {
+			useShelfControlsStore.getState().setEditing(false);
+			useTourStore.setState({ paused: true });
+			setNotice("");
+			return;
+		}
+		if (!was) return;
+		// Closed by any means (incl. browser Back): the next close must not pop someone else's entry.
+		pushedScan.current = false;
+		const { bookPanel: panel } = useTourStore.getState();
+		const demo = useFeatureFlags.getState().SHOW_DEMO_UI;
+		useTourStore.setState({ paused: !demo || panel !== "closed" });
 		requestAnimationFrame(() => {
 			// The controller remounts when the scanner closes, so fall back to it.
 			const target = scannerOpener.current?.isConnected
@@ -184,6 +213,11 @@ function Home() {
 				: document.querySelector<HTMLElement>(".bc-btn");
 			target?.focus({ preventScroll: true });
 		});
+	}, [scanning]);
+
+	const closeScanner = () => {
+		if (pushedScan.current && router.history.canGoBack()) router.history.back();
+		else void navigate({ to: "/", replace: true });
 	};
 	const openScanner = (trigger?: HTMLElement) => {
 		scannerOpener.current =
@@ -191,14 +225,13 @@ function Home() {
 			(document.activeElement instanceof HTMLElement
 				? document.activeElement
 				: null);
-		useShelfControlsStore.getState().setEditing(false);
-		useTourStore.setState({ paused: true });
-		setNotice("");
-		setScanning(true);
+		if (scanning) return;
+		pushedScan.current = true;
+		void navigate({ to: "/scan" });
 	};
 	const addBook = async (scan: BookScan) => {
 		const saved = await addScannedBookToLibrary(scan);
-		setScanning(false);
+		closeScanner();
 		setNotice(
 			saved ? "" : "Added for this visit. Device storage is unavailable.",
 		);
@@ -206,7 +239,8 @@ function Home() {
 	const controllerAction = (id: string, on?: boolean) =>
 		runControllerAction(id, on, {
 			openScanner: () => openScanner(),
-			openMessages: () => setMessagesOpen(true),
+			// The real, local People & messages (the sample-friends panel is retired).
+			openMessages: () => void navigate({ to: "/people" }),
 			openTimer: () => setTimerOpen(true),
 			flashShutter: () => {
 				setShutterFlash(true);
@@ -268,9 +302,6 @@ function Home() {
 				<BookInfoCard />
 			)}
 			<Suspense fallback={null}>
-				{messagesOpen && !scanning && (
-					<MessagesOverlay onClose={() => setMessagesOpen(false)} />
-				)}
 				{chrome && (
 					<TimerOverlay
 						open={timerOpen}
@@ -303,6 +334,14 @@ function Home() {
 			)}
 			{!scanning && bookPanel === "closed" && notice && (
 				<output className="library-notice">{notice}</output>
+			)}
+			<Outlet />
+			{chrome && bookRoute.problem && (
+				<BookRouteNotice
+					key={`${bookRoute.problem.kind}:${bookRoute.problem.id}`}
+					problem={bookRoute.problem}
+					onDismiss={bookRoute.dismissProblem}
+				/>
 			)}
 			{!scanning && readerClosed && <MarkLoader />}
 			<LibraryScene

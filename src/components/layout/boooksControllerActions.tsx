@@ -58,8 +58,9 @@ export const DEFAULT_ACTIONS: ControllerActionItem[] = [
 		),
 	},
 	{
+		// Opens the real same-device People & messages page (/people).
 		id: "chat",
-		label: "Messages",
+		label: "People & messages",
 		icon: <path d="M21 12a8 8 0 0 1-11.8 7L4 20l1.3-4.6A8 8 0 1 1 21 12z" />,
 	},
 	{

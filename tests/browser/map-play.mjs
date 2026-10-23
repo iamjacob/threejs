@@ -1,4 +1,4 @@
-// Real-browser check of /play (Chrome + WebGL; not part of `node --test`).
+// Real-browser check of /maps (Chrome + WebGL; not part of `node --test`).
 // npm run build:test && npm run test:map-play
 import assert from "node:assert/strict";
 import { crash, freshProfile, launch, serveDist } from "./harness.mjs";
@@ -70,7 +70,7 @@ try {
 	step("controller pause stops play and saves a checkpoint; resume works");
 
 	await page.evaluate(() => {
-		history.pushState({}, "", location.pathname.replace(/play$/, "notes"));
+		history.pushState({}, "", location.pathname.replace(/maps$/, "notes"));
 		dispatchEvent(new PopStateEvent("popstate"));
 	});
 	await page.getByTestId("title").waitFor({ timeout: 30_000 });
@@ -113,7 +113,7 @@ try {
 	step("offline reload (network off): app shell from service worker; tornado still controllable");
 
 	assert.equal(await page.evaluate(() => window.__geoCalls ?? 0), 0);
-	step("geolocation API never called on /play (no permission prompt)");
+	step("geolocation API never called on /maps (no permission prompt)");
 	await ctx.close();
 
 	// First launch with the map servers unreachable (nothing cached): bundled style fallback.

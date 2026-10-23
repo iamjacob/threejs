@@ -1,11 +1,11 @@
-// Static server for dist/ under the /threejs/ base (SPA fallback like src/worker.ts) and a
+// Static server for dist/ under the /beta/ base (SPA fallback like src/worker.ts) and a
 // persistent-profile Chrome launcher, so IndexedDB survives "app restarts" and SIGKILL crashes.
 import { readFile, rm } from "node:fs/promises";
 import { createServer } from "node:http";
 import { extname, join, normalize } from "node:path";
 import { chromium } from "playwright-core";
 
-export const BASE = "/threejs/";
+export const BASE = "/beta/";
 const types = {
 	".html": "text/html",
 	".js": "text/javascript",
@@ -44,8 +44,9 @@ export async function freshProfile(dir) {
 	return dir;
 }
 
-export async function launch(profileDir) {
-	const ctx = await chromium.launchPersistentContext(profileDir, { executablePath: chrome, headless: true });
+/** `options` are extra Playwright context options (e.g. `reducedMotion`, `viewport`). */
+export async function launch(profileDir, options = {}) {
+	const ctx = await chromium.launchPersistentContext(profileDir, { executablePath: chrome, headless: true, ...options });
 	const page = ctx.pages()[0] ?? (await ctx.newPage());
 	page.on("pageerror", (e) => console.log("  pageerror:", e.message));
 	return { ctx, page };

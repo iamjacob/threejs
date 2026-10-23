@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { type ReactNode, useEffect } from "react";
 import {
 	AddPersonForm,
@@ -7,6 +7,7 @@ import {
 	VisibilityPanel,
 } from "../components/people/PeoplePanels";
 import { Thread } from "../components/people/Thread";
+import AppShell from "../components/shell/AppShell";
 import { usePeopleStore } from "../stores/usePeopleStore";
 
 /**
@@ -112,18 +113,5 @@ function PeoplePage() {
 }
 
 function Shell({ children }: { children: ReactNode }) {
-	return (
-		<main className="min-h-screen bg-[#06192e] px-4 py-6 text-slate-100">
-			<div className="mx-auto max-w-xl">
-				<header className="mb-4 flex items-center justify-between">
-					<h1 className="text-xl font-semibold">People on this device</h1>
-					<nav className="flex gap-3 text-sm text-sky-300">
-						<Link to="/notes">Notes</Link>
-						<Link to="/">Library</Link>
-					</nav>
-				</header>
-				{children}
-			</div>
-		</main>
-	);
+	return <AppShell title="People on this device">{children}</AppShell>;
 }

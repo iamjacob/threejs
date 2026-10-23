@@ -9,7 +9,7 @@
 		"binding": "ASSETS",
 		"run_worker_first": true,
 		// The Worker maps the entry URL explicitly, so HTML redirects cannot
-		// drop the public /threejs prefix.
+		// drop the public /beta prefix.
 		"html_handling": "none"
 	}
 }

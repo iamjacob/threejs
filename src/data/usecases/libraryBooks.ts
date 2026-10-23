@@ -18,6 +18,17 @@ export type LibraryBookView = LibraryBook & {
 	covers: { front?: FileRecord; back?: FileRecord; spine?: FileRecord };
 };
 
+/** 0004 columns for a new row. Catalog rows reference the bundled catalog: 'candidate', never 'verified'. */
+export const NEW_BOOK_FIELDS = {
+	subtitle: null,
+	isbn: null,
+	edition: null,
+	publisher: null,
+	expectedPageCount: null,
+	metadataRevision: 1,
+	catalogMatch: "unmatched",
+} as const satisfies Partial<LibraryBook>;
+
 export const catalogClientKey = (catalogId: string) => `catalog:${catalogId}`;
 export const scanClientKey = (scanId: string) => `scan:${scanId}`;
 
@@ -44,6 +55,20 @@ export async function listLibraryBooks(
 			},
 		}));
 	});
+}
+
+/**
+ * Client keys of this profile's active scanned books ("scan:<scanId>"), for ownership checks.
+ * Reads only this profile's rows.
+ */
+export async function listScanKeys(
+	ctx: DataContext,
+	profileId: string,
+): Promise<string[]> {
+	const rows = await ctx.database.read((db) =>
+		libraryBookRepository.listActive(db, profileId),
+	);
+	return rows.filter((r) => r.source === "scan").map((r) => r.clientKey);
 }
 
 /**
@@ -75,6 +100,8 @@ export async function addCatalogBook(
 			return { ...existing, ...restored };
 		}
 		const row: LibraryBook = {
+			...NEW_BOOK_FIELDS,
+			catalogMatch: "candidate",
 			id: ctx.newId(),
 			profileId,
 			clientKey,

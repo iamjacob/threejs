@@ -29,6 +29,20 @@
       "when": 1792656552029,
       "tag": "0003_shared_device",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1792776986834,
+      "tag": "0004_book_manager",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1792784246066,
+      "tag": "0005_digital_files",
+      "breakpoints": true
     }
   ]
 }

@@ -73,7 +73,7 @@ export const clearFileStore = (page) =>
 			}),
 	);
 
-/** Triggers the /play library refresh (the app refreshes on window focus). */
+/** Triggers the /maps library refresh (the app refreshes on window focus). */
 export const refocus = (page) => page.evaluate(() => window.dispatchEvent(new Event("focus")));
 
 /** Average frame time over `ms` of rAF on the page. */

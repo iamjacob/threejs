@@ -105,7 +105,7 @@ export function runControllerAction(
 			// Stop the reel so nothing keeps animating under the transition overlay.
 			presentation.setCinematicPlaying(false);
 			useTourStore.setState({ paused: true });
-			sceneTransition.go("/play");
+			sceneTransition.go("/maps");
 			break;
 		case "map": {
 			const next =

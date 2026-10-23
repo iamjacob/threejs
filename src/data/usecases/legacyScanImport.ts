@@ -13,7 +13,7 @@ import {
 	physicalCm,
 	verifyImportedScan,
 } from "./legacyScanRecord";
-import { scanClientKey } from "./libraryBooks";
+import { NEW_BOOK_FIELDS, scanClientKey } from "./libraryBooks";
 
 export type {
 	LegacyScanRecord,
@@ -130,6 +130,7 @@ async function importOne(
 		}
 		const cm = physicalCm(record);
 		const book: LibraryBook = {
+			...NEW_BOOK_FIELDS,
 			id: `${profileId}:${clientKey}`,
 			profileId,
 			clientKey,

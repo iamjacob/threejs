@@ -210,10 +210,41 @@ body {
   from { opacity: 0; transform: translateY(6px); }
   to { opacity: 1; transform: translateY(0); }
 }
+/* Slow / failed: the overlay stays and offers explicit choices (never a silent blank reveal). */
+.scene-transition-panel {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  max-width: 22rem;
+  padding: 1.5rem;
+  text-align: center;
+  color: #f5efe2;
+}
+.scene-transition-title { margin: 0; font-size: 1rem; line-height: 1.5; }
+.scene-transition-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 0.5rem; }
+.scene-transition-actions button {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  border: 1px solid rgb(255 255 255 / 0.2);
+  background: rgb(255 255 255 / 0.08);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.scene-transition-actions button:first-child { background: #d91b24; border-color: #d91b24; }
+.scene-transition-actions button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+@keyframes scene-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
 @media (prefers-reduced-motion: reduce) {
   .boooks-shuttle { animation-duration: 2.4s; }
   .scene-transition[data-phase="cover"] { animation: none; }
-  .scene-transition[data-phase="reveal"] { animation: scene-reveal 120ms linear both; }
+  /* No spatial movement: a short opacity fade only. */
+  .scene-transition[data-phase="reveal"] { animation: scene-fade-out 120ms linear both; }
+  .scene-transition .scene-transition-mark { animation: none; opacity: 1; }
 }
 
 .sr-only {

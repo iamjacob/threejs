@@ -82,7 +82,7 @@ export default function MapPlay() {
 	// Reveal once the game runtime is ready and the map has drawn its first style (or errored).
 	const status = useMapPlayStore((s) => s.status);
 	const [mapDrawn, setMapDrawn] = useState(false);
-	useArriveWhen("/play", status !== "loading" && mapDrawn);
+	useArriveWhen("/maps", status !== "loading" && mapDrawn);
 
 	return (
 		<main

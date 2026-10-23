@@ -1,4 +1,4 @@
-// Real-Chrome check that /play shows the ACTIVE profile's books (npm run build:test first).
+// Real-Chrome check that /maps shows the ACTIVE profile's books (npm run build:test first).
 import assert from "node:assert/strict";
 import { crash, freshProfile, launch, serveDist } from "./harness.mjs";
 import { openPlay, probe } from "./mapPlayHelpers.mjs";

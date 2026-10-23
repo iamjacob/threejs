@@ -206,6 +206,24 @@
 	text-align: left;
 	font-size: 12px;
 }
+/* Same look as the detail buttons; it is a link (to /library/:id), not a button. */
+.book-info-details .book-info-manage {
+	display: flex;
+	align-items: center;
+	width: 100%;
+	min-height: 44px;
+	gap: 10px;
+	padding: 9px 10px;
+	border-radius: 12px;
+	background: rgb(255 255 255 / 6%);
+	color: inherit;
+	font-size: 12px;
+	text-decoration: none;
+}
+.book-info-details .book-info-manage:focus-visible {
+	outline: 2px solid #fff;
+	outline-offset: 2px;
+}
 .book-info-details small {
 	display: block;
 	margin-top: 3px;

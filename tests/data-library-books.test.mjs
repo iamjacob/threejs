@@ -15,7 +15,7 @@ test("0002 upgrades a populated 0001 database without touching existing rows", a
 	});
 	await v1.database.close();
 	const v2 = await openDb(data, store);
-	assert.deepEqual(v2.result.applied, ["0002_library_books", "0003_shared_device"]);
+	assert.deepEqual(v2.result.applied, ["0002_library_books", "0003_shared_device", "0004_book_manager", "0005_digital_files"]);
 	const [{ c }] = await v2.database.queryRaw("SELECT count(*) AS c FROM notes");
 	assert.equal(c, 1);
 	const cols = (await v2.database.queryRaw("SELECT name FROM pragma_table_info('library_books')")).map((r) => r.name);
@@ -90,3 +90,19 @@ test("guest → account merge copies books with remapped covers; duplicates are 
 	assert.equal(again.alreadyCompleted, true);
 	assert.equal((await data.listLibraryBooks(ctx, accountId)).length, 2, "retry copies nothing");
 });
+
+test("listScanKeys (book-link ownership): only this profile's active scans; merged accounts keep them", async () => {
+	const { ctx } = await openCtx(data);
+	const guest = await data.ensureActiveProfile(ctx);
+	await data.importLegacyScans(ctx, guest.id, legacyStore([scan("s1"), scan("s2")]));
+	await data.addCatalogBook(ctx, guest.id, SENECA);
+	assert.deepEqual((await data.listScanKeys(ctx, guest.id)).sort(), ["scan:s1", "scan:s2"], "catalog rows excluded");
+	const other = await data.createLocalProfile(ctx, { displayName: "Ben" });
+	assert.deepEqual(await data.listScanKeys(ctx, other.id), [], "another person owns no scans");
+	const [s1] = (await data.listLibraryBooks(ctx, guest.id)).filter((b) => b.clientKey === "scan:s1");
+	await data.removeLibraryBook(ctx, guest.id, s1.id);
+	assert.deepEqual(await data.listScanKeys(ctx, guest.id), ["scan:s2"], "removed scans no longer open");
+	const accountId = (await data.promoteGuest(ctx, guest.id, { kind: "new", displayName: "Ada" })).targetProfileId;
+	assert.deepEqual(await data.listScanKeys(ctx, accountId), ["scan:s2"], "merged scan belongs to the account");
+});
+

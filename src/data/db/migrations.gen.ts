@@ -42,5 +42,29 @@ export const migrations: ReadonlyArray<{ id: string; statements: readonly string
 			"CREATE UNIQUE INDEX `messages_author_client_key` ON `messages` (`author_profile_id`,`client_key`);",
 			"CREATE INDEX `messages_conversation_order_idx` ON `messages` (`conversation_id`,`created_at`,`id`);"
 		]
+	},
+	{
+		"id": "0004_book_manager",
+		"statements": [
+			"CREATE TABLE `book_assets` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`profile_id` text NOT NULL,\n\t`book_id` text NOT NULL,\n\t`kind` text NOT NULL,\n\t`role` text,\n\t`page_index` integer,\n\t`file_id` text,\n\t`sha256` text NOT NULL,\n\t`mime_type` text NOT NULL,\n\t`byte_size` integer NOT NULL,\n\t`original_name` text,\n\t`provenance` text NOT NULL,\n\t`rights_note` text,\n\t`intake` text NOT NULL,\n\t`last_error` text,\n\t`removed_at` integer,\n\t`created_at` integer NOT NULL,\n\t`updated_at` integer NOT NULL,\n\tFOREIGN KEY (`profile_id`) REFERENCES `profiles`(`id`) ON UPDATE no action ON DELETE no action,\n\tFOREIGN KEY (`book_id`) REFERENCES `library_books`(`id`) ON UPDATE no action ON DELETE no action,\n\tFOREIGN KEY (`file_id`) REFERENCES `files`(`id`) ON UPDATE no action ON DELETE no action\n);",
+			"CREATE INDEX `book_assets_book_idx` ON `book_assets` (`profile_id`,`book_id`,`kind`);",
+			"CREATE UNIQUE INDEX `book_assets_dedupe` ON `book_assets` (`profile_id`,`book_id`,`kind`,`sha256`);",
+			"CREATE TABLE `sync_states` (\n\t`profile_id` text NOT NULL,\n\t`target` text NOT NULL,\n\t`entity` text NOT NULL,\n\t`entity_id` text NOT NULL,\n\t`acked_revision` integer,\n\t`acked_sha256` text,\n\t`acked_at` integer NOT NULL,\n\t`remote_version` text,\n\tPRIMARY KEY(`profile_id`, `target`, `entity`, `entity_id`),\n\tFOREIGN KEY (`profile_id`) REFERENCES `profiles`(`id`) ON UPDATE no action ON DELETE no action\n);",
+			"ALTER TABLE `library_books` ADD `subtitle` text;",
+			"ALTER TABLE `library_books` ADD `isbn` text;",
+			"ALTER TABLE `library_books` ADD `edition` text;",
+			"ALTER TABLE `library_books` ADD `publisher` text;",
+			"ALTER TABLE `library_books` ADD `expected_page_count` integer;",
+			"ALTER TABLE `library_books` ADD `metadata_revision` integer DEFAULT 1 NOT NULL;",
+			"ALTER TABLE `library_books` ADD `catalog_match` text DEFAULT 'unmatched' NOT NULL;",
+			"UPDATE `library_books` SET `catalog_match` = 'candidate' WHERE `source` = 'catalog' AND `catalog_id` IS NOT NULL;"
+		]
+	},
+	{
+		"id": "0005_digital_files",
+		"statements": [
+			"ALTER TABLE `book_assets` ADD `rights_basis` text;",
+			"ALTER TABLE `book_assets` ADD `source_note` text;"
+		]
 	}
 ];

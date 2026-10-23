@@ -77,17 +77,17 @@ pause / background / route exit → saveMapCheckpoint → profile_settings      
 
 ## First-slice contract
 
-On `/play`, dragging the controller moves one tornado over the map, and the camera follows. The tornado stays on its
+On `/maps` (was `/play`), dragging the controller moves one tornado over the map, and the camera follows. The tornado stays on its
 lng/lat under pan, zoom, pitch and rotation. Pause and resume work, the position is restored after restart, play
 works offline, and location is never requested.
 
-**Allowed paths:** `src/game/**`, `src/routes/play.tsx`, `src/stores/useMapPlayStore.ts`, `src/routeTree.gen.ts` (generated),
+**Allowed paths:** `src/game/**`, `src/routes/maps.tsx` (was `play.tsx`), `src/stores/useMapPlayStore.ts`, `src/routeTree.gen.ts` (generated),
 `src/data/testing.ts` (test export), `tests/game-*.mjs`, `tests/browser/{map-play,mapPlayHelpers,android-map-play}.mjs`,
 `package*.json`, `docs/engineering/**`. **Not edited:** scanner, reader, shelves, library scene, `BoooksController`,
 `useLevelStore`, data-foundation code.
 
 **Commands:** `npm run test:game` · `node --test tests/*.test.mjs` · `npm run build:test && npm run test:map-play` ·
-`npm run test:android:play` (JDK 21 + emulator) · `npx tsc --noEmit` · `npx biome check src/game src/stores/useMapPlayStore.ts src/routes/play.tsx`.
+`npm run test:android:play` (JDK 21 + emulator) · `npx tsc --noEmit` · `npx biome check src/game src/stores/useMapPlayStore.ts src/routes/maps.tsx`.
 After any `*:test` / `test:android:play` build, run `npm run build` / `npm run cap:sync` so no test hooks remain.
 
 ## Follow-up slices for Qwen (priority order, one at a time)

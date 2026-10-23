@@ -18,7 +18,7 @@ model plus a profile-scoped repository, then the tornado.
 | A profile's library | that profile | `library_books` row per (profile, book) |
 | Scanned books | **personal** | `library_books` row with scan metadata + cover `files` rows |
 | Legacy device-wide scans | **the persistent guest profile** (created before account linking) | imported once; never assigned to a signed-in account |
-| `/play` tornado | shows only the **active profile's library**, never the whole catalog | — |
+| `/maps` tornado (was `/play`) | shows only the **active profile's library**, never the whole catalog | — |
 
 Adding a catalog book is an explicit action that creates one `library_books` row with `source='catalog'` and
 `catalog_id`. It is **not** marked as read.
@@ -62,7 +62,7 @@ unique(profile_id, client_key); index(profile_id, deleted_at, added_at)
   database to version 2 would make the scanner fail with `VersionError`. The original `books` records are **kept**;
   deleting them is a later, separate cleanup.
 - **The scanner still writes new scans only to IndexedDB** (`scannedBook.ts` is out of scope). New scans are picked up
-  by the same import the next time `/play` loads, as long as the active profile is the guest. Scans made while an
+  by the same import the next time `/maps` loads, as long as the active profile is the guest. Scans made while an
   account is active are not imported yet (reported as `skipped_not_guest`); routing new scans to the active profile is
   a follow-up.
 - **Never silent:** scans with no or invalid front image, or undecodable data URLs, are reported as `failed` with a
