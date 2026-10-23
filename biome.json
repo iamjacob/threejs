@@ -13,6 +13,10 @@
 			"**/index.html",
 			"**/vite.config.ts",
 			"!**/src/routeTree.gen.ts",
+			"!**/src/data/db/migrations.gen.ts",
+			"!android",
+			"!ios",
+			"!dist-native",
 			"!**/src/styles.css"
 		]
 	},
