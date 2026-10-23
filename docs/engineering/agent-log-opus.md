@@ -1,117 +1,4 @@
-# Agent log: Opus (BOOOKS data foundation)
-
-Branch `boooks/data-foundation`, worktree `/Users/jacobgawad/Desktop/capacitor/threejs-data-foundation`, based on `main` @ `b203f0b`.
-Nothing pushed. Plan and decisions: `boooks-port-plan.md`.
-
-## Checkpoint 0: evidence and baseline (no source changes)
-
-Commands (run in `threejs/` on `main`):
-- `git status` → only `?? slices-agent.md`. Existing worktrees: `cline/10993`, `1938f`, `91e16`, `dfc4b`, `eb7f1`.
-- `npx tsc --noEmit` → exit 0.
-- `node --test tests/*.test.mjs` → `tests 183, pass 183, fail 0`.
-- `npx vite build` → exit 0, with the chunk-size warning.
-- `npx biome lint` → exit 1, `Found 32 errors. Found 76 warnings.` (**pre-existing**)
-- `git worktree add -b boooks/data-foundation ../threejs-data-foundation main`, then `npm ci` → exit 0.
-
-Spike in `/tmp/boooks-spike` (disposable, not committed): results S1–S8 are in the plan. Commands:
-`node drive.mjs clean`, `node drive.mjs crash`, `node drive.mjs unflushed` (Playwright-core driving
-`/Applications/Google Chrome.app` headless with a persistent profile; SIGKILL to simulate a crash).
-Note: the first spike "crash" runs used `ctx.browser().process()`, which is a no-op for persistent contexts. They were rerun
-with a real `pgrep -f user-data-dir=… | SIGKILL` (8 processes killed), and S5/S6 held.
-
-## Checkpoints (commits on `boooks/data-foundation`, oldest first)
-
-| Commit | Scope |
-|--------|-------|
-| `43f91a4` | docs: plan, baseline, spike evidence |
-| `6d01dbc` | data core: schema, migrations 0000+0001, serialized `Database`, drivers, pinned wasm, 12 core tests |
-| `23c7b92` | repositories, use cases, guest promotion, outbox, files + 19 tests |
-| `d98f986` | biome import ordering only |
-| `75146d4` | platform adapters, bootstrap + tab lock, `useNotesStore`, `/notes` route, Chrome restart test |
-| `18d8133` | PWA: manifest, icons, app-shell service worker |
-| `6abccc0` | Capacitor 8 config, Android + iOS platforms, permissions, Android emulator test, biome ignores |
-| (next) | this log |
-
-Each commit can be reverted on its own in reverse order. Nothing pushed.
-
-## Decisions made during implementation
-
-- **npm with `.npmrc legacy-peer-deps=true`.** `drizzle-orm@0.45.4` declares optional peers (`expo-sqlite`, `op-sqlite`) that pull
-  `react-native` → `react@^19.3`, which conflicts with the repo's react 19.2. Nothing native-React is installed. The only existing
-  lockfile entries that moved are 6 browserslist/caniuse data packages.
-- **Pinned wasm:** `sql.js-jeep-wasm` = `npm:sql.js@1.11.0`. `scripts/copy-sql-wasm.mjs` copies it into the git-ignored
-  `public/assets/sql-wasm.wasm` and throws if the version drifts. `dev`, `build` and `build:native` run it first.
-- **No `INSERT … RETURNING`** (the plugin routes it through `run()`; native behavior is unverified): `affectedRows()` reads `changes`.
-- **No `unixepoch()` SQL defaults** (the native SQLite version per device is unverified). Timestamps come from the app clock.
-- **Column-order guard:** Drizzle's proxy maps rows by position and the plugin returns objects. `assertColumnOrder()` runs at startup
-  and fails loudly if the order is not preserved (passed on web and Android).
-- **Two build modes:** web `base=/threejs/` + service worker (the Cloudflare Worker is unchanged); `--mode native` uses `base=/`,
-  no SW, output in `dist-native/` (Capacitor `webDir`).
-- **Test-only hook** `window.__boooksDebug` is built only with `VITE_BOOOKS_TEST_HOOKS=1` (grep confirms it is absent from normal web
-  and native bundles). It calls the same `attachImage` use case and skips only the gallery picker.
-- **Icons:** ImageMagick rendered the gradient logo blank; `scripts/generate-pwa-icons.mjs` renders it with headless Chrome instead.
-- **Android needs JDK 21** (the Capacitor 8 camera plugin toolchain). The machine has only JDK 17 and Android Studio is not under
-  /Applications, so a JDK 21 was downloaded to `/tmp/boooks-jdk21` (Temurin 21.0.12.1, not installed system-wide).
-
-## Results (final, HEAD `6abccc0`)
-
-| Check | Command | Result |
-|-------|---------|--------|
-| Types | `npx tsc --noEmit` | exit 0 |
-| All unit tests | `node --test tests/*.test.mjs` | **214 pass, 0 fail** (183 pre-existing + 31 new) |
-| Data tests | `npm run test:data` | 31 pass, 0 fail |
-| Web build | `npm run build` | exit 0; PWA `precache 48 entries (3038.14 KiB)` |
-| Native web build | `npm run build:native` | exit 0; no `sw.js` |
-| Lint (repo) | `npx biome lint` | exit 1: **32 errors / 76 warnings, the same as baseline** (all in pre-existing files) |
-| Lint (new/changed) | `npx biome check src/data src/platform …` | clean |
-| Web, real Chrome | `npm run build && npm run test:web-restart` | **7/7 checks** |
-| Capacitor | `npx cap sync`; `npx cap doctor` | exit 0; "iOS looking great", "Android looking great" |
-| Android build | `JAVA_HOME=<JDK 21> ./gradlew assembleDebug` | exit 0, `app-debug.apk` |
-| Android emulator | `npm run test:android` (AVD `Boooks_pixel_9`, API 36) | **4/4 checks** |
-| iOS build | `xcodebuild` | **Not run: Xcode not installed** (Command Line Tools only) |
-
-## Acceptance checks → evidence
-
-| Requirement | Evidence |
-|-------------|----------|
-| Migrations from empty and prior schema | `data-core`: empty → 0000+0001; 0000 with data → 0001 keeps rows; a failing migration rolls back; a DB from a newer app is refused |
-| CRUD offline, survives restart per target | Node (simulated store); **Chrome**: clean restart, SIGKILL, offline reload via SW; **Android**: `am force-stop` + relaunch |
-| Guest promotion repeatable, no loss | `data-promotion`: retry/duplicate/concurrent idempotent; forced failure rolls back and a retry after restart succeeds; guest rows kept; existing-account conflict → target wins, reported. Chrome + Android: survives restart |
-| Profiles cannot see each other's rows | `data-usecases` "profile isolation": cross-profile read/update/delete → NotFound; files are profile-scoped |
-| File bytes via adapter, refs in SQLite | `data-usecases` (no blobs in SQLite, sha256 key, missing bytes reported); Chrome (IndexedDB); Android (Filesystem) |
-| Outbox records + retries, never blocks CRUD | `data-outbox`: atomic with the change; 2s… backoff; success after retry; a write completes while `send()` hangs; max attempts → failed; survives restart. **No server; nothing is sent** |
-| Web flush/close, transactions, errors | Spike S1–S8 + `data-core` (flush only outside transactions, `flush_failed`, nested write rejected, serialized writes, FK after flush) + Chrome SIGKILL |
-| PWA + Capacitor builds | See Results; iOS build unavailable |
-| Pre-existing vs regressions | 183/183 baseline tests still pass; lint set unchanged (same files, same rules) |
-
-## Verified on web vs native
-
-- **Web (Chrome, headless, persistent profile): verified.** jeep-sqlite, IndexedDB FileStore, Web Locks single tab, SIGKILL
-  durability, SW offline reload. **Not verified:** Safari / iOS home-screen PWA, Firefox, storage eviction, real quota errors.
-- **Android (emulator API 36, debug APK): verified.** Native SQLite, Filesystem FileStore, force-stop persistence, promotion.
-  **Not verified:** real device, camera/gallery picker UI, geolocation prompt, release build, upgrade from an older APK.
-- **iOS:** the SPM project was generated and `cap doctor` passes. **Nothing compiled or run.**
-- `getPosition()` and native `pickImage()` compile but were **not exercised** on any target.
-
-## Remaining risks
-
-1. **Web write cost grows with database size.** jeep's `saveToStore` re-exports the whole database to IndexedDB on every commit.
-   That is fine for small personal data; measure it before moving the library or reading positions into SQLite. The alternative is
-   a different web engine (e.g. official sqlite-wasm + OPFS), behind the existing `SqlDriver` port.
-2. **jeep-sqlite 2.8.0 is from 2024** and bundles old sql.js glue (S1). Upgrades must rerun `test:web-restart`.
-3. **Only one tab on web.** A second tab is refused rather than corrupting data. Browsers without Web Locks proceed unprotected.
-4. **The merge copies rows** (it does not move them), so promoted guests' storage doubles until a cleanup use case exists; there is
-   no cleanup yet, by design. Conflict policy (target wins on `client_key`) needs product sign-off.
-5. **Outbox idempotency keys** assume a future server dedupes by `idempotency_key`; no server contract exists.
-6. **Large binaries on native** move as base64 over the bridge (max 10 MB enforced). Not suitable for video.
-7. **`bun.lock` is stale** (npm used here). Pick one package manager before merging.
-8. Optional peers forced `legacy-peer-deps`, which also hides real peer conflicts in future installs.
-
-## Next smallest integration step
-
-Move **one** existing localStorage key into SQLite through the `profile_settings` seam, after Qwen's slice is reviewed. Prefer
-`boooks-shelf-plates-v1` (no ownership conflict) as the pilot, then `boooks-shelf-level` per the plan's seam section. Keep
-the synchronous localStorage read for first paint and reconcile after `bootstrapData()`.
+# BOOOKS Game Engine: Opus 5.5 Work Order
 
 
 ---
@@ -575,3 +462,103 @@ Android needs JDK 21, but only Zulu 17 is registered. Gradle ran with `JAVA_HOME
 - Cleanup never frees blobs that have no manifest row (e.g. bytes left by a failed note attachment). Non-use can only
   be proven through a removed manifest row.
 
+Follow this work order and the repository’s own `AGENTS.md` instructions. Do not assume a BOOOKS-specific skill is installed.
+
+## Mission
+
+Build the first game-engine layer on top of the committed BOOOKS offline-first data foundation. Preserve the existing Three.js, R3F, Drei, MapLibre, and scanner work where it is useful. This is a game-like map experience: input, simulation, world events, rendering, and durable progress need clear boundaries.
+
+Do not attempt to port the whole old game in one pass. Map the existing behaviors, establish a small engine boundary, and implement one playable vertical slice.
+
+## Model roles
+
+- **Opus 5.5:** inspect the codebase, plan the engine boundary, implement the first vertical slice, and record follow-up slices.
+- **Qwen Coder 14B, 4-bit:** later implements one specifically defined port slice at a time, after this work is reviewed.
+- **Reviewer:** inspect the actual diff and run the checks; do not approve from the implementation summary alone.
+
+Do not start other coding agents during this task.
+
+## Start with evidence
+
+1. Inspect `git status`, current branch, recent commits, repository instructions, package scripts, app entry points, tests, and the data-foundation plan and logs.
+2. Find the old Three.js/game folders and classify source, generated files, experiments, assets, and dead code using imports, build config, and git history. Do not mass-copy, delete, or rewrite files because they look old.
+3. Inventory the current game behaviors and their dependencies: controls, player/tornado movement, merging, portals, discoveries, effects, timers, map integration, and persistence.
+4. Record baseline test/build results before editing.
+5. Record the first-slice contract, allowed paths, model roles, test commands, and status in `docs/engineering/boooks-port-plan.md` and `docs/engineering/agent-log-opus.md`, or the repository’s established equivalents.
+
+If the actual repository differs from the earlier report, update the plan from repository evidence before making changes.
+
+## Engine boundaries
+
+Keep three kinds of state distinct:
+
+1. **Simulation state:** entities, movement, collision/proximity rules, timers, and game rules.
+2. **Render state:** meshes, effects, camera interpolation, and scene objects, owned by the existing Three.js/R3F/MapLibre presentation.
+3. **Durable product state:** intentional checkpoints, discoveries, progression, and user-created data, stored through the existing SQLite foundation.
+
+Use this runtime flow:
+
+`touch/controller input → game command → simulation update → game event → R3F/MapLibre render`
+
+- Keep core simulation logic testable without WebGL, React, SQLite, or Capacitor.
+- Keep high-frequency simulation and animation updates out of React renders, Zustand subscriptions, SQLite writes, and network sync.
+- Use Zustand for low-frequency UI state and commands where appropriate; do not make it the authoritative 60-fps simulation.
+- Persist only meaningful durable outcomes or explicit checkpoints. Never write movement every frame.
+- Send durable writes through the existing application/use-case/repository/database-queue path. Do not create a second database path.
+- Treat GPS as an optional input capability. The first playable slice must work without GPS, account creation, or network access.
+- Verify the installed versions and APIs of R3F, Drei, MapLibre, and the existing react-three-map package before changing integration code. Keep one compatible React/Three dependency graph.
+- Preserve map attribution, existing map style and camera behavior unless the task explicitly changes them.
+- Centralize map/Three coordinate conversion. Test that world entities remain correctly positioned as the map pans, zooms, pitches, and rotates.
+- Handle pause, route exit, backgrounding, and resume without runaway timers or duplicate events.
+
+## First playable slice
+
+Implement one controllable tornado/player that can move using the existing touch or controller input over the map.
+
+Acceptance behavior:
+
+- Input becomes an explicit game command and updates simulation state.
+- The rendered entity follows the expected geographic/world position.
+- Camera following and map pan/zoom/pitch/rotation do not detach or drift the entity.
+- Simulation tests run headlessly and produce the expected outcome at normal and throttled frame rates.
+- Pause/resume and route remount do not duplicate movement, timers, or events.
+- The slice works offline and does not request GPS permission.
+- If a durable checkpoint is needed for this behavior, save it only at an explicit pause/checkpoint through the existing profile-scoped repository. Restore it after restart. Add the smallest required migration only after checking the current schema and migration conventions.
+- Verify the affected browser path and available Capacitor build. State clearly which native behavior was actually run on a device or emulator.
+
+Do not add tornado merging, portals, digging, rewards, new animation menus, or all 21 extra animations in this slice. Record them as candidate follow-up slices with brief acceptance criteria.
+
+## Engineering loop
+
+For this slice:
+
+1. Define the observable behavior and allowed edit paths.
+2. Trace the existing input, map, rendering, lifecycle, and persistence paths.
+3. Implement the smallest cohesive change.
+4. Add meaningful headless tests for simulation behavior and lifecycle edge cases.
+5. Run focused tests, relevant existing regression tests, typecheck, lint on changed files, and relevant browser/Capacitor builds.
+6. Review the diff for unintentional scene changes, dead code removal, per-frame allocations, per-frame persistence, profile leakage, generated output, and accessibility regressions.
+7. Log exact commands and pass/fail results. Record uncertainties instead of claiming unverified platform behavior.
+
+Use small checkpoints or commits that can be reviewed and reverted. Do not push.
+
+## Out of scope
+
+- Rewriting the whole Three.js app or replacing its renderer.
+- Copying the old game folder wholesale.
+- Broad visual redesign or package upgrades unrelated to this slice.
+- Moving every existing game behavior at once.
+- Adding backend sync or pretending the client has remote multiplayer.
+- Persisting frame-by-frame coordinates or sensitive GPS history.
+- Changing scanner, reader, account/auth, or SQLite foundation behavior unrelated to this slice.
+
+## Handoff
+
+Finish with:
+
+- The engine boundary and first-slice behavior implemented.
+- Changed paths and checkpoint/commit references.
+- Exact test and build results, including baseline failures.
+- What was verified in browser, Android, and iOS; identify anything not run.
+- Remaining risks and platform-specific limitations.
+- A prioritized list of the next small game-port slices, each with one-sentence acceptance criteria, so Qwen can implement them one at a time.
