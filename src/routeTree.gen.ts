@@ -9,12 +9,31 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
+import { Route as ShelvesRouteImport } from './routes/_shelves'
+import { Route as MapsRouteImport } from './routes/maps'
+import { Route as MoreRouteImport } from './routes/more'
 import { Route as NotesRouteImport } from './routes/notes'
+import { Route as PeopleRouteImport } from './routes/people'
+import { Route as ProfileRouteImport } from './routes/profile'
+import { Route as ShelvesIndexRouteImport } from './routes/_shelves/index'
+import { Route as ShelvesScanRouteImport } from './routes/_shelves/scan'
+import { Route as LibraryIndexRouteImport } from './routes/library.index'
+import { Route as LibraryBookIdRouteImport } from './routes/library.$bookId'
+import { Route as ShelvesBookBookIdRouteImport } from './routes/_shelves/book.$bookId'
+import { Route as ShelvesReadBookIdRouteImport } from './routes/_shelves/read.$bookId'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ShelvesRoute = ShelvesRouteImport.update({
+  id: '/_shelves',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MapsRoute = MapsRouteImport.update({
+  id: '/maps',
+  path: '/maps',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MoreRoute = MoreRouteImport.update({
+  id: '/more',
+  path: '/more',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NotesRoute = NotesRouteImport.update({
@@ -22,40 +41,163 @@ const NotesRoute = NotesRouteImport.update({
   path: '/notes',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PeopleRoute = PeopleRouteImport.update({
+  id: '/people',
+  path: '/people',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProfileRoute = ProfileRouteImport.update({
+  id: '/profile',
+  path: '/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShelvesIndexRoute = ShelvesIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ShelvesRoute,
+} as any)
+const ShelvesScanRoute = ShelvesScanRouteImport.update({
+  id: '/scan',
+  path: '/scan',
+  getParentRoute: () => ShelvesRoute,
+} as any)
+const LibraryIndexRoute = LibraryIndexRouteImport.update({
+  id: '/library/',
+  path: '/library/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibraryBookIdRoute = LibraryBookIdRouteImport.update({
+  id: '/library/$bookId',
+  path: '/library/$bookId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ShelvesBookBookIdRoute = ShelvesBookBookIdRouteImport.update({
+  id: '/book/$bookId',
+  path: '/book/$bookId',
+  getParentRoute: () => ShelvesRoute,
+} as any)
+const ShelvesReadBookIdRoute = ShelvesReadBookIdRouteImport.update({
+  id: '/read/$bookId',
+  path: '/read/$bookId',
+  getParentRoute: () => ShelvesRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
+  '/': typeof ShelvesIndexRoute
+  '/maps': typeof MapsRoute
+  '/more': typeof MoreRoute
   '/notes': typeof NotesRoute
+  '/people': typeof PeopleRoute
+  '/profile': typeof ProfileRoute
+  '/scan': typeof ShelvesScanRoute
+  '/library/$bookId': typeof LibraryBookIdRoute
+  '/library/': typeof LibraryIndexRoute
+  '/book/$bookId': typeof ShelvesBookBookIdRoute
+  '/read/$bookId': typeof ShelvesReadBookIdRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
+  '/maps': typeof MapsRoute
+  '/more': typeof MoreRoute
   '/notes': typeof NotesRoute
+  '/people': typeof PeopleRoute
+  '/profile': typeof ProfileRoute
+  '/scan': typeof ShelvesScanRoute
+  '/library/$bookId': typeof LibraryBookIdRoute
+  '/': typeof ShelvesIndexRoute
+  '/library': typeof LibraryIndexRoute
+  '/book/$bookId': typeof ShelvesBookBookIdRoute
+  '/read/$bookId': typeof ShelvesReadBookIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
+  '/_shelves': typeof ShelvesRouteWithChildren
+  '/maps': typeof MapsRoute
+  '/more': typeof MoreRoute
   '/notes': typeof NotesRoute
+  '/people': typeof PeopleRoute
+  '/profile': typeof ProfileRoute
+  '/_shelves/scan': typeof ShelvesScanRoute
+  '/library/$bookId': typeof LibraryBookIdRoute
+  '/_shelves/': typeof ShelvesIndexRoute
+  '/library/': typeof LibraryIndexRoute
+  '/_shelves/book/$bookId': typeof ShelvesBookBookIdRoute
+  '/_shelves/read/$bookId': typeof ShelvesReadBookIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/notes'
+  fullPaths:
+    | '/'
+    | '/maps'
+    | '/more'
+    | '/notes'
+    | '/people'
+    | '/profile'
+    | '/scan'
+    | '/library/$bookId'
+    | '/library/'
+    | '/book/$bookId'
+    | '/read/$bookId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/notes'
-  id: '__root__' | '/' | '/notes'
+  to:
+    | '/maps'
+    | '/more'
+    | '/notes'
+    | '/people'
+    | '/profile'
+    | '/scan'
+    | '/library/$bookId'
+    | '/'
+    | '/library'
+    | '/book/$bookId'
+    | '/read/$bookId'
+  id:
+    | '__root__'
+    | '/_shelves'
+    | '/maps'
+    | '/more'
+    | '/notes'
+    | '/people'
+    | '/profile'
+    | '/_shelves/scan'
+    | '/library/$bookId'
+    | '/_shelves/'
+    | '/library/'
+    | '/_shelves/book/$bookId'
+    | '/_shelves/read/$bookId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
+  ShelvesRoute: typeof ShelvesRouteWithChildren
+  MapsRoute: typeof MapsRoute
+  MoreRoute: typeof MoreRoute
   NotesRoute: typeof NotesRoute
+  PeopleRoute: typeof PeopleRoute
+  ProfileRoute: typeof ProfileRoute
+  LibraryBookIdRoute: typeof LibraryBookIdRoute
+  LibraryIndexRoute: typeof LibraryIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
-      path: '/'
+    '/_shelves': {
+      id: '/_shelves'
+      path: ''
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+      preLoaderRoute: typeof ShelvesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/maps': {
+      id: '/maps'
+      path: '/maps'
+      fullPath: '/maps'
+      preLoaderRoute: typeof MapsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/more': {
+      id: '/more'
+      path: '/more'
+      fullPath: '/more'
+      preLoaderRoute: typeof MoreRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/notes': {
@@ -65,12 +207,91 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof NotesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/people': {
+      id: '/people'
+      path: '/people'
+      fullPath: '/people'
+      preLoaderRoute: typeof PeopleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/profile': {
+      id: '/profile'
+      path: '/profile'
+      fullPath: '/profile'
+      preLoaderRoute: typeof ProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_shelves/': {
+      id: '/_shelves/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof ShelvesIndexRouteImport
+      parentRoute: typeof ShelvesRoute
+    }
+    '/_shelves/scan': {
+      id: '/_shelves/scan'
+      path: '/scan'
+      fullPath: '/scan'
+      preLoaderRoute: typeof ShelvesScanRouteImport
+      parentRoute: typeof ShelvesRoute
+    }
+    '/library/': {
+      id: '/library/'
+      path: '/library'
+      fullPath: '/library/'
+      preLoaderRoute: typeof LibraryIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/library/$bookId': {
+      id: '/library/$bookId'
+      path: '/library/$bookId'
+      fullPath: '/library/$bookId'
+      preLoaderRoute: typeof LibraryBookIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_shelves/book/$bookId': {
+      id: '/_shelves/book/$bookId'
+      path: '/book/$bookId'
+      fullPath: '/book/$bookId'
+      preLoaderRoute: typeof ShelvesBookBookIdRouteImport
+      parentRoute: typeof ShelvesRoute
+    }
+    '/_shelves/read/$bookId': {
+      id: '/_shelves/read/$bookId'
+      path: '/read/$bookId'
+      fullPath: '/read/$bookId'
+      preLoaderRoute: typeof ShelvesReadBookIdRouteImport
+      parentRoute: typeof ShelvesRoute
+    }
   }
 }
 
+interface ShelvesRouteChildren {
+  ShelvesScanRoute: typeof ShelvesScanRoute
+  ShelvesIndexRoute: typeof ShelvesIndexRoute
+  ShelvesBookBookIdRoute: typeof ShelvesBookBookIdRoute
+  ShelvesReadBookIdRoute: typeof ShelvesReadBookIdRoute
+}
+
+const ShelvesRouteChildren: ShelvesRouteChildren = {
+  ShelvesScanRoute: ShelvesScanRoute,
+  ShelvesIndexRoute: ShelvesIndexRoute,
+  ShelvesBookBookIdRoute: ShelvesBookBookIdRoute,
+  ShelvesReadBookIdRoute: ShelvesReadBookIdRoute,
+}
+
+const ShelvesRouteWithChildren =
+  ShelvesRoute._addFileChildren(ShelvesRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
+  ShelvesRoute: ShelvesRouteWithChildren,
+  MapsRoute: MapsRoute,
+  MoreRoute: MoreRoute,
   NotesRoute: NotesRoute,
+  PeopleRoute: PeopleRoute,
+  ProfileRoute: ProfileRoute,
+  LibraryBookIdRoute: LibraryBookIdRoute,
+  LibraryIndexRoute: LibraryIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

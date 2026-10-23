@@ -58,8 +58,9 @@ export const DEFAULT_ACTIONS: ControllerActionItem[] = [
 		),
 	},
 	{
+		// Opens the real same-device People & messages page (/people).
 		id: "chat",
-		label: "Messages",
+		label: "People & messages",
 		icon: <path d="M21 12a8 8 0 0 1-11.8 7L4 20l1.3-4.6A8 8 0 1 1 21 12z" />,
 	},
 	{
@@ -124,11 +125,39 @@ export const DEFAULT_ACTIONS: ControllerActionItem[] = [
 		icon: <path d="M7 11h3v6H5v-4c0-3 1-5 4-6M16 11h3v6h-5v-4c0-3 1-5 4-6" />,
 	},
 	{
+		// Cycles the 3D environment (library/castle/forest/zen). Was labelled "Map" before the real
+		// map route existed; the action id stays "map" so existing behaviour is unchanged.
 		id: "map",
-		label: "Map",
-		icon: <path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14" />,
+		label: "Scenery",
+		icon: (
+			<>
+				<path d="M3 19l6-9 4 6 3-4 5 7z" />
+				<circle cx="16.5" cy="6.5" r="2" />
+			</>
+		),
+	},
+	{
+		id: "go-map",
+		label: "Open map",
+		icon: (
+			<>
+				<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14" />
+			</>
+		),
 	},
 ];
+
+/** Map route button back to the shelves (used by MAP_PLAY_ACTIONS). */
+export const GO_SHELVES_ACTION: ControllerActionItem = {
+	id: "go-shelves",
+	label: "Shelves",
+	icon: (
+		<>
+			<path d="M4 20h16M4 4h16M4 12h16" />
+			<path d="M7 4v8M10 6v6M14 12v8M17 14v6" />
+		</>
+	),
+};
 
 export const JR = 44; // joystick travel radius (px)
 export const MENU_R = 96; // radial menu radius

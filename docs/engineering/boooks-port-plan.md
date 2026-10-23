@@ -145,4 +145,10 @@ Not implemented here. Proposed once Qwen's `saveSlice` is reviewed:
 
 See `agent-log-opus.md` § Results.
 
+## Game engine (next layer)
+
+The map game engine is built on top of this foundation on branch `boooks/game-engine`. Its contract, boundary and the
+Qwen follow-up slices are in `boooks-game-engine-plan.md`, and its results are in `agent-log-opus.md` § Game engine.
+It adds no migration; its checkpoint uses `profile_settings`.
+
 

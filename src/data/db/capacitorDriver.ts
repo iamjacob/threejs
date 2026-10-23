@@ -7,34 +7,52 @@ import {
 import type { SqlDriver, SqlRow, SqlValue } from "./driver";
 
 /**
+ * ONE SQLiteConnection per page, shared by every database file. A fresh SQLiteConnection knows no
+ * open connections, and its checkConnectionsConsistency() makes the native plugin (and jeep-sqlite
+ * on web) close ALL open connections, so a second database opened that way would close the first
+ * (source: CapacitorSQLite.java / jeep-sqlite _checkConnectionsConsistency; verified by the
+ * multi-db spike, check M1). Consistency is checked once, when the shared connection is created.
+ */
+let shared: Promise<SQLiteConnection> | undefined;
+
+function sharedConnection(platform: string) {
+	shared ??= (async () => {
+		const sqlite = new SQLiteConnection(CapacitorSQLite);
+		if (platform === "web") {
+			const { defineCustomElements } = await import("jeep-sqlite/loader");
+			defineCustomElements(window);
+			if (!document.querySelector("jeep-sqlite")) {
+				const element = document.createElement("jeep-sqlite");
+				// Vite base path, so the wasm resolves under /beta/ and in Capacitor's WebView.
+				element.setAttribute(
+					"wasmpath",
+					`${import.meta.env.BASE_URL}assets`.replace(/\/$/, ""),
+				);
+				element.style.display = "none";
+				document.body.append(element);
+			}
+			await customElements.whenDefined("jeep-sqlite");
+			await sqlite.initWebStore();
+		}
+		// After a WebView reload the native side may still hold connections this page never made.
+		await sqlite.checkConnectionsConsistency().catch(() => {});
+		return sqlite;
+	})();
+	return shared;
+}
+
+/**
  * @capacitor-community/sqlite driver for both targets.
  * - Native (iOS/Android): real SQLite file; COMMIT is durable, flush() is a no-op.
  * - Web: <jeep-sqlite> runs sql.js in memory; flush() = saveToStore() into IndexedDB (spike S4–S6).
  * Plugin-level transactions are disabled (`transaction=false`); Database owns BEGIN/COMMIT.
+ * Several database files can be open at once; they share one plugin connection object.
  */
 export async function openCapacitorDriver(
 	databaseName: string,
 ): Promise<SqlDriver> {
 	const platform = Capacitor.getPlatform();
-	const sqlite = new SQLiteConnection(CapacitorSQLite);
-	if (platform === "web") {
-		const { defineCustomElements } = await import("jeep-sqlite/loader");
-		defineCustomElements(window);
-		if (!document.querySelector("jeep-sqlite")) {
-			const element = document.createElement("jeep-sqlite");
-			// Vite base path, so the wasm resolves under /threejs/ and in Capacitor's WebView.
-			element.setAttribute(
-				"wasmpath",
-				`${import.meta.env.BASE_URL}assets`.replace(/\/$/, ""),
-			);
-			element.style.display = "none";
-			document.body.append(element);
-		}
-		await customElements.whenDefined("jeep-sqlite");
-		await sqlite.initWebStore();
-	}
-
-	await sqlite.checkConnectionsConsistency().catch(() => {});
+	const sqlite = await sharedConnection(platform);
 	const existing = (await sqlite.isConnection(databaseName, false)).result;
 	const connection: SQLiteDBConnection = existing
 		? await sqlite.retrieveConnection(databaseName, false)

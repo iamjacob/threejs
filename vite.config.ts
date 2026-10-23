@@ -26,7 +26,7 @@ function publicImageVersions(directory = resolve("public"), prefix = "") {
 // `--mode native` builds for Capacitor: the WebView serves from the origin root, and a service
 // worker is unnecessary there (assets are already local), so it is not generated.
 const config = defineConfig(({ command, mode }) => ({
-	base: mode === "native" ? "/" : "/threejs/",
+	base: mode === "native" ? "/" : "/beta/",
 	build: mode === "native" ? { outDir: "dist-native" } : undefined,
 	define: {
 		__PUBLIC_IMAGE_VERSIONS__: JSON.stringify(
@@ -65,7 +65,7 @@ const config = defineConfig(({ command, mode }) => ({
 			},
 			workbox: {
 				// App shell only (JS/CSS/HTML/sql-wasm + icons). The 70+ MB of book data in
-				// public/blockchain, public/reader and book images is NOT precached.
+				// public/blockchain, public/reader and book images is NOT precached (see runtimeCaching).
 				globPatterns: [
 					"index.html",
 					"assets/**/*.{js,css,wasm}",
@@ -74,8 +74,21 @@ const config = defineConfig(({ command, mode }) => ({
 				// The largest chunks are ~630 kB; sql-wasm.wasm is ~650 kB.
 				maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
 				navigateFallback: "index.html",
+				// The reader is its own document (an iframe). Without this, the SPA fallback served the
+				// app's index.html into the reader frame instead of Foliate.
+				navigateFallbackDenylist: [/\/reader\//],
 				// Book assets are cached as they are viewed, so opened books work offline later.
 				runtimeCaching: [
+					{
+						// The reader's own page, scripts and PDF.js (13 MB, mostly source maps and CMaps):
+						// cached on first use, so a book opened once also opens offline.
+						urlPattern: ({ url }) => /\/reader\//.test(url.pathname),
+						handler: "StaleWhileRevalidate",
+						options: {
+							cacheName: "boooks-reader",
+							expiration: { maxEntries: 120 },
+						},
+					},
 					{
 						urlPattern: ({ url, request }) =>
 							request.destination === "image" ||

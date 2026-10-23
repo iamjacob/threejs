@@ -72,6 +72,60 @@ function pickImageWeb(): Promise<CapabilityResult<PickedImage>> {
 	});
 }
 
+export type PickedDocument = {
+	bytes: Uint8Array;
+	/** As reported by the OS/browser; often empty or generic for EPUB. Only a hint. */
+	mimeType: string;
+	name: string;
+};
+
+/**
+ * One document from the device (EPUB/PDF). Uses <input type=file> on web AND native: Capacitor's
+ * Android WebView answers it with the system document picker (BridgeWebChromeClient
+ * onShowFileChooser), and iOS WKWebView shows the Files picker. No extra plugin. `maxBytes` is
+ * checked before reading, so an oversized file is never loaded into memory.
+ */
+export function pickDocument(
+	accept: string,
+	maxBytes: number,
+): Promise<
+	| CapabilityResult<PickedDocument>
+	| { status: "too_large"; size: number; name: string }
+> {
+	return new Promise((resolve) => {
+		const input = document.createElement("input");
+		input.type = "file";
+		input.accept = accept;
+		input.addEventListener("change", async () => {
+			const file = input.files?.[0];
+			if (!file) return resolve({ status: "cancelled" });
+			if (file.size > maxBytes)
+				return resolve({
+					status: "too_large",
+					size: file.size,
+					name: file.name,
+				});
+			try {
+				resolve({
+					status: "ok",
+					value: {
+						bytes: new Uint8Array(await file.arrayBuffer()),
+						mimeType: file.type,
+						name: file.name,
+					},
+				});
+			} catch (error) {
+				resolve({
+					status: "unavailable",
+					reason: String((error as Error)?.message ?? error),
+				});
+			}
+		});
+		input.addEventListener("cancel", () => resolve({ status: "cancelled" }));
+		input.click();
+	});
+}
+
 export type GeoFix = {
 	latitude: number;
 	longitude: number;

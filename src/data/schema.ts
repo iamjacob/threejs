@@ -5,6 +5,7 @@ import {
 	index,
 	integer,
 	primaryKey,
+	real,
 	sqliteTable,
 	text,
 	uniqueIndex,
@@ -15,10 +16,15 @@ const timestamps = {
 	updatedAt: integer("updated_at").notNull(),
 };
 
-/** One row per person on this device. A guest exists from first launch. */
+/**
+ * One row per person on this device. A guest exists from first launch.
+ * kind: 'guest' = the persistent first-launch guest (owns legacy device-wide scans);
+ * 'local' = another person on this shared device (0003; no account, never remote);
+ * 'account' = linked/linkable account profile.
+ */
 export const profiles = sqliteTable("profiles", {
 	id: text("id").primaryKey(),
-	kind: text("kind", { enum: ["guest", "account"] }).notNull(),
+	kind: text("kind", { enum: ["guest", "local", "account"] }).notNull(),
 	displayName: text("display_name").notNull(),
 	/** Remote account id once linked. Null for guests and not-yet-linked accounts. */
 	remoteAccountId: text("remote_account_id"),
@@ -112,6 +118,144 @@ export const profileMerges = sqliteTable("profile_merges", {
 	...timestamps,
 });
 
+/**
+ * A profile's library membership (migration 0002). Catalog books stay shared in the bundle and are
+ * referenced by `catalogId`; scanned books are personal and their covers are `files` rows.
+ * `clientKey` = 'catalog:<catalogId>' | 'scan:<legacyScanId>' is the natural key used for
+ * idempotent import and for merge conflict detection.
+ */
+export const libraryBooks = sqliteTable(
+	"library_books",
+	{
+		id: text("id").primaryKey(),
+		profileId: text("profile_id")
+			.notNull()
+			.references(() => profiles.id),
+		clientKey: text("client_key").notNull(),
+		/** 'manual' (0004, TS-only value; the column is plain text): added by hand in the Book Manager. */
+		source: text("source", { enum: ["catalog", "scan", "manual"] }).notNull(),
+		catalogId: text("catalog_id"),
+		title: text("title").notNull(),
+		author: text("author").notNull().default(""),
+		widthCm: real("width_cm"),
+		heightCm: real("height_cm"),
+		thicknessCm: real("thickness_cm"),
+		color: text("color"),
+		coverFrontFileId: text("cover_front_file_id").references(() => files.id),
+		coverBackFileId: text("cover_back_file_id").references(() => files.id),
+		coverSpineFileId: text("cover_spine_file_id").references(() => files.id),
+		addedAt: integer("added_at").notNull(),
+		deletedAt: integer("deleted_at"),
+		// 0004: the person's own metadata for THIS library entry (never shared catalog facts).
+		subtitle: text("subtitle"),
+		/** As the person entered it; not unique and may be absent. Helps matching, is not identity. */
+		isbn: text("isbn"),
+		edition: text("edition"),
+		publisher: text("publisher"),
+		/** Pages the person says this edition has. Required before content can be "complete". */
+		expectedPageCount: integer("expected_page_count"),
+		/** Bumped on every local metadata edit; a future sync compares it to the acknowledged one. */
+		metadataRevision: integer("metadata_revision").notNull().default(1),
+		/**
+		 * Edition/registry identity. 'unmatched' unless a real process set it. Catalog rows are a
+		 * bundled-catalog reference ('candidate' at most), never 'verified' by the app itself.
+		 */
+		catalogMatch: text("catalog_match", {
+			enum: ["unmatched", "candidate", "verified"],
+		})
+			.notNull()
+			.default("unmatched"),
+		...timestamps,
+	},
+	(t) => [
+		uniqueIndex("library_books_profile_client_key").on(
+			t.profileId,
+			t.clientKey,
+		),
+		index("library_books_profile_idx").on(t.profileId, t.deletedAt, t.addedAt),
+	],
+);
+
+/**
+ * Content manifest (0004): every cover, page scan or imported file for one library book.
+ * Bytes live in the FileStore under `sha256`; `file_id` is the existing `files` metadata row.
+ * `intake`: 'saved' only after the bytes were re-read and their hash matched AND this row
+ * committed; 'failed' keeps the reason so the UI can offer Retry. `removed_at` is a soft remove.
+ */
+export const bookAssets = sqliteTable(
+	"book_assets",
+	{
+		id: text("id").primaryKey(),
+		profileId: text("profile_id")
+			.notNull()
+			.references(() => profiles.id),
+		bookId: text("book_id")
+			.notNull()
+			.references(() => libraryBooks.id),
+		kind: text("kind", {
+			enum: ["cover", "page_scan", "digital_file"],
+		}).notNull(),
+		/** cover: front|back|spine; page_scan: null; digital_file: format (epub|pdf). */
+		role: text("role"),
+		/** 0-based page order for page scans; null otherwise. */
+		pageIndex: integer("page_index"),
+		fileId: text("file_id").references(() => files.id),
+		sha256: text("sha256").notNull(),
+		mimeType: text("mime_type").notNull(),
+		byteSize: integer("byte_size").notNull(),
+		originalName: text("original_name"),
+		/** Where the bytes came from: 'camera' | 'device_file' | 'legacy_scan' | 'catalog_bundle'. */
+		provenance: text("provenance").notNull(),
+		rightsNote: text("rights_note"),
+		/**
+		 * 0005, digital files: the basis the person stated for keeping this file on the device
+		 * (see DIGITAL_RIGHTS_BASES). It records their statement. The app does not verify it,
+		 * and nothing is shared or published.
+		 */
+		rightsBasis: text("rights_basis"),
+		/** 0005: where the person says the file came from (free text, e.g. "Project Gutenberg"). */
+		sourceNote: text("source_note"),
+		intake: text("intake", { enum: ["saved", "failed"] }).notNull(),
+		lastError: text("last_error"),
+		removedAt: integer("removed_at"),
+		...timestamps,
+	},
+	(t) => [
+		index("book_assets_book_idx").on(t.profileId, t.bookId, t.kind),
+		// One copy of the same bytes per book and kind (retry/duplicate pick stores one row).
+		uniqueIndex("book_assets_dedupe").on(
+			t.profileId,
+			t.bookId,
+			t.kind,
+			t.sha256,
+		),
+	],
+);
+
+/**
+ * Sync-readiness contract (0004). A row exists ONLY after a real remote target acknowledged a
+ * record or asset: never written by the local app today (no backend). No row = local only.
+ * A later local edit is detected by comparing the entity's current revision/hash with these.
+ */
+export const syncStates = sqliteTable(
+	"sync_states",
+	{
+		profileId: text("profile_id")
+			.notNull()
+			.references(() => profiles.id),
+		target: text("target").notNull(),
+		entity: text("entity", { enum: ["library_book", "book_asset"] }).notNull(),
+		entityId: text("entity_id").notNull(),
+		ackedRevision: integer("acked_revision"),
+		ackedSha256: text("acked_sha256"),
+		ackedAt: integer("acked_at").notNull(),
+		remoteVersion: text("remote_version"),
+	},
+	(t) => [
+		primaryKey({ columns: [t.profileId, t.target, t.entity, t.entityId] }),
+	],
+);
+
 /** Per-profile settings. Seam for moving localStorage keys (e.g. boooks-shelf-level) later. */
 export const profileSettings = sqliteTable(
 	"profile_settings",
@@ -126,7 +270,96 @@ export const profileSettings = sqliteTable(
 	(t) => [primaryKey({ columns: [t.profileId, t.key] })],
 );
 
+/**
+ * Consented "On this device" directory (migration 0003). A row exists only while the profile owner
+ * has opted in; no row = not discoverable (the default for every existing and new profile).
+ * Holds ONLY the public name the owner chose. Turning visibility off deletes this row; the
+ * profile, its library and its conversations are untouched. Never synced or uploaded.
+ */
+export const deviceDirectory = sqliteTable("device_directory", {
+	profileId: text("profile_id")
+		.primaryKey()
+		.references(() => profiles.id),
+	publicName: text("public_name").notNull(),
+	...timestamps,
+});
+
+/**
+ * A conversation between profiles on THIS device (0003). scope 'local' = same database only;
+ * it is never written to the outbox and never uploaded. Remote conversations would need a
+ * separate scope and adapter.
+ */
+export const conversations = sqliteTable("conversations", {
+	id: text("id").primaryKey(),
+	scope: text("scope", { enum: ["local"] }).notNull(),
+	createdByProfileId: text("created_by_profile_id")
+		.notNull()
+		.references(() => profiles.id),
+	...timestamps,
+});
+
+/** Explicit participants. Every conversation/message read checks membership here. */
+export const conversationMembers = sqliteTable(
+	"conversation_members",
+	{
+		conversationId: text("conversation_id")
+			.notNull()
+			.references(() => conversations.id),
+		profileId: text("profile_id")
+			.notNull()
+			.references(() => profiles.id),
+		/** Public name snapshot from the directory when the member joined (never the private name). */
+		publicName: text("public_name").notNull(),
+		joinedAt: integer("joined_at").notNull(),
+	},
+	(t) => [
+		primaryKey({ columns: [t.conversationId, t.profileId] }),
+		index("conversation_members_profile_idx").on(t.profileId),
+	],
+);
+
+/**
+ * Messages. Ordered by (created_at, id). (author, client_key) is the sender's idempotency key, so
+ * a double-submit or retry stores one message. scope 'local' + status 'saved' = committed and
+ * flushed to this device's database; there is no network delivery or read receipt for it.
+ */
+export const messages = sqliteTable(
+	"messages",
+	{
+		id: text("id").primaryKey(),
+		conversationId: text("conversation_id")
+			.notNull()
+			.references(() => conversations.id),
+		authorProfileId: text("author_profile_id")
+			.notNull()
+			.references(() => profiles.id),
+		clientKey: text("client_key").notNull(),
+		body: text("body").notNull(),
+		scope: text("scope", { enum: ["local"] }).notNull(),
+		status: text("status", { enum: ["saved"] }).notNull(),
+		createdAt: integer("created_at").notNull(),
+	},
+	(t) => [
+		uniqueIndex("messages_author_client_key").on(
+			t.authorProfileId,
+			t.clientKey,
+		),
+		index("messages_conversation_order_idx").on(
+			t.conversationId,
+			t.createdAt,
+			t.id,
+		),
+	],
+);
+
 export type Profile = typeof profiles.$inferSelect;
+export type DeviceDirectoryRow = typeof deviceDirectory.$inferSelect;
+export type Conversation = typeof conversations.$inferSelect;
+export type ConversationMember = typeof conversationMembers.$inferSelect;
+export type Message = typeof messages.$inferSelect;
 export type Note = typeof notes.$inferSelect;
 export type FileRecord = typeof files.$inferSelect;
 export type OutboxEntry = typeof outbox.$inferSelect;
+export type LibraryBook = typeof libraryBooks.$inferSelect;
+export type BookAsset = typeof bookAssets.$inferSelect;
+export type SyncState = typeof syncStates.$inferSelect;

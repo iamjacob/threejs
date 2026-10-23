@@ -1,5 +1,6 @@
 import type { Db } from "../db/database";
 import { fileRepository } from "../repositories/files";
+import { libraryBookRepository } from "../repositories/libraryBooks";
 import { noteRepository } from "../repositories/notes";
 import type { Profile } from "../schema";
 
@@ -11,6 +12,9 @@ export type MergeReport = {
 	filesCopied: number;
 	/** Guest note ids skipped because the target already had the same clientKey (target wins). */
 	skippedConflicts: string[];
+	booksCopied: number;
+	/** Guest library-book ids skipped because the target had the same clientKey (target wins). */
+	skippedBookConflicts: string[];
 	/** True when this call found an already-completed merge and changed nothing. */
 	alreadyCompleted: boolean;
 };
@@ -44,6 +48,8 @@ export async function copyRows(
 		notesCopied: 0,
 		filesCopied: 0,
 		skippedConflicts: [],
+		booksCopied: 0,
+		skippedBookConflicts: [],
 		alreadyCompleted: false,
 	};
 	const fileIdMap = new Map<string, string>();
@@ -72,6 +78,33 @@ export async function copyRows(
 			updatedAt: now,
 		};
 		if (await noteRepository.insertIfAbsent(db, copy)) report.notesCopied++;
+	}
+	// Library books (0002): same rules as notes. Same clientKey in the target (e.g. both added the
+	// same catalog book) → target wins and the guest row is reported, never overwritten or dropped.
+	const remap = (id: string | null) =>
+		id ? (fileIdMap.get(id) ?? null) : null;
+	for (const book of await libraryBookRepository.listAll(db, guest.id)) {
+		const id = copiedId(mergeId, book.id);
+		const clash = await libraryBookRepository.getByClientKey(
+			db,
+			account.id,
+			book.clientKey,
+		);
+		if (clash) {
+			if (clash.id !== id) report.skippedBookConflicts.push(book.id);
+			continue;
+		}
+		const copy = {
+			...book,
+			id,
+			profileId: account.id,
+			coverFrontFileId: remap(book.coverFrontFileId),
+			coverBackFileId: remap(book.coverBackFileId),
+			coverSpineFileId: remap(book.coverSpineFileId),
+			updatedAt: now,
+		};
+		if (await libraryBookRepository.insertIfAbsent(db, copy))
+			report.booksCopied++;
 	}
 	return report;
 }
@@ -108,5 +141,26 @@ export async function verifyMerge(
 		);
 		if (!copy || copy.blobKey !== file.blobKey)
 			throw new MergeVerificationError(`File ${file.id} was not copied intact`);
+	}
+	const skippedBooks = new Set(report.skippedBookConflicts ?? []);
+	for (const book of await libraryBookRepository.listAll(db, guestId)) {
+		if (skippedBooks.has(book.id)) continue;
+		const copy = await libraryBookRepository.get(
+			db,
+			targetId,
+			copiedId(mergeId, book.id),
+		);
+		const fileOk = (src: string | null, dst: string | null | undefined) =>
+			src ? dst === copiedId(mergeId, src) : dst === null;
+		if (
+			!copy ||
+			copy.clientKey !== book.clientKey ||
+			copy.title !== book.title ||
+			copy.deletedAt !== book.deletedAt ||
+			!fileOk(book.coverFrontFileId, copy.coverFrontFileId) ||
+			!fileOk(book.coverBackFileId, copy.coverBackFileId) ||
+			!fileOk(book.coverSpineFileId, copy.coverSpineFileId)
+		)
+			throw new MergeVerificationError(`Book ${book.id} was not copied intact`);
 	}
 }

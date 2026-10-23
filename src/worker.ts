@@ -1,8 +1,17 @@
-const BASE_PATH = "/threejs";
+const BASE_PATH = "/beta";
+/** Previous public base. Kept as a permanent redirect so printed QR codes and old links still work. */
+const LEGACY_BASE_PATH = "/threejs";
 
 export default {
 	async fetch(request, env) {
 		const url = new URL(request.url);
+		if (
+			url.pathname === LEGACY_BASE_PATH ||
+			url.pathname.startsWith(`${LEGACY_BASE_PATH}/`)
+		) {
+			url.pathname = `${BASE_PATH}${url.pathname.slice(LEGACY_BASE_PATH.length) || "/"}`;
+			return Response.redirect(url.toString(), 301);
+		}
 		if (
 			url.pathname !== BASE_PATH &&
 			!url.pathname.startsWith(`${BASE_PATH}/`)

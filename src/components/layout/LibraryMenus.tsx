@@ -1,9 +1,13 @@
+import { Link } from "@tanstack/react-router";
 import {
 	Check,
 	ChevronDown,
 	ChevronRight,
+	CircleUserRound,
 	Globe2,
 	ImagePlus,
+	LayoutGrid,
+	Map as MapIcon,
 	Menu,
 	Minus,
 	SlidersHorizontal,
@@ -16,6 +20,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useShelfControlsStore } from "../../../stores/useShelfControlsStore";
 import { type FeatureFlag, useFeatureFlags } from "../../lib/featureFlags";
+import { sceneTransition } from "../../stores/sceneTransition";
 import { useShelfPlatesStore } from "../../stores/useShelfPlatesStore";
 import { useTourStore } from "../../stores/useTourStore";
 import LanguageFlag from "./LanguageFlag";
@@ -478,6 +483,41 @@ export default function LibraryMenus({
 								<span>{t.menu}</span>
 								<Settings2 size={18} />
 							</div>
+							<nav aria-label="Pages" className="nav-pages">
+								{/* A world change: same iris transition as the joystick "Open map". */}
+								<a
+									href={`${import.meta.env.BASE_URL}maps`}
+									className="nav-action-row"
+									onClick={(event) => {
+										if (event.metaKey || event.ctrlKey || event.shiftKey)
+											return;
+										event.preventDefault();
+										setPanel(null);
+										useTourStore.setState({ paused: true });
+										sceneTransition.go("/maps");
+									}}
+								>
+									<MapIcon size={19} />
+									Maps
+								</a>
+								<Link
+									to="/profile"
+									className="nav-action-row"
+									onClick={() => setPanel(null)}
+								>
+									<CircleUserRound size={19} />
+									Profile
+								</Link>
+								<Link
+									to="/more"
+									className="nav-action-row"
+									onClick={() => setPanel(null)}
+								>
+									<LayoutGrid size={19} />
+									All pages
+									<ChevronRight size={16} className="nav-end-label" />
+								</Link>
+							</nav>
 							<QuickActions
 								labels={{
 									fullscreen: t.fullscreen,

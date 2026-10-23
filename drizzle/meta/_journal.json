@@ -15,6 +15,34 @@
       "when": 1792624595198,
       "tag": "0001_note_pinned",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1792653219430,
+      "tag": "0002_library_books",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1792656552029,
+      "tag": "0003_shared_device",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1792776986834,
+      "tag": "0004_book_manager",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1792784246066,
+      "tag": "0005_digital_files",
+      "breakpoints": true
     }
   ]
 }

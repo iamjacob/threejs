@@ -11,9 +11,10 @@ import {
 	updateNote,
 } from "../data/usecases/notes";
 import { pendingOutbox } from "../data/usecases/outbox";
-import { listProfiles, switchProfile } from "../data/usecases/profiles";
+import { listProfiles, resolveActiveProfile } from "../data/usecases/profiles";
 import { promoteGuest } from "../data/usecases/promoteGuest";
 import { pickImage } from "../platform/capabilities";
+import { onProfileSession, switchActiveProfile } from "./profileSession";
 
 /**
  * UI/session state for the notes slice. It holds no business rules: every action calls a use
@@ -49,7 +50,10 @@ declare global {
 	interface Window {
 		/** Test hook for native device runs; never present in production web builds. */
 		__boooksDebug?: {
-			attachToFirstNote: (bytes: Uint8Array, mimeType: string) => Promise<boolean>;
+			attachToFirstNote: (
+				bytes: Uint8Array,
+				mimeType: string,
+			) => Promise<boolean>;
 		};
 	}
 }
@@ -63,6 +67,8 @@ export const useNotesStore = create<NotesState>()((set, get) => {
 			listProfiles(ctx),
 			pendingOutbox(ctx, profile.id),
 		]);
+		// The profile changed while loading: drop these rows, never show them under the next person.
+		if (get().profile?.id !== profile.id) return;
 		set({
 			notes,
 			profiles,
@@ -108,9 +114,12 @@ export const useNotesStore = create<NotesState>()((set, get) => {
 				return;
 			}
 			ctx = result.ctx;
+			// Not result.profile: that is the profile at boot time, and another route may have
+			// switched since. Always read the active profile from SQLite.
+			const profile = await resolveActiveProfile(ctx);
 			set({
 				status: "ready",
-				profile: result.profile,
+				profile,
 				info: {
 					engine: result.engine,
 					fileStore: result.fileStore,
@@ -129,7 +138,9 @@ export const useNotesStore = create<NotesState>()((set, get) => {
 					attachToFirstNote: async (bytes, mimeType) => {
 						const first = get().notes[0];
 						return first
-							? act((c, pid) => attachImage(c, pid, first.id, { bytes, mimeType }))
+							? act((c, pid) =>
+									attachImage(c, pid, first.id, { bytes, mimeType }),
+								)
 							: false;
 					},
 				};
@@ -188,9 +199,39 @@ export const useNotesStore = create<NotesState>()((set, get) => {
 			});
 		},
 		switchTo: async (profileId) => {
-			await act(async (c) =>
-				set({ profile: await switchProfile(c, profileId) }),
-			);
+			await act((c) => switchActiveProfile(c, profileId));
 		},
 	};
 });
+
+// Profile switches from any route: clear first (the page shows its loading state), then reload.
+onProfileSession((event) => {
+	if (event.phase === "clear") {
+		useNotesStore.setState({
+			profile: undefined,
+			notes: [],
+			pendingSync: 0,
+			message: undefined,
+		});
+		return;
+	}
+	if (useNotesStore.getState().status !== "ready") return;
+	useNotesStore.setState({ profile: event.profile });
+	void reloadNotesForSession();
+});
+
+async function reloadNotesForSession() {
+	const profile = useNotesStore.getState().profile;
+	if (!ctx || !profile) return;
+	const [notes, profiles, outbox] = await Promise.all([
+		listNotes(ctx, profile.id),
+		listProfiles(ctx),
+		pendingOutbox(ctx, profile.id),
+	]);
+	if (useNotesStore.getState().profile?.id !== profile.id) return;
+	useNotesStore.setState({
+		notes,
+		profiles,
+		pendingSync: outbox.filter((e) => e.status === "pending").length,
+	});
+}
