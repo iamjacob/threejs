@@ -7,15 +7,13 @@ import {
 import { useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import {
 	BoxGeometry,
-	Euler,
+	Color,
 	InstancedBufferAttribute,
 	type InstancedMesh,
 	Matrix4,
 	MeshStandardMaterial,
-	Quaternion,
 	SRGBColorSpace,
 	TextureLoader,
-	Vector3,
 } from "three";
 import {
 	type AtlasRect,
@@ -34,6 +32,12 @@ import {
 
 import { BOOK_MATERIAL } from "../book/bookAppearance";
 import { getBookTextureUrls } from "../book/bookTextures";
+import {
+	composeShelfBook,
+	dampToward,
+	pressEnvelope,
+	warmBookColor,
+} from "./bookHover";
 import type { ArrangedBook } from "./shelfArrangement";
 import { groupBySector } from "./shelfSectors";
 
@@ -131,6 +135,16 @@ function SectorBatch({
 	material: MeshStandardMaterial;
 }) {
 	const mesh = useRef<InstancedMesh>(null);
+	const emphasis = useRef(new Float32Array(0));
+	const pulseAge = useRef(new Float32Array(0));
+	const active = useRef(new Set<number>());
+	const hoverIndex = useRef(-1);
+	const scratchMatrix = useRef(new Matrix4());
+	const scratchColor = useRef(new Color());
+	const reducedMotion = useMemo(
+		() => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+		[],
+	);
 	// Rects move when the runtime atlas is repacked, so rebuild on its version.
 	const atlasVersion = useRuntimeAtlas((state) => state.version);
 	// biome-ignore lint/correctness/useExhaustiveDependencies: atlasVersion invalidates rectsFor() results.
@@ -150,27 +164,73 @@ function SectorBatch({
 	useLayoutEffect(() => {
 		const instanced = mesh.current;
 		if (!instanced) return;
-		const matrix = new Matrix4();
-		const position = new Vector3();
-		const quaternion = new Quaternion();
-		const scale = new Vector3();
+		const matrix = scratchMatrix.current;
 		items.forEach(({ placement }, index) => {
-			position.set(...placement.position);
-			quaternion.setFromEuler(new Euler(...placement.rotation));
-			scale.set(...placement.book.dimensions).multiplyScalar(placement.scale);
-			matrix.compose(position, quaternion, scale);
-			instanced.setMatrixAt(index, matrix);
+			instanced.setMatrixAt(index, composeShelfBook(placement, 0, matrix));
 		});
 		instanced.count = items.length;
 		instanced.instanceMatrix.needsUpdate = true;
+		// Present from the first frame so the atlas shader compiles with
+		// USE_INSTANCING_COLOR instead of hitching on the first hover.
+		const colors = new InstancedBufferAttribute(
+			new Float32Array(items.length * 3).fill(1),
+			3,
+		);
+		instanced.instanceColor = colors;
 		instanced.computeBoundingSphere();
+		// Hover lifts the book slightly past the rest bounds.
+		if (instanced.boundingSphere) instanced.boundingSphere.radius += 0.12;
+		emphasis.current = new Float32Array(items.length);
+		pulseAge.current = new Float32Array(items.length).fill(-1);
+		active.current = new Set();
+		hoverIndex.current = -1;
 	}, [items]);
 	// The shadow pass redraws every caster; distant sectors contribute nothing
 	// visible, so only sectors within shadowDistance of the camera cast.
 	const shadowCheck = useRef(0);
-	useFrame(({ camera, clock }) => {
+	useFrame(({ camera, clock }, delta) => {
 		const instanced = mesh.current;
-		if (!instanced || clock.elapsedTime < shadowCheck.current) return;
+		if (!instanced) return;
+		// Settled books are taken out of the set, so an idle frame writes nothing.
+		if (active.current.size > 0) {
+			const dt = Math.min(Math.max(delta, 0), 0.1);
+			const finished: number[] = [];
+			let wrote = false;
+			for (const index of active.current) {
+				const placement = items[index]?.placement;
+				if (!placement) {
+					finished.push(index);
+					continue;
+				}
+				let age = pulseAge.current[index] ?? -1;
+				if (age >= 0) age += dt;
+				const pulse = pressEnvelope(age);
+				pulseAge.current[index] = pulse === 0 ? -1 : age;
+				const target = hoverIndex.current === index ? 1 : pulse;
+				const current = emphasis.current[index] ?? 0;
+				const next = dampToward(current, target, delta, reducedMotion);
+				if (Math.abs(next - current) >= 0.00001) {
+					emphasis.current[index] = next;
+					instanced.setMatrixAt(
+						index,
+						composeShelfBook(placement, next, scratchMatrix.current),
+					);
+					instanced.setColorAt(
+						index,
+						warmBookColor(next, scratchColor.current),
+					);
+					wrote = true;
+				}
+				// Stay active through the press release; a settled hover can sleep.
+				if (next === target && pulse === 0) finished.push(index);
+			}
+			if (wrote) {
+				instanced.instanceMatrix.needsUpdate = true;
+				if (instanced.instanceColor) instanced.instanceColor.needsUpdate = true;
+			}
+			for (const index of finished) active.current.delete(index);
+		}
+		if (clock.elapsedTime < shadowCheck.current) return;
 		shadowCheck.current = clock.elapsedTime + 0.25;
 		const sphere = instanced.boundingSphere;
 		if (!sphere) return;
@@ -193,6 +253,10 @@ function SectorBatch({
 			}}
 			onPointerDown={(event) => {
 				const entry = bookAt(event);
+				if (entry && event.instanceId !== undefined) {
+					pulseAge.current[event.instanceId] = 0;
+					active.current.add(event.instanceId);
+				}
 				if (entry && onPointerDown) onPointerDown(entry.placement, event);
 			}}
 			onClick={(event) => {
@@ -201,10 +265,19 @@ function SectorBatch({
 			}}
 			onPointerOver={(event) => {
 				const entry = bookAt(event);
+				if (entry && event.instanceId !== undefined) {
+					hoverIndex.current = event.instanceId;
+					active.current.add(event.instanceId);
+				}
 				if (entry && onPointerOver) onPointerOver(entry.placement, event);
 			}}
 			onPointerOut={(event) => {
 				const entry = bookAt(event);
+				const previous = hoverIndex.current;
+				if (event.instanceId === undefined || previous === event.instanceId) {
+					hoverIndex.current = -1;
+					if (previous >= 0) active.current.add(previous);
+				}
 				if (entry && onPointerOut) onPointerOut(entry.placement, event);
 			}}
 		/>

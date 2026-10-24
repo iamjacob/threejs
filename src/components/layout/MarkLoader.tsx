@@ -1,5 +1,5 @@
 import { useProgress } from "@react-three/drei";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useRuntimeAtlas } from "../../lib/runtimeAtlas";
 import { useTourStore } from "../../stores/useTourStore";
 
@@ -35,6 +35,11 @@ export default function MarkLoader() {
 
 	const loading = !booted || active;
 	const [mounted, setMounted] = useState(!booted);
+	// The static #boot screen matches this loader. Drop it in the same commit,
+	// before paint, so the handoff does not flash.
+	useLayoutEffect(() => {
+		document.getElementById("boot")?.remove();
+	}, []);
 	const [fadingOut, setFadingOut] = useState(false);
 	const [fill, setFill] = useState(() => (booted ? 0 : 16));
 

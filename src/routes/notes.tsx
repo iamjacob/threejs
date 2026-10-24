@@ -1,5 +1,11 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { type FormEvent, type ReactNode, useEffect, useState } from "react";
+import {
+	type FormEvent,
+	type ReactNode,
+	useEffect,
+	useLayoutEffect,
+	useState,
+} from "react";
 import { AccountPanel, NoteItem } from "../components/notes/NoteItem";
 import { useNotesStore } from "../stores/useNotesStore";
 
@@ -14,6 +20,9 @@ function NotesPage() {
 	const [title, setTitle] = useState("");
 	const [body, setBody] = useState("");
 
+	useLayoutEffect(() => {
+		document.getElementById("boot")?.remove();
+	}, []);
 	useEffect(() => {
 		void useNotesStore.getState().boot();
 	}, []);

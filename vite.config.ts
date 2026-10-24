@@ -25,72 +25,120 @@ function publicImageVersions(directory = resolve("public"), prefix = "") {
 
 // `--mode native` builds for Capacitor: the WebView serves from the origin root, and a service
 // worker is unnecessary there (assets are already local), so it is not generated.
-const config = defineConfig(({ command, mode }) => ({
-	base: mode === "native" ? "/" : "/threejs/",
-	build: mode === "native" ? { outDir: "dist-native" } : undefined,
-	define: {
-		__PUBLIC_IMAGE_VERSIONS__: JSON.stringify(
-			command === "build" ? publicImageVersions() : {},
-		),
-	},
-	resolve: { tsconfigPaths: true },
-	plugins: [
-		// DOM source attributes cannot be applied to Three.js objects.
-		devtools({ injectSource: { enabled: false } }),
-		tailwindcss(),
-		tanstackRouter({ target: "react", autoCodeSplitting: true }),
-		viteReact(),
-		VitePWA({
-			disable: mode === "native",
-			registerType: "autoUpdate",
-			injectRegister: "script-defer",
-			includeAssets: ["favicon.ico"],
-			manifest: {
-				name: "Boooks",
-				short_name: "Boooks",
-				description: "Your personal 3D library, offline-first.",
-				theme_color: "#06192e",
-				background_color: "#06192e",
-				display: "standalone",
-				icons: [
-					{ src: "pwa-192.png", sizes: "192x192", type: "image/png" },
-					{ src: "pwa-512.png", sizes: "512x512", type: "image/png" },
-					{
-						src: "pwa-maskable-512.png",
-						sizes: "512x512",
-						type: "image/png",
-						purpose: "maskable",
+const config = defineConfig(({ command, mode }) => {
+	const base = mode === "native" ? "/" : "/threejs/";
+	const imageVersions = command === "build" ? publicImageVersions() : {};
+	// Keep <link rel="preload"> URLs identical to publicAssetUrl(), including the
+	// production ?v= hash, so the browser reuses the preload for TextureLoader.
+	const versionedAsset = (path: string) => {
+		const version = imageVersions[path];
+		const url = `${base}${path.slice(1)}`;
+		return version ? `${url}?v=${version}` : url;
+	};
+	return {
+		base,
+		build: mode === "native" ? { outDir: "dist-native" } : undefined,
+		define: {
+			__PUBLIC_IMAGE_VERSIONS__: JSON.stringify(imageVersions),
+		},
+		resolve: { tsconfigPaths: true },
+		plugins: [
+			{
+				name: "boooks-asset-preload",
+				transformIndexHtml: {
+					order: "post",
+					handler(html) {
+						// Dev's HTML transform joins `base` onto the already-absolute
+						// %BASE_URL% result, so rewrite the final attribute here.
+						const assets: [string, string][] = [
+							[
+								"book-images/cover-atlas.webp",
+								versionedAsset("/book-images/cover-atlas.webp"),
+							],
+							[
+								"experience/shelf/Wood051_1K-JPG_Color.webp",
+								versionedAsset("/experience/shelf/Wood051_1K-JPG_Color.webp"),
+							],
+							[
+								"icons/wordmark-gradient.svg",
+								`${base}icons/wordmark-gradient.svg`,
+							],
+						];
+						let next = html;
+						for (const [file, url] of assets) {
+							const escaped = file.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+							next = next.replace(
+								new RegExp(
+									`((?:href|src)=")[^"]*${escaped}(?:\\?[^"]*)?"`,
+									"g",
+								),
+								`$1${url}"`,
+							);
+						}
+						return next;
 					},
-				],
+				},
 			},
-			workbox: {
-				// App shell only (JS/CSS/HTML/sql-wasm + icons). The 70+ MB of book data in
-				// public/blockchain, public/reader and book images is NOT precached.
-				globPatterns: [
-					"index.html",
-					"assets/**/*.{js,css,wasm}",
-					"*.{ico,png}",
-				],
-				// The largest chunks are ~630 kB; sql-wasm.wasm is ~650 kB.
-				maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
-				navigateFallback: "index.html",
-				// Book assets are cached as they are viewed, so opened books work offline later.
-				runtimeCaching: [
-					{
-						urlPattern: ({ url, request }) =>
-							request.destination === "image" ||
-							/\/(book-images|experience|blockchain)\//.test(url.pathname),
-						handler: "CacheFirst",
-						options: {
-							cacheName: "boooks-assets",
-							expiration: { maxEntries: 400, maxAgeSeconds: 60 * 60 * 24 * 30 },
+			// DOM source attributes cannot be applied to Three.js objects.
+			devtools({ injectSource: { enabled: false } }),
+			tailwindcss(),
+			tanstackRouter({ target: "react", autoCodeSplitting: true }),
+			viteReact(),
+			VitePWA({
+				disable: mode === "native",
+				registerType: "autoUpdate",
+				injectRegister: "script-defer",
+				includeAssets: ["favicon.ico"],
+				manifest: {
+					name: "Boooks",
+					short_name: "Boooks",
+					description: "Your personal 3D library, offline-first.",
+					theme_color: "#06192e",
+					background_color: "#06192e",
+					display: "standalone",
+					icons: [
+						{ src: "pwa-192.png", sizes: "192x192", type: "image/png" },
+						{ src: "pwa-512.png", sizes: "512x512", type: "image/png" },
+						{
+							src: "pwa-maskable-512.png",
+							sizes: "512x512",
+							type: "image/png",
+							purpose: "maskable",
 						},
-					},
-				],
-			},
-		}),
-	],
-}));
+					],
+				},
+				workbox: {
+					// App shell only (JS/CSS/HTML/sql-wasm + icons). The 70+ MB of book data in
+					// public/blockchain, public/reader and book images is NOT precached.
+					globPatterns: [
+						"index.html",
+						"assets/**/*.{js,css,wasm}",
+						"*.{ico,png}",
+					],
+					// The largest chunks are ~630 kB; sql-wasm.wasm is ~650 kB.
+					maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
+					navigateFallback: "index.html",
+					// Book assets are cached as they are viewed, so opened books work offline later.
+					runtimeCaching: [
+						{
+							urlPattern: ({ url, request }) =>
+								request.destination === "image" ||
+								/\/(book-images|experience|blockchain)\//.test(url.pathname),
+							handler: "CacheFirst",
+							options: {
+								cacheName: "boooks-assets",
+								expiration: {
+									maxEntries: 400,
+									maxAgeSeconds: 60 * 60 * 24 * 30,
+								},
+							},
+						},
+					],
+				},
+			}),
+		],
+	};
+});
 
 export default config;
 
