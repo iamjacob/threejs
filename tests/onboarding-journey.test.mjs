@@ -7,7 +7,6 @@ import {
 import {
 	BEATS,
 	createJourney,
-	END_HIDE,
 	END_SHOW,
 	JOURNEY_LIMIT,
 	nextStation,
@@ -46,22 +45,36 @@ test("a full second of queued scroll stays under the first beat gap", () => {
 	assert.ok(state.display < 0.15);
 });
 
-test("scrolling back from the end leaves the outro", () => {
+test("a backward notch never rewinds the journey", () => {
 	const state = createJourney();
-	state.display = 1;
-	state.target = 1;
+	state.display = 0.5;
+	state.target = 0.5;
+	queueStep(state, wheelStep(-5000));
+	assert.equal(state.pending, 0);
 	state.pending = -1;
-	let visible = true;
-	for (let frame = 0; frame < 240 && visible; frame += 1) {
+	for (let frame = 0; frame < 60; frame += 1) {
 		stepJourney(state, 1 / 30, { reduced: false, audioProgress: null });
-		visible = endVisible(state.display, visible);
 	}
-	assert.equal(visible, false);
-	assert.ok(state.display < END_HIDE);
+	assert.equal(state.pending, 0);
+	assert.ok(state.display >= 0.5);
+	stepJourney(state, 1 / 30, { reduced: false, audioProgress: 0.1 });
+	assert.ok(state.display >= 0.5);
+
+	const end = createJourney();
+	end.display = JOURNEY_LIMIT;
+	end.target = JOURNEY_LIMIT;
+	end.pending = -1;
+	let visible = true;
+	for (let frame = 0; frame < 60; frame += 1) {
+		stepJourney(end, 1 / 30, { reduced: false, audioProgress: null });
+		visible = endVisible(end.display, visible);
+	}
+	assert.equal(visible, true);
+	assert.ok(end.display >= END_SHOW);
 });
 
 test("the last continue aims past the outro threshold and stops inside the tunnel", () => {
-	const destination = nextStation(BEATS[BEATS.length - 1].t, 1);
+	const destination = nextStation(BEATS[BEATS.length - 1].t);
 	assert.ok(destination > END_SHOW);
 	assert.ok(destination <= JOURNEY_LIMIT);
 });

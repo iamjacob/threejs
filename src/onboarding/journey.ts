@@ -183,16 +183,16 @@ export function beatAt(progress: number, window = 0.05): Beat | null {
 	return best;
 }
 
-export function nextStation(progress: number, direction: 1 | -1) {
-	// The last stop is the end of the curve. The outro fades in at END_SHOW,
+/** The next stop ahead. The journey never rewinds, so there is no previous station. */
+export function nextStation(progress: number) {
+	// The last stop is short of the curve tip. The outro fades in at END_SHOW,
 	// which a glide aimed exactly at that threshold never quite reaches.
 	const stations = [...BEATS.map((beat) => beat.t), JOURNEY_LIMIT];
-	if (direction > 0) return stations.find((t) => t > progress + 0.012) ?? 1;
-	return [...stations].reverse().find((t) => t < progress - 0.012) ?? 0;
+	return stations.find((t) => t > progress + 0.012) ?? JOURNEY_LIMIT;
 }
 
 export function queueStep(state: JourneyState, step: number) {
-	if (!Number.isFinite(step) || step === 0) return;
+	if (!Number.isFinite(step) || step <= 0) return;
 	state.pending += step;
 }
 
@@ -207,28 +207,32 @@ export function stepJourney(
 	options: { reduced: boolean; audioProgress: number | null },
 ) {
 	const delta = frameDelta(rawDelta);
-	state.target = Math.min(state.target, JOURNEY_LIMIT);
+	if (state.pending < 0) state.pending = 0;
+	state.target = Math.min(JOURNEY_LIMIT, Math.max(state.target, state.display));
 	if (options.audioProgress != null && !options.reduced) {
 		// The soundtrack is the master clock. Pending scroll was already applied as a seek.
-		state.target = Math.min(JOURNEY_LIMIT, clamp01(options.audioProgress));
+		const audioTarget = Math.min(JOURNEY_LIMIT, clamp01(options.audioProgress));
+		if (audioTarget >= state.display) state.target = audioTarget;
 	} else if (options.reduced) {
 		state.target = Math.min(
 			JOURNEY_LIMIT,
 			clamp01(state.target + state.pending),
 		);
 		state.pending = 0;
-		state.display = state.target;
+		state.display = Math.max(state.display, state.target);
 		return state;
 	} else {
 		const budget = MAX_PROGRESS_PER_SECOND * frictionAt(state.display) * delta;
-		const applied =
-			Math.sign(state.pending) * Math.min(Math.abs(state.pending), budget);
+		const applied = Math.min(state.pending, budget);
 		state.pending -= applied;
 		state.target = Math.min(JOURNEY_LIMIT, clamp01(state.target + applied));
 	}
-	state.display = Math.min(
-		JOURNEY_LIMIT,
-		clamp01(damp(state.display, state.target, 3.4, delta)),
+	state.display = Math.max(
+		state.display,
+		Math.min(
+			JOURNEY_LIMIT,
+			clamp01(damp(state.display, state.target, 3.4, delta)),
+		),
 	);
 	return state;
 }

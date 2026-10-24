@@ -275,9 +275,8 @@ function JourneyRig({
 			const delta = frameDelta(raw);
 			const budget =
 				MAX_PROGRESS_PER_SECOND * frictionAt(journey.display) * delta;
-			const applied =
-				Math.sign(journey.pending) *
-				Math.min(Math.abs(journey.pending), budget);
+			if (journey.pending < 0) journey.pending = 0;
+			const applied = Math.min(journey.pending, budget);
 			journey.pending -= applied;
 			const duration = audio.duration;
 			if (applied !== 0 && Number.isFinite(duration) && duration > 0) {

@@ -186,20 +186,20 @@ export default function Onboarding() {
 			return false;
 		};
 
-		const stepStation = (direction: 1 | -1) => {
+		const stepStation = () => {
 			const now = performance.now();
 			if (now - stationLock < 320) return;
 			stationLock = now;
-			seekJourney(nextStation(journeyRef.current.display, direction));
+			seekJourney(nextStation(journeyRef.current.display));
 		};
 
 		const onWheel = (event: WheelEvent) => {
 			if (phaseRef.current !== "journey") return;
 			if (cardConsumes(event.target, event.deltaY)) return;
 			event.preventDefault();
+			if (event.deltaY <= 0) return;
 			if (reducedRef.current) {
-				if (event.deltaY === 0) return;
-				stepStation(event.deltaY > 0 ? 1 : -1);
+				stepStation();
 				return;
 			}
 			queueStep(journeyRef.current, wheelStep(event.deltaY, event.deltaMode));
@@ -219,8 +219,10 @@ export default function Onboarding() {
 			const dy = event.clientY - lastY;
 			lastY = event.clientY;
 			if (dy === 0 || cardConsumes(event.target, dy)) return;
+			// Finger up travels forward. A downward drag does not rewind.
+			if (dy > 0) return;
 			if (reducedRef.current) {
-				stepStation(dy < 0 ? 1 : -1);
+				stepStation();
 				return;
 			}
 			queueStep(journeyRef.current, touchStep(-dy));
@@ -233,20 +235,14 @@ export default function Onboarding() {
 		const onKey = (event: KeyboardEvent) => {
 			if (phaseRef.current !== "journey") return;
 			if (interactiveTarget(event.target)) return;
-			let direction: 1 | -1 | 0 = 0;
-			if (
+			const forward =
 				event.key === "ArrowDown" ||
 				event.key === "PageDown" ||
-				event.key === " "
-			) {
-				direction = 1;
-			} else if (event.key === "ArrowUp" || event.key === "PageUp") {
-				direction = -1;
-			}
-			if (direction === 0) return;
+				event.key === " ";
+			if (!forward) return;
 			event.preventDefault();
-			if (reducedRef.current) stepStation(direction);
-			else queueStep(journeyRef.current, direction * MAX_INPUT_STEP);
+			if (reducedRef.current) stepStation();
+			else queueStep(journeyRef.current, MAX_INPUT_STEP);
 		};
 
 		const onTouchMove = (event: TouchEvent) => {
@@ -473,7 +469,7 @@ export default function Onboarding() {
 								type="button"
 								className="onb-primary"
 								onClick={() =>
-									seekJourney(nextStation(journeyRef.current.display, 1))
+									seekJourney(nextStation(journeyRef.current.display))
 								}
 							>
 								{beat.primaryLabel}
