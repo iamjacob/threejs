@@ -15,6 +15,7 @@ import {
 	useState,
 } from "react";
 import {
+	Color,
 	Euler,
 	Frustum,
 	type Group,
@@ -54,6 +55,14 @@ import { useTourStore } from "../../stores/useTourStore";
 import { BOOK_MATERIAL } from "../book/bookAppearance";
 import { getBookTextureUrls } from "../book/bookTextures";
 import type { BookPose } from "../tour/tourStages";
+import {
+	BOOK_HOVER_LIFT,
+	BOOK_HOVER_SCALE,
+	bookLiftAxis,
+	dampToward,
+	pressEnvelope,
+	warmBookColor,
+} from "./bookHover";
 import CollectionBlur from "./CollectionBlur";
 import InstancedBooks, { coverInstanceable } from "./InstancedBooks";
 import InstancedCollectionBlur from "./InstancedCollectionBlur";
@@ -86,6 +95,11 @@ const renderQuality = currentRenderQuality();
 const shelfTextureLoader = new TextureLoader();
 const detailTextureLoader = new TextureLoader(new LoadingManager());
 
+/** Touch orbiting jitters more than a mouse drag; keep the mouse threshold tight. */
+function clickExceeded(delta: number, pointerType: string) {
+	return delta > (pointerType === "touch" ? 10 : 5);
+}
+
 export function shelfBookPose(id: string): BookPose {
 	const { document, initialized } = useShelfControlsStore.getState();
 	const shelfBooks = useBookStore.getState().books;
@@ -105,6 +119,8 @@ export function shelfBookPose(id: string): BookPose {
 
 function CollectionBook({
 	book,
+	shelfPosition,
+	shelfRotation,
 	onSelect,
 	onEdit,
 	dragControls,
@@ -113,6 +129,8 @@ function CollectionBook({
 	onDeleteComplete,
 }: {
 	book: ShelfBook;
+	shelfPosition: ArrangedBook["position"];
+	shelfRotation: ArrangedBook["rotation"];
 	onSelect?: (id: string, pose: BookPose) => void;
 	onEdit?: (id: string, position: { x: number; y: number }) => void;
 	dragControls?: ReturnType<typeof useShelfBookDrag>;
@@ -169,7 +187,59 @@ function CollectionBook({
 	const requestedLevel = useRef<BookImageLevel>("low");
 	const nextCheck = useRef(0);
 	const viewPosition = useMemo(() => new Vector3(), []);
-	useFrame(({ camera, size, gl, clock }) => {
+	const [hovered, setHovered] = useState(false);
+	const hovering = useRef(false);
+	const emphasis = useRef(0);
+	const pulseAge = useRef(-1);
+	const pointerType = useRef("mouse");
+	const tint = useMemo(() => new Color(), []);
+	const liftAxis = useMemo(
+		() => bookLiftAxis(shelfPosition, shelfRotation),
+		[shelfPosition, shelfRotation],
+	);
+	const reducedMotion = useMemo(
+		() => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+		[],
+	);
+	useFrame(({ camera, size, gl, clock }, delta) => {
+		const bookMesh = mesh.current;
+		if (bookMesh) {
+			if (deleteStartedAt !== undefined) {
+				if (emphasis.current !== 0) {
+					emphasis.current = 0;
+					pulseAge.current = -1;
+					bookMesh.position.set(0, 0, 0);
+					bookMesh.scale.set(1, 1, 1);
+				}
+			} else if (
+				emphasis.current !== 0 ||
+				hovering.current ||
+				pulseAge.current >= 0
+			) {
+				let age = pulseAge.current;
+				if (age >= 0) age += Math.min(Math.max(delta, 0), 0.1);
+				const pulse = pressEnvelope(age);
+				pulseAge.current = pulse === 0 ? -1 : age;
+				const target = Math.max(hovering.current ? 1 : 0, pulse);
+				const next = dampToward(emphasis.current, target, delta, reducedMotion);
+				// Reapply while lifted so a cover-LOD material swap keeps the tint.
+				if (Math.abs(next - emphasis.current) >= 0.00001 || next > 0) {
+					emphasis.current = next;
+					bookMesh.position
+						.copy(liftAxis)
+						.multiplyScalar(BOOK_HOVER_LIFT * next);
+					bookMesh.scale.setScalar(1 + (BOOK_HOVER_SCALE - 1) * next);
+					warmBookColor(next, tint);
+					const materials = Array.isArray(bookMesh.material)
+						? bookMesh.material
+						: [bookMesh.material];
+					for (const material of materials) {
+						if ("color" in material && material.color instanceof Color)
+							material.color.copy(tint);
+					}
+				}
+			}
+		}
 		if (!mesh.current || clock.elapsedTime < nextCheck.current) return;
 		nextCheck.current = clock.elapsedTime + 0.3;
 		// New shelf meshes have no rendered world matrix yet on their first frame.
@@ -202,7 +272,6 @@ function CollectionBook({
 		requestedLevel.current = level;
 		startTransition(() => setImageLevel(level));
 	});
-	const [hovered, setHovered] = useState(false);
 	useEffect(() => {
 		if (!hovered || !onSelect || deleteStartedAt !== undefined) return;
 		document.body.style.cursor = draggable ? "grab" : "pointer";
@@ -252,14 +321,20 @@ function CollectionBook({
 				onPointerOver={(event) => {
 					if (onSelect) {
 						event.stopPropagation();
+						hovering.current = true;
 						setHovered(true);
 					}
 				}}
 				onPointerOut={() => {
+					hovering.current = false;
 					setHovered(false);
 					longPress.cancel();
 				}}
 				onPointerDown={(event) => {
+					pointerType.current = event.nativeEvent.pointerType;
+					if (deleteStartedAt === undefined && (onSelect || onEdit)) {
+						pulseAge.current = 0;
+					}
 					if (dragControls && deleteStartedAt === undefined) {
 						dragControls.start(book.id, event);
 						return;
@@ -283,7 +358,11 @@ function CollectionBook({
 						event.stopPropagation();
 						return;
 					}
-					if (!onSelect || event.delta > 5 || deleteStartedAt !== undefined)
+					if (
+						!onSelect ||
+						clickExceeded(event.delta, pointerType.current) ||
+						deleteStartedAt !== undefined
+					)
 						return;
 					event.stopPropagation();
 					const position = event.object
@@ -488,6 +567,7 @@ export default function Bookshelves({
 	);
 
 	const hoveredInstance = useRef<string | null>(null);
+	const pointerKind = useRef("mouse");
 	useEffect(
 		() => () => {
 			globalThis.document.body.style.cursor = "";
@@ -611,6 +691,7 @@ export default function Bookshelves({
 							instanceLongPress.cancel();
 						}}
 						onPointerDown={(placement, event) => {
+							pointerKind.current = event.nativeEvent.pointerType;
 							if (!canEdit) return;
 							event.stopPropagation();
 							instanceLongPress.start(placement.book.id, event.nativeEvent);
@@ -620,7 +701,11 @@ export default function Bookshelves({
 								event.stopPropagation();
 								return;
 							}
-							if (!onBookSelect || event.delta > 5) return;
+							if (
+								!onBookSelect ||
+								clickExceeded(event.delta, pointerKind.current)
+							)
+								return;
 							event.stopPropagation();
 							onBookSelect(placement.book.id, arrangedBookPose(placement));
 						}}
@@ -655,6 +740,8 @@ export default function Bookshelves({
 						<Suspense fallback={null}>
 							<CollectionBook
 								book={placement.book}
+								shelfPosition={placement.position}
+								shelfRotation={placement.rotation}
 								dragControls={editing && canEdit ? dragControls : undefined}
 								onSelect={
 									editing
