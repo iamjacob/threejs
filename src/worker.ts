@@ -13,6 +13,20 @@ export default {
 		const assetPath = url.pathname.slice(BASE_PATH.length);
 		url.pathname = !assetPath || assetPath === "/" ? "/index.html" : assetPath;
 		const response = await env.ASSETS.fetch(new Request(url, request));
+		// Client routes such as /onboarding have no file. Extensionless 404s
+		// fall back to the app shell; a path with an extension keeps its 404.
+		const leaf = url.pathname.split("/").filter(Boolean).pop() ?? "";
+		if (
+			response.status === 404 &&
+			(request.method === "GET" || request.method === "HEAD") &&
+			leaf.length > 0 &&
+			!leaf.includes(".")
+		) {
+			const shell = new URL(request.url);
+			shell.pathname = "/index.html";
+			shell.search = "";
+			return env.ASSETS.fetch(new Request(shell, request));
+		}
 		if (
 			(request.method === "GET" || request.method === "HEAD") &&
 			(response.status === 200 || response.status === 304) &&

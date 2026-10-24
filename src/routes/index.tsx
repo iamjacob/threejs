@@ -26,6 +26,7 @@ import {
 } from "../lib/hydrateInitialLibrary";
 import { useRuntimeAtlas } from "../lib/runtimeAtlas";
 import { watchLibraryLoops } from "../lib/syncLibraryLoops";
+import { gateHomeRoute } from "../onboarding/gate";
 import { useBookStore, useSelectedBook } from "../stores/useBookStore";
 import { usePresentationStore } from "../stores/usePresentationStore";
 import { useShelfPlatesStore } from "../stores/useShelfPlatesStore";
@@ -45,7 +46,12 @@ const HelixNav = lazy(() => import("../components/library/HelixNav"));
 const ReaderOverlay = lazy(() => import("../components/reader/ReaderOverlay"));
 const TourOverlay = lazy(() => import("../components/tour/TourOverlay"));
 
-export const Route = createFileRoute("/")({ component: Home });
+export const Route = createFileRoute("/")({
+	beforeLoad: () => {
+		gateHomeRoute();
+	},
+	component: Home,
+});
 
 const CONTROLLER_STAGES = ["library", "pick", "end", "grow"];
 const HELIX_STAGES = ["library", "pick", "pull", "read", "return", "end"];
