@@ -19,43 +19,57 @@ import {
 } from "../src/onboarding/anchor.ts";
 import {
 	BEATS,
+	closestPlaneDistance,
 	createJourney,
 	END_SHOW,
-	JOURNEY_LIMIT,
-	nextStation,
 	endVisible,
 	eyeBackoff,
 	frameDelta,
+	JOURNEY_LIMIT,
 	MAX_INPUT_STEP,
+	MAX_PROGRESS_PER_SECOND,
+	nextStation,
 	queueStep,
+	releasePointer,
 	ringCount,
+	SCROLL_PAGES,
 	showScrollHint,
 	soundtrackDrives,
 	stepJourney,
+	trackPointer,
 	trackProgress,
 	wheelStep,
-	closestPlaneDistance,
 } from "../src/onboarding/journey.ts";
 import { selectOnboardingBooks } from "../src/onboarding/selection.ts";
 import worker from "../src/worker.ts";
 
 test("one wheel notch and a two-second hitch stay short of the first card", () => {
 	const state = createJourney();
-	queueStep(state, wheelStep(100));
+	const notch = wheelStep(100, 0, 800);
+	queueStep(state, notch);
 	stepJourney(state, 2, { reduced: false, audioProgress: null });
 	assert.ok(state.display > 0);
 	assert.ok(state.display < BEATS[0].t);
 	assert.equal(frameDelta(2), 1 / 30);
+	for (let frame = 0; frame < 180; frame += 1) {
+		stepJourney(state, 1 / 60, { reduced: false, audioProgress: null });
+	}
+	assert.ok(Math.abs(state.display - notch) < 0.001);
+	assert.ok(state.display < BEATS[0].t / 4);
 });
 
-test("a full second of queued scroll stays under the first beat gap", () => {
+test("a full second of chasing the rail's end stays under the first beat", () => {
 	const state = createJourney();
 	state.pending = 1;
+	let previous = 0;
 	for (let frame = 0; frame < 60; frame += 1) {
 		stepJourney(state, 1 / 60, { reduced: false, audioProgress: null });
+		assert.ok(state.display - previous <= MAX_PROGRESS_PER_SECOND / 60 + 1e-9);
+		previous = state.display;
 	}
 	assert.ok(state.display > 0.04);
 	assert.ok(state.display < 0.15);
+	assert.ok(state.target >= JOURNEY_LIMIT - 1e-9);
 });
 
 test("a backward notch never rewinds the journey", () => {
@@ -108,10 +122,85 @@ test("reduced motion snaps the camera to the queued target", () => {
 	assert.equal(state.pending, 0);
 });
 
-test("an accelerated wheel still counts as one notch", () => {
-	assert.equal(wheelStep(5000), MAX_INPUT_STEP);
-	assert.equal(wheelStep(100), MAX_INPUT_STEP);
-	assert.equal(wheelStep(-5000), -MAX_INPUT_STEP);
+test("wheel distance is proportional across twenty viewport pages", () => {
+	const viewport = 800;
+	const notch = wheelStep(100, 0, viewport);
+	assert.ok(Math.abs(wheelStep(200, 0, viewport) - notch * 2) < 1e-12);
+	assert.ok(notch > 0 && notch < BEATS[0].t / 4);
+	assert.equal(SCROLL_PAGES, 20);
+	assert.ok(Math.abs(wheelStep(1, 2, viewport) - 1 / SCROLL_PAGES) < 1e-12);
+	const flick = wheelStep(8000, 0, viewport);
+	assert.ok(flick > notch * 5);
+	assert.ok(flick <= MAX_INPUT_STEP);
+	assert.ok(flick < 0.18);
+	assert.equal(wheelStep(-5000, 0, viewport), -flick);
+
+	const pages = createJourney();
+	for (let page = 0; page < SCROLL_PAGES; page += 1) {
+		queueStep(pages, wheelStep(1, 2, viewport));
+	}
+	stepJourney(pages, 1 / 60, { reduced: false, audioProgress: null });
+	assert.ok(pages.target > 0.9);
+
+	const sampled = createJourney();
+	const seen = [];
+	for (let page = 0; page < SCROLL_PAGES; page += 1) {
+		queueStep(sampled, wheelStep(viewport, 0, viewport));
+		for (let frame = 0; frame < 90; frame += 1) {
+			stepJourney(sampled, 1 / 60, { reduced: false, audioProgress: null });
+		}
+		seen.push(sampled.display);
+	}
+	assert.ok(seen[1] > seen[0]);
+	assert.ok(seen[seen.length - 1] > BEATS[BEATS.length - 1].t);
+	for (let index = 1; index < seen.length; index += 1) {
+		assert.ok(seen[index] >= seen[index - 1]);
+	}
+});
+
+test("a finger drag is immediate and a fling coasts to a stop", () => {
+	const drag = createJourney();
+	trackPointer(drag, 0.04);
+	assert.equal(drag.display, 0.04);
+	assert.equal(drag.target, 0.04);
+	assert.equal(drag.tracking, true);
+	releasePointer(drag, 0);
+	assert.equal(drag.coasting, false);
+	assert.equal(drag.display, 0.04);
+
+	const flung = createJourney();
+	flung.display = 0.2;
+	flung.target = 0.2;
+	releasePointer(flung, 0.3);
+	assert.equal(flung.coasting, true);
+	let previous = flung.display;
+	for (let frame = 0; frame < 180; frame += 1) {
+		stepJourney(flung, 1 / 60, { reduced: false, audioProgress: null });
+		assert.ok(flung.display >= previous - 1e-9);
+		previous = flung.display;
+	}
+	assert.ok(flung.display > 0.25);
+	assert.ok(flung.display < 0.45);
+	assert.equal(flung.coasting, false);
+	releasePointer(flung, -1);
+	assert.equal(flung.coasting, false);
+});
+
+test("the camera lingers while a card is in front of it", () => {
+	const step = (state) => {
+		for (let frame = 0; frame < 12; frame += 1) {
+			stepJourney(state, 1 / 60, { reduced: false, audioProgress: null });
+		}
+	};
+	const open = createJourney();
+	open.display = 0.02;
+	open.target = 0.5;
+	const card = createJourney();
+	card.display = BEATS[0].t;
+	card.target = BEATS[0].t + 0.5;
+	step(open);
+	step(card);
+	assert.ok(card.display - BEATS[0].t < open.display - 0.02);
 });
 
 test("book flights ease in and settle with no leftover offset", () => {

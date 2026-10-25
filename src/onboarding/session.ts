@@ -40,6 +40,9 @@ export function resetJourneySession() {
 	journeySession.journey.target = journey.target;
 	journeySession.journey.display = journey.display;
 	journeySession.journey.pending = journey.pending;
+	journeySession.journey.velocity = journey.velocity;
+	journeySession.journey.coasting = journey.coasting;
+	journeySession.journey.tracking = journey.tracking;
 	resetArrival(journeySession.arrival);
 	journeySession.clock.current = 0;
 	journeySession.phase.current = "intro";

@@ -19,9 +19,11 @@ import {
 	MAX_INPUT_STEP,
 	nextStation,
 	queueStep,
+	releasePointer,
 	showScrollHint,
 	soundtrackDrives,
 	touchStep,
+	trackPointer,
 	wheelStep,
 } from "./journey";
 import "./onboarding.css";
@@ -215,7 +217,10 @@ export default function Onboarding() {
 		if (!root) return;
 		let pointerId: number | null = null;
 		let lastY = 0;
+		let lastMove = 0;
+		let lastSpeed = 0;
 		let stationLock = 0;
+		const viewport = () => root.clientHeight || window.innerHeight || 800;
 
 		const cardConsumes = (target: EventTarget | null, deltaY: number) => {
 			const card = root.querySelector(".onb-card");
@@ -262,7 +267,7 @@ export default function Onboarding() {
 				stepStation();
 				return;
 			}
-			forward(wheelStep(event.deltaY, event.deltaMode));
+			forward(wheelStep(event.deltaY, event.deltaMode, viewport()));
 		};
 
 		const onPointerDown = (event: PointerEvent) => {
@@ -271,25 +276,52 @@ export default function Onboarding() {
 			if (interactiveTarget(event.target)) return;
 			pointerId = event.pointerId;
 			lastY = event.clientY;
+			lastMove = performance.now();
+			lastSpeed = 0;
+			const journey = journeySession.journey;
+			journey.coasting = false;
+			journey.velocity = 0;
 		};
 
 		const onPointerMove = (event: PointerEvent) => {
 			if (pointerId !== event.pointerId || phaseRef.current !== "journey")
 				return;
+			const now = performance.now();
 			const dy = event.clientY - lastY;
+			const dt = now - lastMove;
 			lastY = event.clientY;
-			if (dy === 0 || cardConsumes(event.target, dy)) return;
+			lastMove = now;
+			if (dy === 0 || cardConsumes(event.target, dy)) {
+				if (cardConsumes(event.target, dy)) lastSpeed = 0;
+				return;
+			}
 			// Finger up travels forward. A downward drag does not rewind.
-			if (dy > 0) return;
+			if (dy > 0) {
+				lastSpeed = 0;
+				return;
+			}
 			if (reducedRef.current) {
+				lastSpeed = 0;
 				stepStation();
 				return;
 			}
-			forward(touchStep(-dy));
+			const step = touchStep(-dy, viewport());
+			const arrival = journeySession.arrival;
+			if (inputFeedsArrival(endRef.current, arrival.committed)) {
+				lastSpeed = 0;
+				forward(step);
+				return;
+			}
+			trackPointer(journeySession.journey, step);
+			lastSpeed = dt > 0 && dt < 80 ? step / (dt / 1000) : 0;
 		};
 
 		const onPointerUp = (event: PointerEvent) => {
-			if (pointerId === event.pointerId) pointerId = null;
+			if (pointerId !== event.pointerId) return;
+			pointerId = null;
+			const rested = performance.now() - lastMove > 64;
+			releasePointer(journeySession.journey, rested ? 0 : lastSpeed);
+			lastSpeed = 0;
 		};
 
 		const onKey = (event: KeyboardEvent) => {
@@ -301,8 +333,16 @@ export default function Onboarding() {
 				event.key === " ";
 			if (!keyAdvances) return;
 			event.preventDefault();
-			if (reducedRef.current) stepStation();
-			else forward(MAX_INPUT_STEP);
+			if (reducedRef.current) {
+				stepStation();
+				return;
+			}
+			// Arrow and Space are one notch. PageDown is one of the twenty pages.
+			const step =
+				event.key === "PageDown"
+					? wheelStep(1, 2, viewport())
+					: wheelStep(100, 0, viewport());
+			forward(step);
 		};
 
 		const onTouchMove = (event: TouchEvent) => {
@@ -335,7 +375,6 @@ export default function Onboarding() {
 	const start = () => {
 		phaseRef.current = "journey";
 		setPhase("journey");
-		seekJourney(BEATS[0].t);
 	};
 
 	const finish = () => {

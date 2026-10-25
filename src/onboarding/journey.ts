@@ -1,19 +1,43 @@
 /**
  * Scroll clock for the onboarding journey.
  *
- * The prototype lerped the camera with an unclamped frame delta (`alpha = delta * friction`).
- * On a slow frame that alpha exceeded 1, so one wheel notch — amplified by the 1444-mesh
- * hitch — could cross the whole curve. Input is capped per notch and per second, and
- * integration never consumes more than one 30fps frame.
+ * The original prototype was ~20 pages of drei ScrollControls: scroll position is
+ * pixels divided by (pages × viewport), and the camera eases toward that offset
+ * (damping ≈ 0.25s). This clock keeps that proportional rail. A per-event cap and
+ * a max camera speed only catch pathological flicks and hitches — they are not the
+ * speed of an ordinary notch. Integration never consumes more than one 30fps frame.
  */
 
 export const JOURNEY_SECONDS = 46;
 
-/** One 100px notch. Beats are ~0.18 apart, so a notch cannot skip a card. */
-export const MAX_INPUT_STEP = 0.034;
+/** Viewport-heights of rail, matching the prototype's ScrollControls pages. */
+export const SCROLL_PAGES = 20;
 
-/** A flurry of notches still cannot finish the journey in a couple of seconds. */
+/**
+ * Largest single input event. Beats are ~0.18 apart, so one event — even an
+ * accelerated flick reported as thousands of pixels — cannot skip a card.
+ */
+export const MAX_INPUT_STEP = 0.09;
+
+/**
+ * Ceiling on camera speed while it is catching a target. A 100px notch
+ * (~1/160 of the rail) eases in under this, so the cap is not the everyday pace.
+ */
 export const MAX_PROGRESS_PER_SECOND = 0.11;
+
+/** Exponential follow. tau ≈ 0.25s, the same feel as ScrollControls damping 0.25. */
+export const SCROLL_DAMP = 4;
+
+/** Coast after a finger lifts. Decay of 2.4 is about a second of visible glide. */
+export const MOMENTUM_DECAY = 2.4;
+
+const MOMENTUM_FLOOR = 0.008;
+
+/** Progress per second below which a lift does not coast. */
+export const COAST_START = 0.02;
+
+/** A violent fling still eases instead of crossing the rail. */
+export const MAX_COAST_SPEED = 0.55;
 
 export const END_SHOW = 0.93;
 export const END_HIDE = 0.885;
@@ -110,10 +134,22 @@ export type JourneyState = {
 	target: number;
 	display: number;
 	pending: number;
+	/** Progress per second while a finger-up coast is running. */
+	velocity: number;
+	coasting: boolean;
+	/** Finger is down: the camera tracks the drag directly. */
+	tracking: boolean;
 };
 
 export function createJourney(): JourneyState {
-	return { target: 0, display: 0, pending: 0 };
+	return {
+		target: 0,
+		display: 0,
+		pending: 0,
+		velocity: 0,
+		coasting: false,
+		tracking: false,
+	};
 }
 
 export function clamp01(value: number) {
@@ -140,22 +176,34 @@ export function damp(
 	return current + (target - current) * alpha;
 }
 
-/** Normalize wheel deltas so accelerated mice and page-mode wheels still count as one notch. */
-export function wheelStep(deltaY: number, deltaMode = 0) {
+/**
+ * Map a wheel or finger delta onto the 20-page rail.
+ * Pixel mode is 1:1 with the viewport. Line mode is 16px per line.
+ * Page mode (deltaMode 2) is one viewport, 1/20 of the journey.
+ * The result is signed; callers drop the backward half.
+ */
+export function scrollDistance(deltaY: number, deltaMode = 0, viewport = 800) {
 	if (!Number.isFinite(deltaY) || deltaY === 0) return 0;
+	const height = Number.isFinite(viewport) && viewport > 0 ? viewport : 800;
+	const span = SCROLL_PAGES * Math.max(320, height);
 	const pixels =
 		deltaMode === 1
 			? deltaY * 16
 			: deltaMode === 2
-				? Math.sign(deltaY) * 100
+				? Math.sign(deltaY) * height
 				: deltaY;
-	const notches = pixels / 100;
-	if (Math.abs(notches) >= 1) return Math.sign(notches) * MAX_INPUT_STEP;
-	return notches * MAX_INPUT_STEP;
+	const raw = pixels / span;
+	if (!Number.isFinite(raw) || raw === 0) return 0;
+	const capped = Math.min(Math.abs(raw), MAX_INPUT_STEP);
+	return Math.sign(raw) * capped;
 }
 
-export function touchStep(pixels: number) {
-	return wheelStep(pixels, 0);
+export function wheelStep(deltaY: number, deltaMode = 0, viewport = 800) {
+	return scrollDistance(deltaY, deltaMode, viewport);
+}
+
+export function touchStep(pixels: number, viewport = 800) {
+	return scrollDistance(pixels, 0, viewport);
 }
 
 export function frictionAt(progress: number) {
@@ -191,13 +239,48 @@ export function nextStation(progress: number) {
 	return stations.find((t) => t > progress + 0.012) ?? JOURNEY_LIMIT;
 }
 
+function stopCoast(state: JourneyState) {
+	state.velocity = 0;
+	state.coasting = false;
+	state.tracking = false;
+}
+
+/** Queue forward input. The next step folds it onto the target; it is not dripped. */
 export function queueStep(state: JourneyState, step: number) {
 	if (!Number.isFinite(step) || step <= 0) return;
+	stopCoast(state);
 	state.pending += step;
+}
+
+/** Finger down. The camera takes the pixels immediately, one to one. */
+export function trackPointer(state: JourneyState, step: number) {
+	if (!Number.isFinite(step) || step <= 0) return;
+	state.pending = 0;
+	stopCoast(state);
+	state.tracking = true;
+	const next = Math.min(
+		JOURNEY_LIMIT,
+		clamp01(Math.max(state.target, state.display) + step),
+	);
+	state.target = next;
+	state.display = next;
+}
+
+/** Finger up. A real fling coasts; a resting finger does not. */
+export function releasePointer(state: JourneyState, speed: number) {
+	state.tracking = false;
+	if (!Number.isFinite(speed) || speed < COAST_START) {
+		state.velocity = 0;
+		state.coasting = false;
+		return;
+	}
+	state.velocity = Math.min(MAX_COAST_SPEED, speed);
+	state.coasting = true;
 }
 
 export function glideTo(state: JourneyState, progress: number) {
 	state.pending = 0;
+	stopCoast(state);
 	state.target = Math.min(JOURNEY_LIMIT, clamp01(progress));
 }
 
@@ -212,27 +295,48 @@ export function stepJourney(
 	if (options.audioProgress != null && !options.reduced) {
 		// The soundtrack is the master clock. Pending scroll was already applied as a seek.
 		const audioTarget = Math.min(JOURNEY_LIMIT, clamp01(options.audioProgress));
-		if (audioTarget >= state.display) state.target = audioTarget;
+		if (audioTarget >= state.display) {
+			state.target = Math.max(state.target, audioTarget);
+		}
+		state.pending = 0;
+		stopCoast(state);
 	} else if (options.reduced) {
 		state.target = Math.min(
 			JOURNEY_LIMIT,
 			clamp01(state.target + state.pending),
 		);
 		state.pending = 0;
+		stopCoast(state);
 		state.display = Math.max(state.display, state.target);
 		return state;
-	} else {
-		const budget = MAX_PROGRESS_PER_SECOND * frictionAt(state.display) * delta;
-		const applied = Math.min(state.pending, budget);
-		state.pending -= applied;
-		state.target = Math.min(JOURNEY_LIMIT, clamp01(state.target + applied));
+	} else if (state.pending > 0) {
+		// Pages map straight onto the rail. Friction slows the camera, not the distance.
+		state.target = Math.min(
+			JOURNEY_LIMIT,
+			clamp01(state.target + state.pending),
+		);
+		state.pending = 0;
+		stopCoast(state);
+	} else if (state.coasting && state.velocity > 0 && delta > 0) {
+		state.target = Math.min(
+			JOURNEY_LIMIT,
+			clamp01(
+				state.target + state.velocity * delta * frictionAt(state.display),
+			),
+		);
+		state.velocity *= Math.exp(-MOMENTUM_DECAY * delta);
+		if (state.velocity < MOMENTUM_FLOOR || state.target >= JOURNEY_LIMIT) {
+			state.velocity = 0;
+			state.coasting = false;
+		}
 	}
+	const follow = SCROLL_DAMP * frictionAt(state.display);
+	let next = damp(state.display, state.target, follow, delta);
+	const maxStep = MAX_PROGRESS_PER_SECOND * frictionAt(state.display) * delta;
+	if (next > state.display + maxStep) next = state.display + maxStep;
 	state.display = Math.max(
 		state.display,
-		Math.min(
-			JOURNEY_LIMIT,
-			clamp01(damp(state.display, state.target, 3.4, delta)),
-		),
+		Math.min(JOURNEY_LIMIT, clamp01(next)),
 	);
 	return state;
 }

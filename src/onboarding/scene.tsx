@@ -36,9 +36,8 @@ import {
 	beatAt,
 	eyeBackoff,
 	frameDelta,
-	frictionAt,
+	JOURNEY_LIMIT,
 	JOURNEY_SECONDS,
-	MAX_PROGRESS_PER_SECOND,
 	ringCount,
 	skyAt,
 	soundtrackDrives,
@@ -317,17 +316,15 @@ function JourneyRig({
 			soundtrackDrives(audio.paused, audio.ended, audio.duration, reduced);
 		let audioProgress: number | null = null;
 		if (driving && audio) {
-			const delta = frameDelta(raw);
-			const budget =
-				MAX_PROGRESS_PER_SECOND * frictionAt(journey.display) * delta;
 			if (journey.pending < 0) journey.pending = 0;
-			const applied = Math.min(journey.pending, budget);
-			journey.pending -= applied;
 			const duration = audio.duration;
-			if (applied !== 0 && Number.isFinite(duration) && duration > 0) {
-				audio.currentTime =
-					Math.min(1, Math.max(0, audio.currentTime / duration + applied)) *
-					duration;
+			if (journey.pending > 0 && Number.isFinite(duration) && duration > 0) {
+				const next = Math.min(
+					JOURNEY_LIMIT,
+					Math.max(0, audio.currentTime / duration + journey.pending),
+				);
+				audio.currentTime = next * duration;
+				journey.pending = 0;
 			}
 			audioProgress = trackProgress(audio.currentTime, duration);
 		}
