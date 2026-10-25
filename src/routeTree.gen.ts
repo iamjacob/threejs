@@ -10,11 +10,17 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuraRouteImport } from './routes/aura'
 import { Route as NotesRouteImport } from './routes/notes'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuraRoute = AuraRouteImport.update({
+  id: '/aura',
+  path: '/aura',
   getParentRoute: () => rootRouteImport,
 } as any)
 const NotesRoute = NotesRouteImport.update({
@@ -25,27 +31,31 @@ const NotesRoute = NotesRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/aura': typeof AuraRoute
   '/notes': typeof NotesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/aura': typeof AuraRoute
   '/notes': typeof NotesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/aura': typeof AuraRoute
   '/notes': typeof NotesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/notes'
+  fullPaths: '/' | '/aura' | '/notes'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/notes'
-  id: '__root__' | '/' | '/notes'
+  to: '/' | '/aura' | '/notes'
+  id: '__root__' | '/' | '/aura' | '/notes'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuraRoute: typeof AuraRoute
   NotesRoute: typeof NotesRoute
 }
 
@@ -56,6 +66,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/aura': {
+      id: '/aura'
+      path: '/aura'
+      fullPath: '/aura'
+      preLoaderRoute: typeof AuraRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/notes': {
@@ -70,6 +87,7 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuraRoute: AuraRoute,
   NotesRoute: NotesRoute,
 }
 export const routeTree = rootRouteImport
