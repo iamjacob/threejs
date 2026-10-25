@@ -2,6 +2,7 @@ import { OrbitControls } from "@react-three/drei";
 import { useFrame, useThree } from "@react-three/fiber";
 import {
 	type ComponentRef,
+	useCallback,
 	useEffect,
 	useLayoutEffect,
 	useMemo,
@@ -37,7 +38,11 @@ import {
 import { focusBookPosition } from "./tourBookPose";
 import { tourStages } from "./tourStages";
 
-export default function TourCamera() {
+export default function TourCamera({
+	skipEntrance = false,
+}: {
+	skipEntrance?: boolean;
+} = {}) {
 	const { SHOW_DEMO_UI } = useFeatureFlags();
 	const { camera, size, gl } = useThree();
 	const book = useSelectedBook();
@@ -129,12 +134,18 @@ export default function TourCamera() {
 		if (!useShelfControlsStore.getState().drag) editorZoomScale.current = 1;
 	}, [editing, viewRevision, selectedIds, size.width, size.height]);
 	const controls = useRef<ComponentRef<typeof OrbitControls>>(null);
-	const initialized = useRef(false);
+	// OrbitControls rebuilds when the default camera changes. The journey camera
+	// unmounts at the hand-off, so the pose has to be applied to each instance.
+	const posedControls = useRef<ComponentRef<typeof OrbitControls> | null>(null);
 	const reducedMotion = useMemo(
 		() => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
 		[],
 	);
-	const entrance = useRef({ elapsed: 0, done: reducedMotion });
+	// The onboarding flight already lands on the resting shelf frame.
+	const entrance = useRef({
+		elapsed: 0,
+		done: reducedMotion || skipEntrance,
+	});
 	useEffect(() => {
 		// Any interaction hands camera control to the reader immediately.
 		const cancel = () => {
@@ -302,32 +313,38 @@ export default function TourCamera() {
 		entrance.current.done = true;
 	}, [centered, camera]);
 
+	const poseOnControls = useCallback(() => {
+		const orbit = controls.current;
+		if (!orbit || posedControls.current === orbit) return;
+		orbit.target.copy(framing.target);
+		camera.position
+			.copy(framing.target)
+			.add(new Vector3(0, framing.distance * 0.12, framing.distance * 0.993));
+		if (!entrance.current.done && stage === "library") {
+			const pose = libraryEntrancePose(framing.target, framing.distance, 0);
+			camera.position.copy(pose.position);
+			orbit.target.copy(pose.target);
+		}
+		if (centered) {
+			camera.position.set(0, 0.25, 0);
+			orbit.target.set(0, 0.25, -7.4);
+			entrance.current.done = true;
+		}
+		orbit.update();
+		posedControls.current = orbit;
+	}, [camera, centered, framing, stage]);
 	useLayoutEffect(() => {
+		poseOnControls();
 		const orbit = controls.current;
 		if (!orbit) return;
-		if (!initialized.current) {
-			orbit.target.copy(framing.target);
-			camera.position
-				.copy(framing.target)
-				.add(new Vector3(0, framing.distance * 0.12, framing.distance * 0.993));
-			if (!entrance.current.done && stage === "library") {
-				const pose = libraryEntrancePose(framing.target, framing.distance, 0);
-				camera.position.copy(pose.position);
-				orbit.target.copy(pose.target);
-			}
-			if (centered) {
-				camera.position.set(0, 0.25, 0);
-				orbit.target.set(0, 0.25, -7.4);
-				entrance.current.done = true;
-			}
-			orbit.update();
-			initialized.current = true;
-		}
 		if (stage === "pull" || stage === "return") {
 			startPosition.copy(camera.position);
 			startTarget.copy(orbit.target);
 		}
-	}, [stage, camera, framing, startPosition, startTarget, centered]);
+	}, [poseOnControls, stage, camera, startPosition, startTarget]);
+	// The controls ref attaches after the first layout pass, and a later camera
+	// swap builds a new control whose target is still the origin.
+	useFrame(poseOnControls);
 
 	useFrame((_, delta) => {
 		const orbit = controls.current;
