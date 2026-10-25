@@ -1,6 +1,13 @@
 import { PerspectiveCamera } from "@react-three/drei";
 import { useFrame, useLoader } from "@react-three/fiber";
-import { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from "react";
+import {
+	Suspense,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useSyncExternalStore,
+} from "react";
 import {
 	BackSide,
 	CatmullRomCurve3,
@@ -41,6 +48,7 @@ import {
 	falloffOpacity,
 	stepFalloff,
 } from "./falloff";
+import { landingDelay } from "./flight";
 import {
 	beatAt,
 	eyeBackoff,
@@ -55,6 +63,13 @@ import {
 } from "./journey";
 import { LIBRARY_CLEAR, libraryRestPose } from "./libraryPose";
 import {
+	getPersonalBook,
+	type PersonalBook,
+	subscribePersonalBook,
+} from "./personalBook";
+import PersonalCover from "./personalCover";
+import {
+	LANDING_STATIONS,
 	type OnboardingAnswers,
 	plankFor,
 	planLandings,
@@ -578,6 +593,7 @@ function ShelfLanding({
 	material,
 	clockRef,
 	reducedRef,
+	personal,
 }: {
 	t: number;
 	side: number;
@@ -587,6 +603,7 @@ function ShelfLanding({
 	material: MeshStandardMaterial;
 	clockRef: { current: number };
 	reducedRef: { current: boolean };
+	personal: PersonalBook | null;
 }) {
 	const poses = useMemo(
 		() => settlePoses(placements, delays),
@@ -594,21 +611,38 @@ function ShelfLanding({
 	);
 	const plank = useMemo(() => plankFor(poses), [poses]);
 	const frame = useMemo(() => shelfFrame(curve, t, side), [curve, side, t]);
+	const width = plank.width + (personal ? 0.72 : 0);
+	const personalX = -(plank.width / 2) - 0.02;
 	return (
 		<group
 			position={frame.position}
 			quaternion={frame.quaternion}
 			name="onboarding-shelf"
 		>
-			<mesh position={[0, plank.y, 0]} material={material} raycast={() => null}>
-				<boxGeometry args={[plank.width, plank.height, plank.depth]} />
+			<mesh
+				position={[personal ? -0.36 : 0, plank.y, 0]}
+				material={material}
+				raycast={() => null}
+			>
+				<boxGeometry args={[width, plank.height, plank.depth]} />
 			</mesh>
-			<OnboardingBooks
-				placements={placements}
-				delays={delays}
-				clockRef={clockRef}
-				reducedRef={reducedRef}
-			/>
+			{placements.length > 0 ? (
+				<OnboardingBooks
+					placements={placements}
+					delays={delays}
+					clockRef={clockRef}
+					reducedRef={reducedRef}
+				/>
+			) : null}
+			{personal?.coverDataUrl ? (
+				<PersonalCover
+					coverUrl={personal.coverDataUrl}
+					delay={landingDelay(t, 0)}
+					offsetX={personalX}
+					clockRef={clockRef}
+					reducedRef={reducedRef}
+				/>
+			) : null}
 		</group>
 	);
 }
@@ -626,6 +660,11 @@ function Landings({
 }) {
 	const material = useWoodMaterial();
 	const landings = useMemo(() => planLandings(catalog, answers), [answers]);
+	const personal = useSyncExternalStore(
+		subscribePersonalBook,
+		getPersonalBook,
+		() => null,
+	);
 	useEffect(() => () => material.dispose(), [material]);
 	useFrame(() => {
 		const fade = falloffOpacity(journeySession.falloff.elapsed);
@@ -639,19 +678,25 @@ function Landings({
 	});
 	return (
 		<>
-			{landings.map((landing) => (
-				<ShelfLanding
-					key={landing.t}
-					t={landing.t}
-					side={landing.side}
-					placements={landing.placements}
-					delays={landing.delays}
-					curve={curve}
-					material={material}
-					clockRef={clockRef}
-					reducedRef={reducedRef}
-				/>
-			))}
+			{LANDING_STATIONS.map((station) => {
+				const landing = landings.find((item) => item.t === station.t);
+				const cover = personal?.landAt === station.t ? personal : null;
+				if (!landing && !cover) return null;
+				return (
+					<ShelfLanding
+						key={station.t}
+						t={station.t}
+						side={station.side}
+						placements={landing?.placements ?? []}
+						delays={landing?.delays ?? {}}
+						curve={curve}
+						material={material}
+						clockRef={clockRef}
+						reducedRef={reducedRef}
+						personal={cover}
+					/>
+				);
+			})}
 		</>
 	);
 }

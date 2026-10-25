@@ -11,7 +11,9 @@ export const ONBOARDING_TRACK_PATH = "/audio/onboarding-theme.mp3";
 
 export type OnboardingProfile = {
 	bookTitle: string;
+	bookAuthor: string;
 	rhythm: string;
+	/** Card 4: "One book at a time" or "A few at once". */
 	identity: string;
 	createdAt: string;
 };
@@ -51,6 +53,8 @@ export function readOnboardingProfile(): OnboardingProfile | null {
 		const record = parsed as Partial<OnboardingProfile>;
 		return {
 			bookTitle: typeof record.bookTitle === "string" ? record.bookTitle : "",
+			bookAuthor:
+				typeof record.bookAuthor === "string" ? record.bookAuthor : "",
 			rhythm: typeof record.rhythm === "string" ? record.rhythm : "",
 			identity: typeof record.identity === "string" ? record.identity : "",
 			createdAt: typeof record.createdAt === "string" ? record.createdAt : "",

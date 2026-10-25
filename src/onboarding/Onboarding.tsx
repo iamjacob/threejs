@@ -9,6 +9,7 @@ import {
 } from "react";
 import { books as catalog } from "../lib/bookCatalog";
 import { publicAssetUrl } from "../lib/publicAssetUrl";
+import BookMoment from "./BookMoment";
 import {
 	BEATS,
 	type BeatId,
@@ -23,6 +24,13 @@ import {
 	trackPointer,
 	wheelStep,
 } from "./journey";
+import { landPersonalBookOnShelf } from "./landPersonal";
+import {
+	personalLandingT,
+	renderTitleCover,
+	setPersonalBook,
+	shelfWelcome,
+} from "./personalBook";
 import { journeySession, resetJourneySession } from "./session";
 import "./onboarding.css";
 import { planLandings } from "./selection";
@@ -42,7 +50,19 @@ import {
 
 type Phase = "intro" | "journey";
 type Sound = "off" | "playing" | "unavailable";
-type Answers = { bookTitle: string; rhythm: string; identity: string };
+type Answers = {
+	bookTitle: string;
+	bookAuthor: string;
+	rhythm: string;
+	identity: string;
+};
+
+const EMPTY_ANSWERS: Answers = {
+	bookTitle: "",
+	bookAuthor: "",
+	rhythm: "",
+	identity: "",
+};
 
 const WORDMARK = publicAssetUrl("/icons/wordmark-gradient.svg");
 
@@ -60,20 +80,13 @@ export default function Onboarding() {
 	const audioRef = journeySession.audio;
 	const endRef = useRef(false);
 	const beatIdRef = useRef("");
-	const answersRef = useRef<Answers>({
-		bookTitle: "",
-		rhythm: "",
-		identity: "",
-	});
+	const answersRef = useRef<Answers>(EMPTY_ANSWERS);
 	const [phase, setPhase] = useState<Phase>("intro");
 	const [reduced, setReduced] = useState(false);
 	const [coarse, setCoarse] = useState(false);
 	const [sound, setSound] = useState<Sound>("off");
-	const [answers, setAnswers] = useState<Answers>({
-		bookTitle: "",
-		rhythm: "",
-		identity: "",
-	});
+	const [answers, setAnswers] = useState<Answers>(EMPTY_ANSWERS);
+	const [exploring, setExploring] = useState(false);
 	const [hud, setHud] = useState<{ beatId: BeatId | null; end: boolean }>({
 		beatId: null,
 		end: false,
@@ -145,8 +158,10 @@ export default function Onboarding() {
 		};
 		saveOnboardingProfile(profile);
 		audioRef.current?.pause();
-		enterLibraryStage();
-		void navigate({ to: "/" });
+		void landPersonalBookOnShelf().finally(() => {
+			enterLibraryStage();
+			void navigate({ to: "/" });
+		});
 	}, [navigate]);
 
 	journeySession.onProgress = onProgress;
@@ -249,6 +264,14 @@ export default function Onboarding() {
 		};
 
 		const onWheel = (event: WheelEvent) => {
+			if (phaseRef.current === "intro") {
+				if (event.deltaY > 0) {
+					event.preventDefault();
+					phaseRef.current = "journey";
+					setPhase("journey");
+				}
+				return;
+			}
 			if (phaseRef.current !== "journey") return;
 			if (cardConsumes(event.target, event.deltaY)) return;
 			event.preventDefault();
@@ -372,9 +395,11 @@ export default function Onboarding() {
 		};
 		saveOnboardingProfile(profile);
 		audioRef.current?.pause();
-		releaseStage();
-		resetJourneySession();
-		void navigate({ to: "/" });
+		void landPersonalBookOnShelf().finally(() => {
+			releaseStage();
+			resetJourneySession();
+			void navigate({ to: "/" });
+		});
 	};
 
 	const replay = () => {
@@ -390,7 +415,8 @@ export default function Onboarding() {
 		beatIdRef.current = "";
 		endRef.current = false;
 		setPhase("intro");
-		setAnswers({ bookTitle: "", rhythm: "", identity: "" });
+		setAnswers(EMPTY_ANSWERS);
+		setExploring(false);
 		setStageAnswers({ rhythm: "", identity: "" });
 		setHud({ beatId: null, end: false });
 		const root = rootRef.current;
@@ -444,6 +470,7 @@ export default function Onboarding() {
 			data-arrival="0.0000"
 			data-arriving="false"
 			data-reduced={reduced ? "true" : "false"}
+			data-book={answers.bookTitle}
 			data-books={bookTitles}
 		>
 			<header className="onb-header">
@@ -469,24 +496,32 @@ export default function Onboarding() {
 								? "No soundtrack"
 								: "Sound"}
 					</button>
-					{phase === "intro" || !hud.end ? (
-						<button
-							type="button"
-							className="onb-tool"
-							data-testid="onboarding-skip"
-							onClick={finish}
-						>
-							Skip
-						</button>
-					) : null}
+					<button
+						type="button"
+						className="onb-tool"
+						data-testid="onboarding-skip"
+						onClick={finish}
+					>
+						Skip
+					</button>
 				</div>
 			</header>
 			{phase === "intro" ? (
 				<div className="onb-intro">
 					<img src={WORDMARK} alt="Boooks" />
+					<p className="onb-tagline">Scroll less. Keep more.</p>
 					<button type="button" data-testid="onboarding-start" onClick={start}>
-						Start introduction
+						Begin
 					</button>
+					<button
+						type="button"
+						className="onb-skip-link"
+						data-testid="onboarding-skip-intro"
+						onClick={finish}
+					>
+						Skip
+					</button>
+					<p className="onb-fly-hint">Scroll or tap to fly in</p>
 				</div>
 			) : null}
 			{cardVisible && beat ? (
@@ -496,22 +531,52 @@ export default function Onboarding() {
 						data-testid="onboarding-card"
 						data-step={beat.id}
 					>
-						<p className="onb-kicker">{beat.label}</p>
+						<div
+							className="onb-dots"
+							data-testid="onboarding-dots"
+							aria-hidden="true"
+						>
+							{BEATS.map((item) => (
+								<span
+									key={item.id}
+									data-current={item.id === beat.id ? "true" : "false"}
+								/>
+							))}
+						</div>
 						<h2>{beat.title}</h2>
-						<p>{beat.description}</p>
-						{beat.type === "input" ? (
-							<input
-								data-testid="onboarding-book-title"
-								value={answers.bookTitle}
-								placeholder={beat.placeholder}
-								autoComplete="off"
-								enterKeyHint="done"
-								onChange={(event) =>
+						{beat.description ? <p>{beat.description}</p> : null}
+						{beat.id === "current-book" ? (
+							<BookMoment
+								title={answers.bookTitle}
+								onTitle={(bookTitle) =>
+									setAnswers((current) => ({ ...current, bookTitle }))
+								}
+								onCommit={(book) => {
+									const cover =
+										book.coverDataUrl ||
+										renderTitleCover(book.title, book.author);
+									setPersonalBook({
+										title: book.title,
+										author: book.author,
+										coverDataUrl: cover,
+										landAt: personalLandingT(journeySession.journey.display),
+									});
 									setAnswers((current) => ({
 										...current,
-										bookTitle: event.target.value,
-									}))
-								}
+										bookTitle: book.title,
+										bookAuthor: book.author,
+									}));
+									seekJourney(nextStation(journeySession.journey.display));
+								}}
+								onNotNow={() => {
+									setPersonalBook(null);
+									setAnswers((current) => ({
+										...current,
+										bookTitle: "",
+										bookAuthor: "",
+									}));
+									seekJourney(nextStation(journeySession.journey.display));
+								}}
 							/>
 						) : null}
 						{beat.type === "choice" && beat.options ? (
@@ -535,7 +600,7 @@ export default function Onboarding() {
 								))}
 							</div>
 						) : null}
-						{beat.primaryLabel ? (
+						{beat.id !== "current-book" && beat.primaryLabel ? (
 							<button
 								type="button"
 								className="onb-primary"
@@ -554,33 +619,40 @@ export default function Onboarding() {
 					{coarse ? "Swipe to continue" : "Scroll to continue"}
 				</p>
 			) : null}
-			{phase === "journey" && hud.end ? (
+			{phase === "journey" && hud.end && !exploring ? (
 				<div className="onb-end" data-testid="onboarding-end">
-					<h2>Wish you a great journey...</h2>
-					<p>A few pages still count. Come back whenever you are ready.</p>
-					<div className="onb-end-actions">
-						<button
-							type="button"
-							data-testid="onboarding-create"
-							onClick={finish}
-						>
-							Create user
-						</button>
-						<button
-							type="button"
-							data-testid="onboarding-home"
-							onClick={finish}
-						>
-							Back to home
-						</button>
-						<button
-							type="button"
-							className="onb-quiet"
-							data-testid="onboarding-replay"
-							onClick={replay}
-						>
-							Replay
-						</button>
+					<div className="onb-plate">
+						<h2>Welcome to your library.</h2>
+						<p data-testid="onboarding-end-sub">
+							{shelfWelcome(answers.bookTitle)}
+						</p>
+						<div className="onb-end-actions">
+							<button
+								type="button"
+								className="onb-save"
+								data-testid="onboarding-save"
+								onClick={finish}
+							>
+								Save my library
+							</button>
+							<button
+								type="button"
+								className="onb-explore"
+								data-testid="onboarding-explore"
+								onClick={() => setExploring(true)}
+							>
+								Explore first
+							</button>
+							<button
+								type="button"
+								className="onb-quiet"
+								data-testid="onboarding-replay"
+								onClick={replay}
+							>
+								Replay
+							</button>
+						</div>
+						<p className="onb-library-hint">Keep scrolling to step inside</p>
 					</div>
 				</div>
 			) : null}

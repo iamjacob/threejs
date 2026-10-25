@@ -25,7 +25,7 @@ const CALM = [
 	"four thousand weeks",
 ];
 
-/** A set time, or the reader you're becoming if you want to be consistent. */
+/** A set time, kept as a mild boost. Card 4 decides the set that actually flies. */
 const STEADY = [
 	"the daily stoic",
 	"discipline is destiny",
@@ -71,17 +71,28 @@ export const LANDING_STATIONS = BEATS.map((beat) => ({
 	side: beat.side,
 }));
 
+/** Card 4. One book is a short calm set. A few at once opens the wider shelf. */
+function bookLimit(answers: OnboardingAnswers) {
+	if (answers.identity === "One book at a time") return 5;
+	if (answers.identity === "A few at once") return MAX_BOOKS;
+	return 8;
+}
+
 function score(title: string, answers: OnboardingAnswers) {
 	const name = title.toLowerCase();
-	let value = 0;
 	if (!answers.rhythm && !answers.identity) {
 		const index = DEFAULT.indexOf(name);
 		return index === -1 ? 0 : DEFAULT.length - index;
 	}
-	if (answers.rhythm === "In quiet moments" && CALM.includes(name)) value += 3;
-	if (answers.rhythm === "At a set time" && STEADY.includes(name)) value += 3;
-	if (answers.identity === "Consistent" && STEADY.includes(name)) value += 2;
-	if (answers.identity === "Curious" && CURIOUS.includes(name)) value += 2;
+	const one = answers.identity === "One book at a time";
+	const many = answers.identity === "A few at once";
+	// A focused reader does not pick up the wide, restless titles.
+	if (one && CURIOUS.includes(name) && !CALM.includes(name)) return 0;
+	let value = 0;
+	if (one && CALM.includes(name)) value += 4;
+	if (many && (CURIOUS.includes(name) || STEADY.includes(name))) value += 3;
+	if (answers.rhythm === "Whenever I can" && CALM.includes(name)) value += 1;
+	if (answers.rhythm === "At a set time" && STEADY.includes(name)) value += 1;
 	return value;
 }
 
@@ -94,7 +105,7 @@ export function selectOnboardingBooks<
 		.sort(
 			(a, b) => b.score - a.score || a.book.title.localeCompare(b.book.title),
 		)
-		.slice(0, MAX_BOOKS)
+		.slice(0, bookLimit(answers))
 		.map((entry) => entry.book);
 }
 

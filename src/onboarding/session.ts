@@ -1,6 +1,8 @@
 import { type ArrivalState, createArrival, resetArrival } from "./arrival";
 import { createFalloff, type FalloffState, resetFalloff } from "./falloff";
 import { createJourney, type JourneyState } from "./journey";
+import { resetPersonalLanding } from "./landPersonal";
+import { resetPersonalBook } from "./personalBook";
 
 /**
  * Shared clock for the overlay and the canvas. The canvas lives outside the
@@ -51,4 +53,6 @@ export function resetJourneySession() {
 	journeySession.clock.current = 0;
 	journeySession.phase.current = "intro";
 	journeySession.arrived = false;
+	resetPersonalBook();
+	resetPersonalLanding();
 }

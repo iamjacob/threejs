@@ -226,21 +226,93 @@ test("book flights ease in and settle with no leftover offset", () => {
 	assert.deepEqual(flightShift(0.2, 1, true), { x: 0, y: 0, z: 0 });
 });
 
-test("a quiet rhythm prefers Seneca and leaves Blitzscaling on the shelf", () => {
-	const picked = selectOnboardingBooks(
-		[
-			{ title: "Seneca", pages: 106 },
-			{ title: "Blitzscaling", pages: 320 },
-			{ title: "The Daily Stoic", pages: 400 },
-			{ title: "Stilness is the key", pages: 304 },
-		],
-		{ rhythm: "In quiet moments", identity: "" },
-	);
+test("one book at a time prefers Seneca and leaves Blitzscaling on the shelf", () => {
+	const catalog = [
+		{ title: "Seneca", pages: 106 },
+		{ title: "Blitzscaling", pages: 320 },
+		{ title: "The Daily Stoic", pages: 400 },
+		{ title: "Stilness is the key", pages: 304 },
+	];
+	const picked = selectOnboardingBooks(catalog, {
+		rhythm: "",
+		identity: "One book at a time",
+	});
 	assert.ok(picked.some((book) => book.title === "Seneca"));
 	assert.equal(
 		picked.some((book) => book.title === "Blitzscaling"),
 		false,
 	);
+	const wide = selectOnboardingBooks(catalog, {
+		rhythm: "Whenever I can",
+		identity: "A few at once",
+	});
+	assert.ok(wide.some((book) => book.title === "Blitzscaling"));
+});
+
+test("the five cards use the owner's copy and card 3 has no time picker", async () => {
+	const { shelfWelcome, librarySearchUrl, personalLandingT } = await import(
+		"../src/onboarding/personalBook.ts"
+	);
+	const { openOnboardingCamera, setOnboardingCameraSource } = await import(
+		"../src/onboarding/camera.ts"
+	);
+	assert.deepEqual(
+		BEATS.map((beat) => beat.title),
+		[
+			"Videos fade. Books stay with you.",
+			"What are you reading right now?",
+			"When does reading find you?",
+			"How do you read?",
+			"Your shelf is ready.",
+		],
+	);
+	assert.equal(BEATS[0].primaryLabel, "Let's go");
+	assert.equal(BEATS[1].description, "Scan the book you're reading right now.");
+	assert.equal(BEATS[1].primaryLabel, "Put it on my shelf");
+	assert.deepEqual(BEATS[2].options, ["Whenever I can", "At a set time"]);
+	assert.equal(BEATS[2].type, "choice");
+	assert.deepEqual(BEATS[3].options, ["One book at a time", "A few at once"]);
+	assert.equal(BEATS[4].description, "Even a few pages count.");
+	assert.equal(BEATS[4].primaryLabel, undefined);
+	assert.equal(
+		shelfWelcome("The Little Prince"),
+		"The Little Prince is already on your shelf.",
+	);
+	assert.equal(shelfWelcome("  "), "Your first shelf is waiting.");
+	const maps = librarySearchUrl();
+	assert.match(maps, /query=library/);
+	assert.equal(maps.includes("lat"), false);
+	assert.equal(personalLandingT(0.32), BEATS[2].t);
+	let opened = 0;
+	setOnboardingCameraSource({
+		open() {
+			opened += 1;
+			return Promise.resolve({ getTracks: () => [] });
+		},
+	});
+	assert.equal(opened, 0);
+	await openOnboardingCamera();
+	assert.equal(opened, 1);
+	setOnboardingCameraSource({
+		open() {
+			const error = new Error("blocked");
+			error.name = "NotAllowedError";
+			throw error;
+		},
+	});
+	await assert.rejects(openOnboardingCamera(), (error) => error.name === "denied");
+	setOnboardingCameraSource({
+		open() {
+			const error = new Error("missing");
+			error.name = "NotFoundError";
+			throw error;
+		},
+	});
+	await assert.rejects(
+		openOnboardingCamera(),
+		(error) => error.name === "unavailable",
+	);
+	setOnboardingCameraSource(null);
 });
 
 test("the tunnel never rebuilds the prototype's 1444 meshes", () => {
