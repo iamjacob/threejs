@@ -9,14 +9,11 @@ import {
 } from "react";
 import { books as catalog } from "../lib/bookCatalog";
 import { publicAssetUrl } from "../lib/publicAssetUrl";
-import { commitArrival, inputFeedsArrival } from "./arrival";
 import {
 	BEATS,
 	type BeatId,
 	beatAt,
-	endVisible,
 	glideTo,
-	MAX_INPUT_STEP,
 	nextStation,
 	queueStep,
 	releasePointer,
@@ -26,9 +23,9 @@ import {
 	trackPointer,
 	wheelStep,
 } from "./journey";
+import { journeySession, resetJourneySession } from "./session";
 import "./onboarding.css";
 import { planLandings } from "./selection";
-import { journeySession, resetJourneySession } from "./session";
 import {
 	adoptStageForJourney,
 	enterLibraryStage,
@@ -118,7 +115,7 @@ export default function Onboarding() {
 	const onProgress = useCallback((display: number) => {
 		const beat = beatAt(display);
 		const beatId = beat?.id ?? "";
-		const end = endVisible(display, endRef.current);
+		const end = journeySession.falloff.active;
 		const root = rootRef.current;
 		if (root) {
 			root.dataset.progress = display.toFixed(4);
@@ -237,13 +234,8 @@ export default function Onboarding() {
 		};
 
 		const forward = (step: number) => {
-			const arrival = journeySession.arrival;
-			if (inputFeedsArrival(endRef.current, arrival.committed)) {
-				commitArrival(arrival, step, reducedRef.current);
-				const root = rootRef.current;
-				if (root && arrival.committed) root.dataset.arriving = "true";
+			if (journeySession.falloff.active || journeySession.arrival.committed)
 				return;
-			}
 			queueStep(journeySession.journey, step);
 		};
 
@@ -251,10 +243,8 @@ export default function Onboarding() {
 			const now = performance.now();
 			if (now - stationLock < 320) return;
 			stationLock = now;
-			if (inputFeedsArrival(endRef.current, journeySession.arrival.committed)) {
-				forward(MAX_INPUT_STEP);
+			if (journeySession.falloff.active || journeySession.arrival.committed)
 				return;
-			}
 			seekJourney(nextStation(journeySession.journey.display));
 		};
 
@@ -306,10 +296,8 @@ export default function Onboarding() {
 				return;
 			}
 			const step = touchStep(-dy, viewport());
-			const arrival = journeySession.arrival;
-			if (inputFeedsArrival(endRef.current, arrival.committed)) {
+			if (journeySession.falloff.active || journeySession.arrival.committed) {
 				lastSpeed = 0;
-				forward(step);
 				return;
 			}
 			trackPointer(journeySession.journey, step);
@@ -570,11 +558,6 @@ export default function Onboarding() {
 				<div className="onb-end" data-testid="onboarding-end">
 					<h2>Wish you a great journey...</h2>
 					<p>A few pages still count. Come back whenever you are ready.</p>
-					<p className="onb-library-hint" data-testid="onboarding-library-hint">
-						{coarse
-							? "Swipe to enter the library"
-							: "Scroll to enter the library"}
-					</p>
 					<div className="onb-end-actions">
 						<button
 							type="button"

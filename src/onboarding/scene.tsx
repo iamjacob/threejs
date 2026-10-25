@@ -26,12 +26,21 @@ import { books as catalog } from "../lib/bookCatalog";
 import { publicAssetUrl } from "../lib/publicAssetUrl";
 import { useBookStore } from "../stores/useBookStore";
 import {
+	groupLookTarget,
 	LIBRARY_APPROACH,
 	placeLibraryAnchor,
 	transformByAnchor,
 } from "./anchor";
 import { smootherstep01, stepArrival } from "./arrival";
 import OnboardingBooks from "./books";
+import {
+	beginFalloff,
+	FALLOFF_Z_MARGIN,
+	falloffHandsOff,
+	falloffLift,
+	falloffOpacity,
+	stepFalloff,
+} from "./falloff";
 import {
 	beatAt,
 	eyeBackoff,
@@ -170,7 +179,7 @@ function Tunnel({ rings }: { rings: RingSample[] }) {
 		const arrival = smootherstep01(
 			journeySession.arrival.committed ? journeySession.arrival.progress : 0,
 		);
-		const fade = 1 - arrival;
+		const fade = falloffOpacity(journeySession.falloff.elapsed) * (1 - arrival);
 		if (material.transparent !== fade < 0.999) {
 			material.transparent = fade < 0.999;
 			material.needsUpdate = true;
@@ -297,6 +306,15 @@ function JourneyRig({
 			rings.map((ring) => ({ position: ring.position, tangent: ring.tangent })),
 		[rings],
 	);
+	const endZ = useMemo(() => curve.getPoint(1).z, [curve]);
+	const aimAlong = (position: Vector3, travel: Vector3) => {
+		const aim = groupLookTarget(
+			[position.x, position.y, position.z],
+			[travel.x, travel.y, travel.z],
+		);
+		rig.current?.position.copy(position);
+		rig.current?.lookAt(aim[0], aim[1], aim[2]);
+	};
 	useFrame((_, raw) => {
 		const arrival = journeySession.arrival;
 		if (!arrival.committed) return;
@@ -328,8 +346,10 @@ function JourneyRig({
 			}
 			audioProgress = trackProgress(audio.currentTime, duration);
 		}
+		const falloff = journeySession.falloff;
 		if (
 			!arrival.committed &&
+			!falloff.active &&
 			(journeySession.phase.current === "journey" ||
 				journey.target > 0 ||
 				journey.display > 0)
@@ -362,12 +382,49 @@ function JourneyRig({
 		else right.normalize();
 		eye.addScaledVector(right, rail.current);
 		eye.y += 0.12;
+		if (
+			!falloff.active &&
+			!arrival.committed &&
+			journeySession.phase.current === "journey" &&
+			eye.z < endZ + FALLOFF_Z_MARGIN
+		) {
+			beginFalloff(
+				falloff,
+				[eye.x, eye.y, eye.z],
+				[tangent.x, tangent.y, tangent.z],
+				camera.current?.fov ?? 32,
+			);
+		}
+		if (
+			falloff.active &&
+			!arrival.committed &&
+			falloff.eye &&
+			falloff.tangent
+		) {
+			stepFalloff(falloff, raw, reduced);
+			eye.set(
+				falloff.eye[0],
+				falloff.eye[1] + falloffLift(falloff.elapsed),
+				falloff.eye[2],
+			);
+			tangent.set(falloff.tangent[0], falloff.tangent[1], falloff.tangent[2]);
+			if (falloffHandsOff(falloff)) {
+				arrival.eye = [eye.x, eye.y, eye.z];
+				arrival.look = [
+					eye.x + tangent.x * 8,
+					eye.y + tangent.y * 8,
+					eye.z + tangent.z * 8,
+				];
+				arrival.tangent = [tangent.x, tangent.y, tangent.z];
+				arrival.fov = falloff.fov;
+				arrival.committed = true;
+				arrival.progress = reduced ? 1 : 0;
+			}
+		}
 		if (arrival.committed && !arrival.eye) {
 			arrival.eye = [eye.x, eye.y, eye.z];
 			arrival.look = [ahead.x, ahead.y, ahead.z];
-			// The rig is a group, so lookAt points its +Z at the path ahead and the
-			// child camera looks the other way. Follow that view into the library.
-			arrival.tangent = [-tangent.x, -tangent.y, -tangent.z];
+			arrival.tangent = [tangent.x, tangent.y, tangent.z];
 			arrival.fov =
 				camera.current?.fov ?? (state.size.height > state.size.width ? 46 : 32);
 		}
@@ -435,12 +492,10 @@ function JourneyRig({
 					queueMicrotask(() => journeySession.onArrived());
 				}
 			} else {
-				rig.current?.position.copy(eye);
-				rig.current?.lookAt(ahead);
+				aimAlong(eye, tangent);
 			}
 		} else {
-			rig.current?.position.copy(eye);
-			rig.current?.lookAt(ahead);
+			aimAlong(eye, tangent);
 		}
 		if (!arrival.committed) {
 			const portrait = state.size.height > state.size.width;
@@ -572,6 +627,16 @@ function Landings({
 	const material = useWoodMaterial();
 	const landings = useMemo(() => planLandings(catalog, answers), [answers]);
 	useEffect(() => () => material.dispose(), [material]);
+	useFrame(() => {
+		const fade = falloffOpacity(journeySession.falloff.elapsed);
+		const transparent = fade < 0.999;
+		if (material.transparent !== transparent) {
+			material.transparent = transparent;
+			material.needsUpdate = true;
+		}
+		material.opacity = fade;
+		material.depthWrite = fade > 0.2;
+	});
 	return (
 		<>
 			{landings.map((landing) => (

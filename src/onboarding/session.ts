@@ -1,4 +1,5 @@
 import { type ArrivalState, createArrival, resetArrival } from "./arrival";
+import { createFalloff, type FalloffState, resetFalloff } from "./falloff";
 import { createJourney, type JourneyState } from "./journey";
 
 /**
@@ -8,6 +9,7 @@ import { createJourney, type JourneyState } from "./journey";
 export const journeySession: {
 	journey: JourneyState;
 	arrival: ArrivalState;
+	falloff: FalloffState;
 	clock: { current: number };
 	reduced: { current: boolean };
 	phase: { current: "intro" | "journey" };
@@ -20,6 +22,7 @@ export const journeySession: {
 } = {
 	journey: createJourney(),
 	arrival: createArrival(),
+	falloff: createFalloff(),
 	clock: { current: 0 },
 	reduced: { current: false },
 	phase: { current: "intro" },
@@ -44,6 +47,7 @@ export function resetJourneySession() {
 	journeySession.journey.coasting = journey.coasting;
 	journeySession.journey.tracking = journey.tracking;
 	resetArrival(journeySession.arrival);
+	resetFalloff(journeySession.falloff);
 	journeySession.clock.current = 0;
 	journeySession.phase.current = "intro";
 	journeySession.arrived = false;

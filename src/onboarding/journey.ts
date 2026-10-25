@@ -163,6 +163,16 @@ export function frameDelta(raw: number) {
 	return Math.min(raw, 1 / 30);
 }
 
+/**
+ * The fall-off and the library glide are authored in seconds, so they follow
+ * the clock. One hitch can add at most a quarter second: a slow frame does
+ * not stretch the 8 second lift, and a backgrounded tab does not skip it.
+ */
+export function timelineDelta(raw: number) {
+	if (!Number.isFinite(raw) || raw <= 0) return 0;
+	return Math.min(raw, 0.25);
+}
+
 export function damp(
 	current: number,
 	target: number,

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { Vector3 } from "three";
+import { Group, PerspectiveCamera, Vector3 } from "three";
 import {
 	ARRIVAL_SECONDS,
 	commitArrival,
@@ -13,10 +13,22 @@ import {
 	flightShift,
 } from "../src/onboarding/flight.ts";
 import {
+	groupLookTarget,
 	LIBRARY_APPROACH,
 	placeLibraryAnchor,
 	transformByAnchor,
 } from "../src/onboarding/anchor.ts";
+import {
+	beginFalloff,
+	createFalloff,
+	FALLOFF_LIFT,
+	FALLOFF_SECONDS,
+	falloffHandsOff,
+	falloffLift,
+	falloffOpacity,
+	falloffReady,
+	stepFalloff,
+} from "../src/onboarding/falloff.ts";
 import {
 	BEATS,
 	closestPlaneDistance,
@@ -293,6 +305,54 @@ test("forward input at the outro flies one way into the library", () => {
 	const reduced = createArrival();
 	commitArrival(reduced, 0.034, true);
 	assert.equal(reduced.progress, 1);
+});
+
+test("the journey camera looks and moves forward along the rail", () => {
+	const travel = [0, 0, -1];
+	const eye = [0, 0.2, -100];
+	const aim = groupLookTarget(eye, travel);
+	const group = new Group();
+	const camera = new PerspectiveCamera();
+	group.add(camera);
+	group.position.set(eye[0], eye[1], eye[2]);
+	group.lookAt(aim[0], aim[1], aim[2]);
+	camera.updateMatrixWorld(true);
+	const direction = new Vector3();
+	camera.getWorldDirection(direction);
+	assert.ok(direction.dot(new Vector3(travel[0], travel[1], travel[2])) > 0.99);
+	const glide = new Vector3(eye[0], eye[1], eye[2]).addScaledVector(
+		new Vector3(travel[0], travel[1], travel[2]),
+		LIBRARY_APPROACH,
+	);
+	assert.ok(glide.z < eye[2]);
+});
+
+test("the ending lifts off the rail before it hands off to the library", () => {
+	const endZ = -1750;
+	assert.equal(falloffReady(-1600, endZ), false);
+	assert.equal(falloffReady(endZ + 100, endZ), false);
+	assert.equal(falloffReady(endZ + 100 - 0.01, endZ), true);
+	const falloff = createFalloff();
+	beginFalloff(falloff, [0, 1, -1660], [0, 0, -1], 32);
+	assert.equal(falloffLift(0), 0);
+	assert.equal(falloffLift(FALLOFF_SECONDS / 2), FALLOFF_LIFT / 2);
+	for (let frame = 0; frame < 240; frame += 1) stepFalloff(falloff, 1 / 60, false);
+	assert.ok(Math.abs(falloff.elapsed - FALLOFF_SECONDS / 2) < 0.02);
+	assert.equal(falloffHandsOff(falloff), false);
+	assert.ok(falloffOpacity(1) < 0.4);
+	assert.equal(falloffOpacity(0), 1);
+	for (let frame = 0; frame < 241; frame += 1) stepFalloff(falloff, 1 / 60, false);
+	assert.equal(falloff.elapsed, FALLOFF_SECONDS);
+	assert.equal(falloffLift(falloff.elapsed), FALLOFF_LIFT);
+	assert.equal(falloffHandsOff(falloff), true);
+	const hitch = createFalloff();
+	beginFalloff(hitch, [0, 1, -1660], [0, 0, -1], 32);
+	stepFalloff(hitch, 1, false);
+	assert.equal(hitch.elapsed, 0.25);
+	const reduced = createFalloff();
+	beginFalloff(reduced, [0, 1, -1660], [0, 0, -1], 32);
+	stepFalloff(reduced, 0.01, true);
+	assert.equal(falloffHandsOff(reduced), true);
 });
 
 test("the library anchor keeps the camera travelling along the tunnel", () => {

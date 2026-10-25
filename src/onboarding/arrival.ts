@@ -1,4 +1,4 @@
-import { frameDelta } from "./journey.ts";
+import { timelineDelta } from "./journey.ts";
 
 /** How long a committed scroll takes to fly from the outro into the library. */
 export const ARRIVAL_SECONDS = 2.35;
@@ -64,7 +64,7 @@ export function commitArrival(
 
 export function stepArrival(state: ArrivalState, rawDelta: number) {
 	if (!state.committed || state.progress >= 1) return;
-	const delta = frameDelta(rawDelta);
+	const delta = timelineDelta(rawDelta);
 	state.progress = Math.min(1, state.progress + delta / ARRIVAL_SECONDS);
 }
 

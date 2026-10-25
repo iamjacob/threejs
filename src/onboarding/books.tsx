@@ -22,8 +22,10 @@ import {
 } from "../lib/coverAtlas";
 import { publicAssetUrl } from "../lib/publicAssetUrl";
 import { currentRenderQuality, shelfAnisotropy } from "../lib/renderQuality";
+import { falloffOpacity } from "./falloff";
 import { flightProgress, flightShift } from "./flight";
 import { type SettledPose, settlePoses } from "./selection";
+import { journeySession } from "./session";
 
 const FACE_ATTRIBUTES = [
 	"aRectEdge",
@@ -179,6 +181,14 @@ export default function OnboardingBooks({
 		const instanced = mesh.current;
 		if (!instanced) return;
 		writeBooks(instanced, poses, clockRef.current, reducedRef.current);
+		const fade = falloffOpacity(journeySession.falloff.elapsed);
+		const transparent = fade < 0.999;
+		if (material.transparent !== transparent) {
+			material.transparent = transparent;
+			material.needsUpdate = true;
+		}
+		material.opacity = fade;
+		material.depthWrite = fade > 0.2;
 	});
 	return (
 		<instancedMesh

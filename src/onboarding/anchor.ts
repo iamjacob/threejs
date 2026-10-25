@@ -7,6 +7,18 @@ import { Matrix4, Quaternion, Vector3 } from "three";
  */
 export const LIBRARY_APPROACH = 16;
 
+/**
+ * Group.lookAt points the group's +Z at this spot. The child camera looks
+ * down its own -Z, so the spot has to sit behind the eye for the view to
+ * follow `travel`.
+ */
+export function groupLookTarget(
+	eye: readonly [number, number, number],
+	travel: readonly [number, number, number],
+): [number, number, number] {
+	return [eye[0] - travel[0], eye[1] - travel[1], eye[2] - travel[2]];
+}
+
 const look = new Vector3();
 const up = new Vector3(0, 1, 0);
 const forward = new Vector3();
