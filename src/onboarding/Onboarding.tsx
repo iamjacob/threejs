@@ -1,17 +1,21 @@
-import { Canvas } from "@react-three/fiber";
 import { useNavigate } from "@tanstack/react-router";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+	useCallback,
+	useEffect,
+	useLayoutEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { books as catalog } from "../lib/bookCatalog";
 import { publicAssetUrl } from "../lib/publicAssetUrl";
-import { currentRenderQuality } from "../lib/renderQuality";
+import { commitArrival, inputFeedsArrival } from "./arrival";
 import {
 	BEATS,
 	type BeatId,
 	beatAt,
-	createJourney,
 	endVisible,
 	glideTo,
-	type JourneyState,
 	MAX_INPUT_STEP,
 	nextStation,
 	queueStep,
@@ -21,8 +25,16 @@ import {
 	wheelStep,
 } from "./journey";
 import "./onboarding.css";
-import OnboardingScene from "./scene";
 import { planLandings } from "./selection";
+import { journeySession, resetJourneySession } from "./session";
+import {
+	adoptStageForJourney,
+	enterLibraryStage,
+	releaseStage,
+	requestLibraryPreload,
+	setStageAnswers,
+	stageElement,
+} from "./stageHost";
 import {
 	ONBOARDING_TRACK_PATH,
 	type OnboardingProfile,
@@ -43,13 +55,10 @@ function interactiveTarget(target: EventTarget | null) {
 
 export default function Onboarding() {
 	const navigate = useNavigate();
-	const quality = useMemo(() => currentRenderQuality(), []);
 	const rootRef = useRef<HTMLDivElement>(null);
-	const journeyRef = useRef<JourneyState>(createJourney());
-	const clockRef = useRef(0);
-	const reducedRef = useRef(false);
-	const audioRef = useRef<HTMLAudioElement | null>(null);
-	const phaseRef = useRef<Phase>("intro");
+	const phaseRef = journeySession.phase;
+	const reducedRef = journeySession.reduced;
+	const audioRef = journeySession.audio;
 	const endRef = useRef(false);
 	const beatIdRef = useRef("");
 	const answersRef = useRef<Answers>({
@@ -58,7 +67,6 @@ export default function Onboarding() {
 		identity: "",
 	});
 	const [phase, setPhase] = useState<Phase>("intro");
-	const [ready, setReady] = useState(false);
 	const [reduced, setReduced] = useState(false);
 	const [coarse, setCoarse] = useState(false);
 	const [sound, setSound] = useState<Sound>("off");
@@ -88,7 +96,7 @@ export default function Onboarding() {
 	);
 
 	const seekJourney = useCallback((progress: number) => {
-		const journey = journeyRef.current;
+		const journey = journeySession.journey;
 		glideTo(journey, progress);
 		if (reducedRef.current) journey.display = journey.target;
 		const audio = audioRef.current;
@@ -115,6 +123,7 @@ export default function Onboarding() {
 			root.dataset.beat = end ? "" : beatId;
 			root.dataset.end = end ? "true" : "false";
 		}
+		if (display >= 0.78 || end) requestLibraryPreload();
 		if (beatId !== beatIdRef.current || end !== endRef.current) {
 			beatIdRef.current = beatId;
 			endRef.current = end;
@@ -122,7 +131,43 @@ export default function Onboarding() {
 		}
 	}, []);
 
-	const onReady = useCallback(() => setReady(true), []);
+	const onReady = useCallback(() => {
+		stageElement()?.classList.add("is-ready");
+	}, []);
+
+	const arrive = useCallback(() => {
+		if (journeySession.arrived || journeySession.phase.current !== "journey") {
+			return;
+		}
+		journeySession.arrived = true;
+		const profile: OnboardingProfile = {
+			...answersRef.current,
+			createdAt: new Date().toISOString(),
+		};
+		saveOnboardingProfile(profile);
+		audioRef.current?.pause();
+		enterLibraryStage();
+		void navigate({ to: "/" });
+	}, [navigate]);
+
+	journeySession.onProgress = onProgress;
+	journeySession.onReady = onReady;
+	journeySession.onArrived = arrive;
+	journeySession.onArrival = (progress: number) => {
+		const root = rootRef.current;
+		if (!root) return;
+		root.dataset.arrival = progress.toFixed(4);
+		const arriving = progress > 0 ? "true" : "false";
+		if (root.dataset.arriving !== arriving) root.dataset.arriving = arriving;
+	};
+
+	useLayoutEffect(() => {
+		adoptStageForJourney();
+	}, []);
+
+	useEffect(() => {
+		setStageAnswers(selection);
+	}, [selection]);
 
 	useEffect(() => {
 		window.scrollTo(0, 0);
@@ -186,11 +231,26 @@ export default function Onboarding() {
 			return false;
 		};
 
+		const forward = (step: number) => {
+			const arrival = journeySession.arrival;
+			if (inputFeedsArrival(endRef.current, arrival.committed)) {
+				commitArrival(arrival, step, reducedRef.current);
+				const root = rootRef.current;
+				if (root && arrival.committed) root.dataset.arriving = "true";
+				return;
+			}
+			queueStep(journeySession.journey, step);
+		};
+
 		const stepStation = () => {
 			const now = performance.now();
 			if (now - stationLock < 320) return;
 			stationLock = now;
-			seekJourney(nextStation(journeyRef.current.display));
+			if (inputFeedsArrival(endRef.current, journeySession.arrival.committed)) {
+				forward(MAX_INPUT_STEP);
+				return;
+			}
+			seekJourney(nextStation(journeySession.journey.display));
 		};
 
 		const onWheel = (event: WheelEvent) => {
@@ -202,7 +262,7 @@ export default function Onboarding() {
 				stepStation();
 				return;
 			}
-			queueStep(journeyRef.current, wheelStep(event.deltaY, event.deltaMode));
+			forward(wheelStep(event.deltaY, event.deltaMode));
 		};
 
 		const onPointerDown = (event: PointerEvent) => {
@@ -225,7 +285,7 @@ export default function Onboarding() {
 				stepStation();
 				return;
 			}
-			queueStep(journeyRef.current, touchStep(-dy));
+			forward(touchStep(-dy));
 		};
 
 		const onPointerUp = (event: PointerEvent) => {
@@ -235,14 +295,14 @@ export default function Onboarding() {
 		const onKey = (event: KeyboardEvent) => {
 			if (phaseRef.current !== "journey") return;
 			if (interactiveTarget(event.target)) return;
-			const forward =
+			const keyAdvances =
 				event.key === "ArrowDown" ||
 				event.key === "PageDown" ||
 				event.key === " ";
-			if (!forward) return;
+			if (!keyAdvances) return;
 			event.preventDefault();
 			if (reducedRef.current) stepStation();
-			else queueStep(journeyRef.current, MAX_INPUT_STEP);
+			else forward(MAX_INPUT_STEP);
 		};
 
 		const onTouchMove = (event: TouchEvent) => {
@@ -285,29 +345,34 @@ export default function Onboarding() {
 		};
 		saveOnboardingProfile(profile);
 		audioRef.current?.pause();
+		releaseStage();
+		resetJourneySession();
 		void navigate({ to: "/" });
 	};
 
 	const replay = () => {
+		if (journeySession.arrived) return;
 		const audio = audioRef.current;
 		if (audio) {
 			audio.pause();
 			audio.currentTime = 0;
 		}
 		setSound((current) => (current === "playing" ? "off" : current));
-		journeyRef.current = createJourney();
-		clockRef.current = 0;
+		resetJourneySession();
 		phaseRef.current = "intro";
 		beatIdRef.current = "";
 		endRef.current = false;
 		setPhase("intro");
 		setAnswers({ bookTitle: "", rhythm: "", identity: "" });
+		setStageAnswers({ rhythm: "", identity: "" });
 		setHud({ beatId: null, end: false });
 		const root = rootRef.current;
 		if (root) {
 			root.dataset.progress = "0.0000";
 			root.dataset.beat = "";
 			root.dataset.end = "false";
+			root.dataset.arrival = "0.0000";
+			root.dataset.arriving = "false";
 		}
 	};
 
@@ -322,7 +387,7 @@ export default function Onboarding() {
 		if (!audio.src) audio.src = publicAssetUrl(ONBOARDING_TRACK_PATH);
 		audio.muted = false;
 		if (Number.isFinite(audio.duration) && audio.duration > 0) {
-			audio.currentTime = journeyRef.current.display * audio.duration;
+			audio.currentTime = journeySession.journey.display * audio.duration;
 		}
 		void audio.play().then(
 			() => setSound("playing"),
@@ -349,32 +414,11 @@ export default function Onboarding() {
 			data-progress="0.0000"
 			data-beat=""
 			data-end="false"
+			data-arrival="0.0000"
+			data-arriving="false"
 			data-reduced={reduced ? "true" : "false"}
 			data-books={bookTitles}
 		>
-			<div className={ready ? "onb-stage is-ready" : "onb-stage"}>
-				<Canvas
-					dpr={quality.dpr}
-					shadows={false}
-					gl={{
-						alpha: false,
-						antialias: quality.tier === "high",
-						powerPreference: "high-performance",
-					}}
-					onCreated={({ gl }) => gl.setClearColor("#101828")}
-				>
-					<OnboardingScene
-						journeyRef={journeyRef}
-						clockRef={clockRef}
-						reducedRef={reducedRef}
-						audioRef={audioRef}
-						phaseRef={phaseRef}
-						answers={selection}
-						onProgress={onProgress}
-						onReady={onReady}
-					/>
-				</Canvas>
-			</div>
 			<header className="onb-header">
 				{phase !== "intro" ? (
 					<div className="onb-brand">
@@ -469,7 +513,7 @@ export default function Onboarding() {
 								type="button"
 								className="onb-primary"
 								onClick={() =>
-									seekJourney(nextStation(journeyRef.current.display))
+									seekJourney(nextStation(journeySession.journey.display))
 								}
 							>
 								{beat.primaryLabel}
@@ -487,6 +531,11 @@ export default function Onboarding() {
 				<div className="onb-end" data-testid="onboarding-end">
 					<h2>Wish you a great journey...</h2>
 					<p>A few pages still count. Come back whenever you are ready.</p>
+					<p className="onb-library-hint" data-testid="onboarding-library-hint">
+						{coarse
+							? "Swipe to enter the library"
+							: "Scroll to enter the library"}
+					</p>
 					<div className="onb-end-actions">
 						<button
 							type="button"

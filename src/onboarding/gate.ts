@@ -9,8 +9,12 @@ import { onboardingSeen } from "./storage";
  * 2. File route `src/routes/onboarding.tsx`. Regenerate the TanStack route tree.
  * 3. The asset worker must serve the app shell for extensionless paths such as
  *    `/onboarding` (src/worker.ts). Vite's dev server already does this.
+ * 4. Home skips its own canvas while `stageOwnsLibrary()` is true
+ *    (src/routes/index.tsx). The flight reuses one WebGL context.
+ * 5. `TourCamera` takes an optional `skipEntrance` so the scroll into the
+ *    library does not replay the shelf dolly (src/components/tour/TourCamera.tsx).
  *
- * Nothing in this folder edits the library shelf, the tour, or src/game.
+ * The library shelves, InstancedBooks, and src/game stay untouched.
  */
 export function gateHomeRoute() {
 	if (typeof window === "undefined") return;

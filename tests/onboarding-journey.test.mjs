@@ -1,9 +1,22 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
+import { Vector3 } from "three";
+import {
+	ARRIVAL_SECONDS,
+	commitArrival,
+	createArrival,
+	inputFeedsArrival,
+	stepArrival,
+} from "../src/onboarding/arrival.ts";
 import {
 	flightProgress,
 	flightShift,
 } from "../src/onboarding/flight.ts";
+import {
+	LIBRARY_APPROACH,
+	placeLibraryAnchor,
+	transformByAnchor,
+} from "../src/onboarding/anchor.ts";
 import {
 	BEATS,
 	createJourney,
@@ -166,6 +179,58 @@ test("the eye backs up until it clears every ring plane", () => {
 		point[2] - tangent[2] * back,
 	];
 	assert.ok(closestPlaneDistance(eye, rings) >= 1.35);
+});
+
+test("forward input at the outro flies one way into the library", () => {
+	const idle = createArrival();
+	stepArrival(idle, 1);
+	assert.equal(idle.progress, 0);
+	assert.equal(inputFeedsArrival(false, false), false);
+	assert.equal(inputFeedsArrival(true, false), true);
+
+	const arrival = createArrival();
+	commitArrival(arrival, -1, false);
+	assert.equal(arrival.committed, false);
+	commitArrival(arrival, 0.034, false);
+	assert.equal(arrival.committed, true);
+	const nudged = arrival.progress;
+	assert.ok(nudged > 0 && nudged < 1);
+	commitArrival(arrival, -5, false);
+	assert.ok(arrival.progress >= nudged);
+	for (let frame = 0; frame < 180; frame += 1) stepArrival(arrival, 1 / 60);
+	assert.equal(arrival.progress, 1);
+	assert.ok(ARRIVAL_SECONDS < 4);
+
+	const reduced = createArrival();
+	commitArrival(reduced, 0.034, true);
+	assert.equal(reduced.progress, 1);
+});
+
+test("the library anchor keeps the camera travelling along the tunnel", () => {
+	const eye = [0, 0.2, -10];
+	const tangent = [0, 0, -1];
+	const restPosition = [0, 1, 8];
+	const restTarget = [0, 0.5, 0];
+	const anchor = placeLibraryAnchor(eye, tangent, restPosition, restTarget);
+	const worldCamera = new Vector3();
+	const worldTarget = new Vector3();
+	transformByAnchor(
+		anchor.position,
+		anchor.quaternion,
+		restPosition,
+		worldCamera,
+	);
+	transformByAnchor(
+		anchor.position,
+		anchor.quaternion,
+		restTarget,
+		worldTarget,
+	);
+	assert.ok(Math.abs(worldCamera.x - eye[0]) < 1e-4);
+	assert.ok(Math.abs(worldCamera.y - eye[1]) < 1e-4);
+	assert.ok(Math.abs(worldCamera.z - (eye[2] - LIBRARY_APPROACH)) < 1e-4);
+	const direction = worldTarget.sub(worldCamera).normalize();
+	assert.ok(direction.dot(new Vector3(0, 0, -1)) > 0.99);
 });
 
 test("extensionless client routes fall back to the app shell", async () => {

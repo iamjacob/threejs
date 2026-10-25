@@ -21,8 +21,16 @@ import {
 	TextureLoader,
 	Vector3,
 } from "three";
+import { currentShelfArcFraction } from "../components/shelves/useShelfArc";
 import { books as catalog } from "../lib/bookCatalog";
 import { publicAssetUrl } from "../lib/publicAssetUrl";
+import { useBookStore } from "../stores/useBookStore";
+import {
+	LIBRARY_APPROACH,
+	placeLibraryAnchor,
+	transformByAnchor,
+} from "./anchor";
+import { smootherstep01, stepArrival } from "./arrival";
 import OnboardingBooks from "./books";
 import {
 	beatAt,
@@ -30,7 +38,6 @@ import {
 	frameDelta,
 	frictionAt,
 	JOURNEY_SECONDS,
-	type JourneyState,
 	MAX_PROGRESS_PER_SECOND,
 	ringCount,
 	skyAt,
@@ -38,12 +45,14 @@ import {
 	stepJourney,
 	trackProgress,
 } from "./journey";
+import { LIBRARY_CLEAR, libraryRestPose } from "./libraryPose";
 import {
 	type OnboardingAnswers,
 	plankFor,
 	planLandings,
 	settlePoses,
 } from "./selection";
+import { journeySession } from "./session";
 
 const CURVE_DISTANCE = 250;
 const RING_INNER = 6.35;
@@ -158,6 +167,18 @@ function Tunnel({ rings }: { rings: RingSample[] }) {
 		instanced.instanceMatrix.needsUpdate = true;
 		instanced.computeBoundingSphere();
 	}, [rings]);
+	useFrame(() => {
+		const arrival = smootherstep01(
+			journeySession.arrival.committed ? journeySession.arrival.progress : 0,
+		);
+		const fade = 1 - arrival;
+		if (material.transparent !== fade < 0.999) {
+			material.transparent = fade < 0.999;
+			material.needsUpdate = true;
+		}
+		material.opacity = fade;
+		material.depthWrite = fade > 0.2;
+	});
 	return (
 		<instancedMesh
 			ref={mesh}
@@ -178,6 +199,7 @@ function Sky({ progressRef }: { progressRef: { current: number } }) {
 			uniforms: {
 				colorA: { value: new Color("#101828") },
 				colorB: { value: new Color("#c5c4e0") },
+				opacity: { value: 1 },
 			},
 			vertexShader: `
 				varying vec3 vDir;
@@ -190,10 +212,11 @@ function Sky({ progressRef }: { progressRef: { current: number } }) {
 				varying vec3 vDir;
 				uniform vec3 colorA;
 				uniform vec3 colorB;
+				uniform float opacity;
 				void main() {
 					float h = normalize(vDir).y;
 					float t = smoothstep(-0.25, 0.65, h);
-					gl_FragColor = vec4(mix(colorB, colorA, t), 1.0);
+					gl_FragColor = vec4(mix(colorB, colorA, t), opacity);
 				}
 			`,
 		});
@@ -212,8 +235,18 @@ function Sky({ progressRef }: { progressRef: { current: number } }) {
 		const uniforms = material.uniforms;
 		uniforms.colorA.value.copy(top).lerp(nextTop, mix.local);
 		uniforms.colorB.value.copy(bottom).lerp(nextBottom, mix.local);
+		const arrival = smootherstep01(
+			journeySession.arrival.committed ? journeySession.arrival.progress : 0,
+		);
+		uniforms.opacity.value = 1 - arrival;
+		const transparent = arrival > 0.001;
+		if (material.transparent !== transparent) {
+			material.transparent = transparent;
+			material.needsUpdate = true;
+		}
 		const fog = state.scene.fog;
-		if (fog instanceof Fog) fog.color.copy(uniforms.colorB.value);
+		if (fog instanceof Fog && arrival === 0)
+			fog.color.copy(uniforms.colorB.value);
 	});
 	return (
 		<mesh scale={6000} frustumCulled={false} raycast={() => null}>
@@ -229,29 +262,32 @@ const ahead = new Vector3();
 const eye = new Vector3();
 const right = new Vector3();
 const worldUp = new Vector3(0, 1, 0);
+const blendPos = new Vector3();
+const blendLook = new Vector3();
+const worldTarget = new Vector3();
+const travel = new Vector3();
+const libraryClear = new Color(LIBRARY_CLEAR);
+const fogColor = new Color();
+const backgroundColor = new Color(LIBRARY_CLEAR);
+let fogSampled = false;
+
+function tallestBook() {
+	let tallest = 0;
+	for (const book of useBookStore.getState().books) {
+		const height = book.dimensions[1] ?? 0;
+		if (height > tallest) tallest = height;
+	}
+	return tallest;
+}
 
 function JourneyRig({
 	curve,
 	rings,
-	journeyRef,
 	progressRef,
-	clockRef,
-	reducedRef,
-	audioRef,
-	phaseRef,
-	onProgress,
-	onReady,
 }: {
 	curve: CatmullRomCurve3;
 	rings: RingSample[];
-	journeyRef: { current: JourneyState };
 	progressRef: { current: number };
-	clockRef: { current: number };
-	reducedRef: { current: boolean };
-	audioRef: { current: HTMLAudioElement | null };
-	phaseRef: { current: "intro" | "journey" };
-	onProgress: (display: number) => void;
-	onReady: () => void;
 }) {
 	const rig = useRef<Group>(null);
 	const camera = useRef<PerspectiveCameraImpl>(null);
@@ -262,12 +298,21 @@ function JourneyRig({
 			rings.map((ring) => ({ position: ring.position, tangent: ring.tangent })),
 		[rings],
 	);
+	useFrame((_, raw) => {
+		const arrival = journeySession.arrival;
+		if (!arrival.committed) return;
+		stepArrival(arrival, raw);
+		journeySession.onArrival(arrival.progress);
+	}, -20);
 	useFrame((state, raw) => {
-		const journey = journeyRef.current;
-		const reduced = reducedRef.current;
-		const audio = audioRef.current;
+		const journey = journeySession.journey;
+		const reduced = journeySession.reduced.current;
+		const audio = journeySession.audio.current;
+		const arrival = journeySession.arrival;
+		if (!arrival.committed) fogSampled = false;
 		const driving =
-			phaseRef.current === "journey" &&
+			!arrival.committed &&
+			journeySession.phase.current === "journey" &&
 			audio != null &&
 			soundtrackDrives(audio.paused, audio.ended, audio.duration, reduced);
 		let audioProgress: number | null = null;
@@ -287,15 +332,16 @@ function JourneyRig({
 			audioProgress = trackProgress(audio.currentTime, duration);
 		}
 		if (
-			phaseRef.current === "journey" ||
-			journey.target > 0 ||
-			journey.display > 0
+			!arrival.committed &&
+			(journeySession.phase.current === "journey" ||
+				journey.target > 0 ||
+				journey.display > 0)
 		) {
 			stepJourney(journey, raw, { reduced, audioProgress });
 		}
 		const display = journey.display;
 		progressRef.current = display;
-		clockRef.current = display * JOURNEY_SECONDS;
+		journeySession.clock.current = display * JOURNEY_SECONDS;
 		curve.getPoint(display, point);
 		curve.getTangent(display, tangent);
 		if (tangent.lengthSq() < 1e-8) tangent.set(0, 0, -1);
@@ -319,18 +365,98 @@ function JourneyRig({
 		else right.normalize();
 		eye.addScaledVector(right, rail.current);
 		eye.y += 0.12;
-		rig.current?.position.copy(eye);
-		rig.current?.lookAt(ahead);
-		const portrait = state.size.height > state.size.width;
-		const fov = portrait ? 46 : 32;
-		if (camera.current && camera.current.fov !== fov) {
-			camera.current.fov = fov;
-			camera.current.updateProjectionMatrix();
+		if (arrival.committed && !arrival.eye) {
+			arrival.eye = [eye.x, eye.y, eye.z];
+			arrival.look = [ahead.x, ahead.y, ahead.z];
+			// The rig is a group, so lookAt points its +Z at the path ahead and the
+			// child camera looks the other way. Follow that view into the library.
+			arrival.tangent = [-tangent.x, -tangent.y, -tangent.z];
+			arrival.fov =
+				camera.current?.fov ?? (state.size.height > state.size.width ? 46 : 32);
 		}
-		onProgress(display);
+		const sourceEye = arrival.eye ?? [eye.x, eye.y, eye.z];
+		const sourceTangent = arrival.tangent ?? [tangent.x, tangent.y, tangent.z];
+		if (display >= 0.75 || arrival.committed) {
+			const pose = libraryRestPose(
+				state.size.width / Math.max(1, state.size.height),
+				tallestBook(),
+				state.size.width < 768,
+				currentShelfArcFraction(),
+			);
+			const anchor = placeLibraryAnchor(
+				sourceEye,
+				sourceTangent,
+				pose.position,
+				pose.target,
+			);
+			arrival.anchorPosition = anchor.position;
+			arrival.anchorQuaternion = anchor.quaternion;
+			if (
+				arrival.committed &&
+				arrival.eye &&
+				arrival.look &&
+				arrival.tangent &&
+				camera.current &&
+				rig.current
+			) {
+				const glide = smootherstep01(arrival.progress);
+				travel.set(arrival.tangent[0], arrival.tangent[1], arrival.tangent[2]);
+				if (travel.lengthSq() > 1e-8) travel.normalize();
+				blendPos
+					.set(arrival.eye[0], arrival.eye[1], arrival.eye[2])
+					.addScaledVector(travel, LIBRARY_APPROACH * glide);
+				transformByAnchor(
+					anchor.position,
+					anchor.quaternion,
+					pose.target,
+					worldTarget,
+				);
+				// Aim the rig's +Z away from the shelf so the camera's -Z faces it.
+				blendLook.copy(blendPos).multiplyScalar(2).sub(worldTarget);
+				rig.current.position.copy(blendPos);
+				rig.current.lookAt(blendLook);
+				camera.current.fov = arrival.fov + (pose.fov - arrival.fov) * glide;
+				camera.current.updateProjectionMatrix();
+				const fog = state.scene.fog;
+				if (fog instanceof Fog) {
+					if (!fogSampled) {
+						fogColor.copy(fog.color);
+						fogSampled = true;
+					}
+					fog.near = 18;
+					fog.far = 80 + glide * 520;
+					fog.color.copy(fogColor).lerp(libraryClear, glide);
+				}
+				backgroundColor.copy(fogColor).lerp(libraryClear, glide);
+				state.scene.background = backgroundColor;
+				state.gl.setClearColor(backgroundColor);
+				if (
+					arrival.progress >= 1 &&
+					!journeySession.arrived &&
+					journeySession.phase.current === "journey"
+				) {
+					queueMicrotask(() => journeySession.onArrived());
+				}
+			} else {
+				rig.current?.position.copy(eye);
+				rig.current?.lookAt(ahead);
+			}
+		} else {
+			rig.current?.position.copy(eye);
+			rig.current?.lookAt(ahead);
+		}
+		if (!arrival.committed) {
+			const portrait = state.size.height > state.size.width;
+			const fov = portrait ? 46 : 32;
+			if (camera.current && camera.current.fov !== fov) {
+				camera.current.fov = fov;
+				camera.current.updateProjectionMatrix();
+			}
+		}
+		journeySession.onProgress(display);
 		if (!ready.current) {
 			ready.current = true;
-			onReady();
+			journeySession.onReady();
 		}
 	});
 	return (
@@ -468,18 +594,11 @@ function Landings({
 	);
 }
 
-type Props = {
-	journeyRef: { current: JourneyState };
-	clockRef: { current: number };
-	reducedRef: { current: boolean };
-	audioRef: { current: HTMLAudioElement | null };
-	phaseRef: { current: "intro" | "journey" };
+export default function OnboardingScene({
+	answers,
+}: {
 	answers: OnboardingAnswers;
-	onProgress: (display: number) => void;
-	onReady: () => void;
-};
-
-export default function OnboardingScene(props: Props) {
+}) {
 	const curve = useMemo(() => createJourneyCurve(), []);
 	const rings = useMemo(() => layoutRings(curve), [curve]);
 	const progressRef = useRef(0);
@@ -495,23 +614,12 @@ export default function OnboardingScene(props: Props) {
 			<Suspense fallback={null}>
 				<Landings
 					curve={curve}
-					answers={props.answers}
-					clockRef={props.clockRef}
-					reducedRef={props.reducedRef}
+					answers={answers}
+					clockRef={journeySession.clock}
+					reducedRef={journeySession.reduced}
 				/>
 			</Suspense>
-			<JourneyRig
-				curve={curve}
-				rings={rings}
-				journeyRef={props.journeyRef}
-				progressRef={progressRef}
-				clockRef={props.clockRef}
-				reducedRef={props.reducedRef}
-				audioRef={props.audioRef}
-				phaseRef={props.phaseRef}
-				onProgress={props.onProgress}
-				onReady={props.onReady}
-			/>
+			<JourneyRig curve={curve} rings={rings} progressRef={progressRef} />
 		</>
 	);
 }

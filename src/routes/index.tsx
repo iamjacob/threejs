@@ -5,8 +5,10 @@ import {
 	type MouseEvent,
 	Suspense,
 	useEffect,
+	useLayoutEffect,
 	useRef,
 	useState,
+	useSyncExternalStore,
 } from "react";
 import { useShelfControlsStore } from "../../stores/useShelfControlsStore";
 import BoooksController from "../components/layout/BoooksController";
@@ -27,6 +29,13 @@ import {
 import { useRuntimeAtlas } from "../lib/runtimeAtlas";
 import { watchLibraryLoops } from "../lib/syncLibraryLoops";
 import { gateHomeRoute } from "../onboarding/gate";
+import {
+	dockStage,
+	parkStage,
+	setLibraryHost,
+	stageOwnsLibrary,
+	subscribeStage,
+} from "../onboarding/stageHost";
 import { useBookStore, useSelectedBook } from "../stores/useBookStore";
 import { usePresentationStore } from "../stores/usePresentationStore";
 import { useShelfPlatesStore } from "../stores/useShelfPlatesStore";
@@ -128,6 +137,27 @@ function Home() {
 	const showShelfControls = !scanning && editing && editableStage;
 	const readerClosed = reader === "closed";
 	const chrome = sceneBooted && !scanning;
+	const handoff = useSyncExternalStore(
+		subscribeStage,
+		stageOwnsLibrary,
+		() => false,
+	);
+	const handoffSlot = useRef<HTMLDivElement>(null);
+	useLayoutEffect(() => {
+		if (!handoff) return;
+		const slot = handoffSlot.current;
+		if (!slot) return;
+		dockStage(slot);
+		return () => parkStage();
+	}, [handoff]);
+	useEffect(() => {
+		if (!handoff) return;
+		setLibraryHost({
+			paused: scanning || reader === "open",
+			showStats,
+			onScreenshot: () => setNotice("Screenshot saved!"),
+		});
+	}, [handoff, reader, scanning, showStats]);
 
 	const wasEditing = useRef(editing);
 	useEffect(() => {
@@ -307,15 +337,23 @@ function Home() {
 			{!scanning && bookPanel === "closed" && notice && (
 				<output className="library-notice">{notice}</output>
 			)}
-			{!scanning && readerClosed && <MarkLoader />}
-			<LibraryScene
-				visible={sceneBooted}
-				paused={scanning || reader === "open"}
-				interactive={sceneBooted && !scanning && readerClosed}
-				stage={stage}
-				showStats={showStats}
-				onScreenshot={() => setNotice("Screenshot saved!")}
-			/>
+			{!handoff && !scanning && readerClosed && <MarkLoader />}
+			{handoff ? (
+				<div
+					ref={handoffSlot}
+					className="fixed inset-0"
+					data-testid="library-handoff"
+				/>
+			) : (
+				<LibraryScene
+					visible={sceneBooted}
+					paused={scanning || reader === "open"}
+					interactive={sceneBooted && !scanning && readerClosed}
+					stage={stage}
+					showStats={showStats}
+					onScreenshot={() => setNotice("Screenshot saved!")}
+				/>
+			)}
 		</div>
 	);
 }

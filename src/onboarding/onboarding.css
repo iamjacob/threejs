@@ -6,21 +6,32 @@
 	touch-action: none;
 	overscroll-behavior: none;
 	color: #f7f4ee;
-	background: linear-gradient(#101828, #c5c4e0);
+	background: transparent;
 	font-family: "Iowan Old Style", Palatino, Georgia, serif;
 	user-select: none;
+}
+
+#boooks-stage {
+	background: linear-gradient(#101828, #c5c4e0);
+}
+
+#boooks-stage canvas {
+	opacity: 0;
+	transition: opacity 0.4s ease;
+}
+
+#boooks-stage.is-ready canvas {
+	opacity: 1;
+}
+
+#boooks-stage[data-mode="library"] {
+	background: #080d1a;
 }
 
 .onb-stage {
 	position: absolute;
 	inset: 0;
 	z-index: 1;
-	opacity: 0;
-	transition: opacity 0.4s ease;
-}
-
-.onb-stage.is-ready {
-	opacity: 1;
 }
 
 .onb-stage > div {
@@ -260,6 +271,32 @@
 	max-width: 16ch;
 }
 
+.onb-library-hint {
+	margin-top: 14px;
+	font-family: system-ui, sans-serif;
+	font-size: 14px;
+	letter-spacing: 0.04em;
+	color: #f7f4ee;
+}
+
+.onb[data-arriving="true"] .onb-header {
+	opacity: 0;
+	pointer-events: none;
+}
+
+.onb[data-arriving="true"] .onb-end {
+	justify-content: flex-end;
+}
+
+.onb[data-arriving="true"] .onb-end h2,
+.onb[data-arriving="true"] .onb-end > p:not(.onb-library-hint) {
+	opacity: 0;
+}
+
+.onb[data-arriving="true"] .onb-library-hint {
+	opacity: 0;
+}
+
 .onb-end-actions {
 	display: flex;
 	flex-direction: column;
@@ -299,7 +336,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-	.onb-stage {
+	#boooks-stage canvas,
+	.onb-header,
+	.onb-end h2,
+	.onb-end p {
 		transition: none;
 	}
 
